@@ -81,6 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Simple time tracking for small teams." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Clockwise — Time Tracking" },
+      { name: "twitter:description", content: "Simple time tracking for small teams." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/851a4d84-675f-4a25-a7f2-d6ec53c904ab/id-preview-555e121e--c8f11bbe-12b6-4e27-8a9f-78339ccd1db8.lovable.app-1778551408516.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/851a4d84-675f-4a25-a7f2-d6ec53c904ab/id-preview-555e121e--c8f11bbe-12b6-4e27-8a9f-78339ccd1db8.lovable.app-1778551408516.png" },
     ],
     links: [
       {
