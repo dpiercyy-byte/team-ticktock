@@ -14,7 +14,127 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      app_settings: {
+        Row: {
+          admin_password_hash: string
+          id: number
+          project_tracking_enabled: boolean
+          show_pay_estimates: boolean
+        }
+        Insert: {
+          admin_password_hash: string
+          id?: number
+          project_tracking_enabled?: boolean
+          show_pay_estimates?: boolean
+        }
+        Update: {
+          admin_password_hash?: string
+          id?: number
+          project_tracking_enabled?: boolean
+          show_pay_estimates?: boolean
+        }
+        Relationships: []
+      }
+      reimbursements: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          week_start: string
+          worker_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          week_start: string
+          worker_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          week_start?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reimbursements_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entries: {
+        Row: {
+          clock_in: string
+          clock_out: string | null
+          created_at: string
+          created_by: string
+          flagged_review: boolean
+          id: string
+          project: string | null
+          worker_id: string
+        }
+        Insert: {
+          clock_in: string
+          clock_out?: string | null
+          created_at?: string
+          created_by?: string
+          flagged_review?: boolean
+          id?: string
+          project?: string | null
+          worker_id: string
+        }
+        Update: {
+          clock_in?: string
+          clock_out?: string | null
+          created_at?: string
+          created_by?: string
+          flagged_review?: boolean
+          id?: string
+          project?: string | null
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workers: {
+        Row: {
+          created_at: string
+          hourly_rate: number
+          id: string
+          name: string
+          pin_hash: string
+        }
+        Insert: {
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          name: string
+          pin_hash: string
+        }
+        Update: {
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          name?: string
+          pin_hash?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
