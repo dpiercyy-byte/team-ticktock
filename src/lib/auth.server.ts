@@ -36,3 +36,15 @@ export function verifyToken<T = Record<string, unknown>>(token: string): T & { e
 
 export const WORKER_TTL = 60 * 60 * 24 * 365; // 1 year
 export const ADMIN_TTL = 60 * 30; // 30 min sliding
+
+export function requireWorker(token: string): string {
+  const p = verifyToken<{ kind: string; wid: string }>(token);
+  if (p.kind !== "worker" || !p.wid) throw new Response("Unauthorized", { status: 401 });
+  return p.wid;
+}
+
+export function requireAdmin(token: string): { token: string } {
+  const p = verifyToken<{ kind: string }>(token);
+  if (p.kind !== "admin") throw new Response("Unauthorized", { status: 401 });
+  return { token: signToken({ kind: "admin" }, ADMIN_TTL) };
+}
