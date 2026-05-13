@@ -182,12 +182,12 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      <header className="flex items-center justify-between px-5 py-4 border-b border-border bg-card">
-        <div>
+      <header className="flex items-center justify-between gap-3 px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 border-b border-border bg-card">
+        <div className="min-w-0">
           <p className="text-xs text-muted-foreground">Signed in as</p>
-          <p className="font-semibold">{session.name}</p>
+          <p className="font-semibold truncate">{session.name}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <span className={`flex items-center gap-1 text-xs ${online ? "text-success" : "text-muted-foreground"}`}>
             {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
             {online ? "Online" : "Offline"}
@@ -208,7 +208,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                 {active ? "Currently Working" : "Not Clocked In"}
               </p>
               {active && (
-                <p className="mt-2 text-5xl font-bold tabular-nums tracking-tight">{sessionStr}</p>
+                <p className="mt-2 text-5xl sm:text-6xl font-bold tabular-nums tracking-tight select-none">{sessionStr}</p>
               )}
               {active?.project && (
                 <p className="mt-2 text-sm text-muted-foreground inline-flex items-center gap-1.5">
@@ -230,13 +230,13 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
             {active ? (
               <Button size="lg" onClick={() => outMut.mutate()} disabled={outMut.isPending}
-                      className="h-32 w-32 rounded-full text-lg font-bold shadow-lg"
+                      className="h-40 w-40 rounded-full text-lg font-bold shadow-lg touch-manipulation select-none active:scale-95 transition-transform"
                       style={{ background: "var(--destructive)", color: "var(--destructive-foreground)" }}>
                 {outMut.isPending ? "…" : "Clock Out"}
               </Button>
             ) : (
               <Button size="lg" onClick={() => inMut.mutate()} disabled={inMut.isPending}
-                      className="h-32 w-32 rounded-full text-lg font-bold shadow-[var(--shadow-elevated)]"
+                      className="h-40 w-40 rounded-full text-lg font-bold shadow-[var(--shadow-elevated)] touch-manipulation select-none active:scale-95 transition-transform"
                       style={{ background: "var(--gradient-primary)", color: "var(--primary-foreground)" }}>
                 {inMut.isPending ? "…" : "Clock In"}
               </Button>
@@ -249,7 +249,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         )}
       </main>
 
-      <section className="border-t border-border bg-card px-6 py-5 grid grid-cols-2 gap-4">
+      <section className="border-t border-border bg-card px-6 py-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>
           <p className="text-2xl font-bold tabular-nums">{fmtHours(todayDisplay)}</p>

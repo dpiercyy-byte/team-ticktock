@@ -124,31 +124,33 @@ function AdminDashboard({ token, updateToken, onLogout }: {
   return (
     <div className="min-h-dvh bg-background">
       <header className="border-b border-border bg-card">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg"
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                  style={{ background: "var(--gradient-primary)" }}>
               <Clock className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div>
-              <h1 className="font-bold">Clockwise Admin</h1>
-              <p className="text-xs text-muted-foreground">Session expires after 30 min idle</p>
+            <div className="min-w-0">
+              <h1 className="font-bold truncate">Clockwise Admin</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">Session expires after 30 min idle</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={onLogout}>
-            <LogOut className="h-4 w-4 mr-2" />Sign out
+          <Button variant="outline" size="sm" onClick={onLogout} className="shrink-0">
+            <LogOut className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-4 sm:p-6">
         <Tabs defaultValue="entries">
-          <TabsList className="mb-6">
-            <TabsTrigger value="entries">Time Entries</TabsTrigger>
-            <TabsTrigger value="payouts">Weekly Payouts</TabsTrigger>
-            <TabsTrigger value="workers">Workers</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+          <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 overflow-x-auto">
+            <TabsList className="mx-4 sm:mx-0 w-max sm:w-auto">
+              <TabsTrigger value="entries">Time Entries</TabsTrigger>
+              <TabsTrigger value="payouts">Weekly Payouts</TabsTrigger>
+              <TabsTrigger value="workers">Workers</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="entries"><EntriesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
@@ -238,18 +240,16 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       )}
 
       <div className="flex flex-wrap items-end gap-3 justify-between">
-        <div className="flex items-end gap-3">
-          <div>
-            <Label className="text-xs">Worker</Label>
-            <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-              <SelectTrigger className="w-[220px] mt-1.5"><SelectValue placeholder="Select worker" /></SelectTrigger>
-              <SelectContent>
-                {wq.data?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex-1 min-w-[180px]">
+          <Label className="text-xs">Worker</Label>
+          <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+            <SelectTrigger className="w-full sm:w-[220px] mt-1.5"><SelectValue placeholder="Select worker" /></SelectTrigger>
+            <SelectContent>
+              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
-        <Button onClick={() => setAdding(true)} disabled={!workerId}>
+        <Button onClick={() => setAdding(true)} disabled={!workerId} className="shrink-0">
           <Plus className="h-4 w-4 mr-2" /> Add entry
         </Button>
       </div>
@@ -272,26 +272,26 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                 const dayHours = items.reduce((s, e) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0), 0);
                 return (
                   <div key={date}>
-                    <div className="px-5 py-2 bg-secondary flex justify-between text-sm">
+                    <div className="px-4 sm:px-5 py-2 bg-secondary flex justify-between text-sm">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
                       <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
                     {items.map((e: any) => (
-                      <div key={e.id} className="px-5 py-3 flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="font-medium tabular-nums">
+                      <div key={e.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium tabular-nums text-sm sm:text-base">
                             {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                            <span className="ml-3 text-muted-foreground text-sm">
+                            <span className="ml-2 sm:ml-3 text-muted-foreground text-xs sm:text-sm">
                               {e.clock_out ? `${diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs` : ""}
                             </span>
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2">
-                            <span>{e.project ?? "General"}</span>
+                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1.5 items-center">
+                            <span className="truncate max-w-[160px]">{e.project ?? "General"}</span>
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
                           </p>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-0.5 shrink-0">
                           <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -496,19 +496,19 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
          wq.data?.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">No workers yet.</p> :
          <div className="divide-y divide-border">
            {wq.data?.map(w => (
-             <div key={w.id} className="px-5 py-3 flex items-center justify-between gap-3">
-               <div>
-                 <p className="font-medium">{w.name}</p>
+             <div key={w.id} className="px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+               <div className="min-w-0">
+                 <p className="font-medium truncate">{w.name}</p>
                  <p className="text-xs text-muted-foreground">${Number(w.hourly_rate).toFixed(2)}/hr</p>
                </div>
-               <div className="flex items-center gap-2">
+               <div className="flex items-center gap-2 shrink-0 ml-auto">
                  <RateEditor worker={w} onSave={async (v) => {
                    try { const r = await rateFn({ data: { token, workerId: w.id, hourlyRate: v } });
                      updateToken(r.token); refresh(); toast.success("Rate updated"); }
                    catch (e: any) { toast.error(e?.message || "Failed"); }
                  }} />
                  <Button variant="outline" size="sm" onClick={() => { setResetting({ id: w.id, name: w.name }); setNewPin(""); }}>
-                   <KeyRound className="h-3.5 w-3.5 mr-1" />PIN
+                   <KeyRound className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">PIN</span>
                  </Button>
                  <Button variant="ghost" size="icon" onClick={() => setConfirmDel({ id: w.id, name: w.name })}>
                    <Trash2 className="h-4 w-4 text-destructive" />
@@ -567,7 +567,7 @@ function RateEditor({ worker, onSave }: { worker: any; onSave: (v: number) => vo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm"><DollarSign className="h-3.5 w-3.5 mr-1" />Rate</Button>
+        <Button variant="outline" size="sm"><DollarSign className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Rate</span></Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Set hourly rate — {worker.name}</DialogTitle></DialogHeader>
@@ -633,50 +633,56 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-end justify-between">
-        <div>
+        <div className="flex-1 min-w-[160px]">
           <Label className="text-xs">Week starting (Sunday)</Label>
           <Input type="date" value={week} onChange={(e) => {
             const d = new Date(e.target.value);
             d.setDate(d.getDate() - d.getDay());
             setWeek(d.toISOString().slice(0, 10));
-          }} className="mt-1.5 w-[200px]" />
+          }} className="mt-1.5 w-full sm:w-[200px]" />
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={downloadCsv}><Download className="h-4 w-4 mr-2" />Time entries CSV</Button>
-          <Button onClick={downloadPayoutCsv}><Download className="h-4 w-4 mr-2" />Payout CSV</Button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={downloadCsv} className="flex-1 sm:flex-none">
+            <Download className="h-4 w-4 mr-2" /><span className="hidden xs:inline">Time entries </span>CSV
+          </Button>
+          <Button onClick={downloadPayoutCsv} className="flex-1 sm:flex-none">
+            <Download className="h-4 w-4 mr-2" />Payout CSV
+          </Button>
         </div>
       </div>
 
       <Card><CardContent className="p-0">
         {pq.isLoading ? <p className="p-6 text-sm">Loading…</p> : (
-          <table className="w-full text-sm">
-            <thead className="bg-secondary">
-              <tr className="text-left">
-                <th className="p-3">Worker</th><th className="p-3 text-right">Hours</th>
-                <th className="p-3 text-right">Rate</th><th className="p-3 text-right">Wages</th>
-                <th className="p-3 text-right">Reimb.</th><th className="p-3 text-right">Total</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pq.data?.map((s: any) => (
-                <tr key={s.workerId} className="border-t border-border">
-                  <td className="p-3 font-medium">{s.name}</td>
-                  <td className="p-3 text-right tabular-nums">{s.hours.toFixed(2)}</td>
-                  <td className="p-3 text-right tabular-nums">${s.hourlyRate.toFixed(2)}</td>
-                  <td className="p-3 text-right tabular-nums">{fmtMoney(s.wages)}</td>
-                  <td className="p-3 text-right tabular-nums">{fmtMoney(s.reimbTotal)}</td>
-                  <td className="p-3 text-right tabular-nums font-bold">{fmtMoney(s.total)}</td>
-                  <td className="p-3 text-right">
-                    <Button size="sm" variant="outline"
-                            onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
-                      Reimb.
-                    </Button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead className="bg-secondary">
+                <tr className="text-left">
+                  <th className="p-3">Worker</th><th className="p-3 text-right">Hours</th>
+                  <th className="p-3 text-right">Rate</th><th className="p-3 text-right">Wages</th>
+                  <th className="p-3 text-right">Reimb.</th><th className="p-3 text-right">Total</th>
+                  <th className="p-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pq.data?.map((s: any) => (
+                  <tr key={s.workerId} className="border-t border-border">
+                    <td className="p-3 font-medium">{s.name}</td>
+                    <td className="p-3 text-right tabular-nums">{s.hours.toFixed(2)}</td>
+                    <td className="p-3 text-right tabular-nums">${s.hourlyRate.toFixed(2)}</td>
+                    <td className="p-3 text-right tabular-nums">{fmtMoney(s.wages)}</td>
+                    <td className="p-3 text-right tabular-nums">{fmtMoney(s.reimbTotal)}</td>
+                    <td className="p-3 text-right tabular-nums font-bold">{fmtMoney(s.total)}</td>
+                    <td className="p-3 text-right">
+                      <Button size="sm" variant="outline"
+                              onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
+                        Reimb.
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </CardContent></Card>
 
@@ -684,11 +690,11 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         <DialogContent>
           <DialogHeader><DialogTitle>Reimbursements — {reimbFor?.name} (week of {week})</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="flex gap-2">
-              <Input placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} />
+            <div className="flex flex-wrap gap-2">
+              <Input placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} className="flex-1 min-w-[140px]" />
               <Input type="number" step="0.01" placeholder="Amount" value={amt}
-                     onChange={(e) => setAmt(e.target.value)} className="w-[120px]" />
-              <Button onClick={async () => {
+                     onChange={(e) => setAmt(e.target.value)} className="w-[110px]" />
+              <Button className="w-full sm:w-auto" onClick={async () => {
                 try {
                   const r = await reimbAdd({ data: { token, workerId: reimbFor!.id, weekStart: week, description: desc, amount: parseFloat(amt) || 0 } });
                   updateToken(r.token); setDesc(""); setAmt("");
@@ -773,9 +779,9 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
 
       <Card>
         <CardHeader><CardTitle>Change admin password</CardTitle></CardHeader>
-        <CardContent className="flex gap-2">
-          <Input type="password" placeholder="New password" value={pw} onChange={(e) => setPw(e.target.value)} />
-          <Button disabled={pw.length < 4} onClick={async () => {
+        <CardContent className="flex flex-wrap gap-2">
+          <Input type="password" placeholder="New password" value={pw} onChange={(e) => setPw(e.target.value)} className="flex-1 min-w-[180px]" />
+          <Button disabled={pw.length < 4} className="w-full sm:w-auto" onClick={async () => {
             try { const r = await chFn({ data: { token, newPassword: pw } });
               updateToken(r.token); setPw(""); toast.success("Password changed"); }
             catch (e: any) { toast.error(e?.message || "Failed"); }
