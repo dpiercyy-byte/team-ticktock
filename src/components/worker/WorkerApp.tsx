@@ -230,13 +230,13 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
             {active ? (
               <Button size="lg" onClick={() => outMut.mutate()} disabled={outMut.isPending}
-                      className="h-32 w-32 rounded-full text-lg font-bold shadow-lg"
+                      className="h-40 w-40 rounded-full text-lg font-bold shadow-lg touch-manipulation select-none active:scale-95 transition-transform"
                       style={{ background: "var(--destructive)", color: "var(--destructive-foreground)" }}>
                 {outMut.isPending ? "…" : "Clock Out"}
               </Button>
             ) : (
               <Button size="lg" onClick={() => inMut.mutate()} disabled={inMut.isPending}
-                      className="h-32 w-32 rounded-full text-lg font-bold shadow-[var(--shadow-elevated)]"
+                      className="h-40 w-40 rounded-full text-lg font-bold shadow-[var(--shadow-elevated)] touch-manipulation select-none active:scale-95 transition-transform"
                       style={{ background: "var(--gradient-primary)", color: "var(--primary-foreground)" }}>
                 {inMut.isPending ? "…" : "Clock In"}
               </Button>
