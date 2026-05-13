@@ -272,26 +272,26 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                 const dayHours = items.reduce((s, e) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0), 0);
                 return (
                   <div key={date}>
-                    <div className="px-5 py-2 bg-secondary flex justify-between text-sm">
+                    <div className="px-4 sm:px-5 py-2 bg-secondary flex justify-between text-sm">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
                       <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
                     {items.map((e: any) => (
-                      <div key={e.id} className="px-5 py-3 flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="font-medium tabular-nums">
+                      <div key={e.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium tabular-nums text-sm sm:text-base">
                             {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                            <span className="ml-3 text-muted-foreground text-sm">
+                            <span className="ml-2 sm:ml-3 text-muted-foreground text-xs sm:text-sm">
                               {e.clock_out ? `${diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs` : ""}
                             </span>
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2">
-                            <span>{e.project ?? "General"}</span>
+                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1.5 items-center">
+                            <span className="truncate max-w-[160px]">{e.project ?? "General"}</span>
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
                           </p>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-0.5 shrink-0">
                           <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
