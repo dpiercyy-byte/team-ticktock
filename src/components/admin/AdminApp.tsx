@@ -30,7 +30,7 @@ import {
 } from "@/lib/entries.functions";
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
-  listReimbursements, addReimbursement, deleteReimbursement,
+  listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
 } from "@/lib/reimbursements.functions";
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
