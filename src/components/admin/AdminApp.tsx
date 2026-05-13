@@ -124,31 +124,33 @@ function AdminDashboard({ token, updateToken, onLogout }: {
   return (
     <div className="min-h-dvh bg-background">
       <header className="border-b border-border bg-card">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg"
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                  style={{ background: "var(--gradient-primary)" }}>
               <Clock className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div>
-              <h1 className="font-bold">Clockwise Admin</h1>
-              <p className="text-xs text-muted-foreground">Session expires after 30 min idle</p>
+            <div className="min-w-0">
+              <h1 className="font-bold truncate">Clockwise Admin</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">Session expires after 30 min idle</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={onLogout}>
-            <LogOut className="h-4 w-4 mr-2" />Sign out
+          <Button variant="outline" size="sm" onClick={onLogout} className="shrink-0">
+            <LogOut className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-4 sm:p-6">
         <Tabs defaultValue="entries">
-          <TabsList className="mb-6">
-            <TabsTrigger value="entries">Time Entries</TabsTrigger>
-            <TabsTrigger value="payouts">Weekly Payouts</TabsTrigger>
-            <TabsTrigger value="workers">Workers</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+          <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 overflow-x-auto">
+            <TabsList className="mx-4 sm:mx-0 w-max sm:w-auto">
+              <TabsTrigger value="entries">Time Entries</TabsTrigger>
+              <TabsTrigger value="payouts">Weekly Payouts</TabsTrigger>
+              <TabsTrigger value="workers">Workers</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="entries"><EntriesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
