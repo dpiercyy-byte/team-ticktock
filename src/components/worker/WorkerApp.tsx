@@ -208,7 +208,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                 {active ? "Currently Working" : "Not Clocked In"}
               </p>
               {active && (
-                <p className="mt-2 text-5xl font-bold tabular-nums tracking-tight">{sessionStr}</p>
+                <p className="mt-2 text-5xl sm:text-6xl font-bold tabular-nums tracking-tight select-none">{sessionStr}</p>
               )}
               {active?.project && (
                 <p className="mt-2 text-sm text-muted-foreground inline-flex items-center gap-1.5">
