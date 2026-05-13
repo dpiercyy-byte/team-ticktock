@@ -690,11 +690,11 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         <DialogContent>
           <DialogHeader><DialogTitle>Reimbursements — {reimbFor?.name} (week of {week})</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="flex gap-2">
-              <Input placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} />
+            <div className="flex flex-wrap gap-2">
+              <Input placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} className="flex-1 min-w-[140px]" />
               <Input type="number" step="0.01" placeholder="Amount" value={amt}
-                     onChange={(e) => setAmt(e.target.value)} className="w-[120px]" />
-              <Button onClick={async () => {
+                     onChange={(e) => setAmt(e.target.value)} className="w-[110px]" />
+              <Button className="w-full sm:w-auto" onClick={async () => {
                 try {
                   const r = await reimbAdd({ data: { token, workerId: reimbFor!.id, weekStart: week, description: desc, amount: parseFloat(amt) || 0 } });
                   updateToken(r.token); setDesc(""); setAmt("");
