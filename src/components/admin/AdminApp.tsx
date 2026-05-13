@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
+  Paperclip, Upload, X, FileText,
 } from "lucide-react";
 import {
   adminLogin, adminVerify, adminChangePassword,
@@ -29,13 +30,27 @@ import {
 } from "@/lib/entries.functions";
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
-  listReimbursements, addReimbursement, deleteReimbursement,
+  listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
 } from "@/lib/reimbursements.functions";
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
 import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours } from "@/lib/format";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
+const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      const i = s.indexOf(",");
+      resolve(i >= 0 ? s.slice(i + 1) : s);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
 
 export function AdminApp() {
   const [token, setTokenState] = useState<string | null>(null);
@@ -585,6 +600,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   const reimbList = useServerFn(listReimbursements);
   const reimbAdd = useServerFn(addReimbursement);
   const reimbDel = useServerFn(deleteReimbursement);
+  const upload = useServerFn(uploadReceipt);
   const qc = useQueryClient();
 
   const [week, setWeek] = useState(startOfWeekISO());
@@ -596,6 +612,31 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const [reimbFor, setReimbFor] = useState<{ id: string; name: string } | null>(null);
   const [desc, setDesc] = useState(""); const [amt, setAmt] = useState("");
+  const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
+
+  const handleFile = async (file: File) => {
+    if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
+      toast.error("Only JPG, PNG or PDF allowed");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Max file size is 10MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const base64 = await fileToBase64(file);
+      const r = await upload({ data: { token, filename: file.name, mime: file.type as any, base64 } });
+      updateToken(r.token);
+      setReceipt({ url: r.url, mime: r.mime });
+    } catch (e: any) {
+      toast.error(e?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
   const rq = useQuery({
     enabled: !!reimbFor,
     queryKey: ["reimb", reimbFor?.id, week],
@@ -683,30 +724,93 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         )}
       </CardContent></Card>
 
-      <Dialog open={!!reimbFor} onOpenChange={() => setReimbFor(null)}>
+      <Dialog open={!!reimbFor} onOpenChange={(o) => { if (!o) { setReimbFor(null); setReceipt(null); setDesc(""); setAmt(""); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reimbursements — {reimbFor?.name} (week of {week})</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <Input placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} className="flex-1 min-w-[140px]" />
-              <Input type="number" step="0.01" placeholder="Amount" value={amt}
-                     onChange={(e) => setAmt(e.target.value)} className="w-[110px]" />
-              <Button className="w-full sm:w-auto" onClick={async () => {
-                try {
-                  const r = await reimbAdd({ data: { token, workerId: reimbFor!.id, weekStart: week, description: desc, amount: parseFloat(amt) || 0 } });
-                  updateToken(r.token); setDesc(""); setAmt("");
-                  qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
-                  qc.invalidateQueries({ queryKey: ["payout", week] });
-                } catch (e: any) { toast.error(e?.message || "Failed"); }
-              }} disabled={!desc.trim() || !amt}>Add</Button>
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Input placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} className="flex-1 min-w-[140px]" />
+                <Input type="number" step="0.01" placeholder="Amount" value={amt}
+                       onChange={(e) => setAmt(e.target.value)} className="w-[110px]" />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {receipt ? (
+                  <div className="flex items-center gap-2 rounded-md border border-border p-1.5 pr-2">
+                    <button type="button" onClick={() => setViewing(receipt)}
+                            className="block h-12 w-12 overflow-hidden rounded bg-secondary">
+                      {receipt.mime.startsWith("image/") ? (
+                        <img src={receipt.url} alt="Receipt preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </button>
+                    <span className="text-xs text-muted-foreground">Receipt attached</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setReceipt(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="inline-flex">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,application/pdf"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.currentTarget.value = "";
+                        if (f) handleFile(f);
+                      }}
+                    />
+                    <span className={`inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border border-border cursor-pointer hover:bg-secondary ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+                      <Upload className="h-3.5 w-3.5" />
+                      {uploading ? "Uploading…" : "Attach receipt (optional)"}
+                    </span>
+                  </label>
+                )}
+                <Button className="ml-auto" onClick={async () => {
+                  try {
+                    const r = await reimbAdd({ data: {
+                      token, workerId: reimbFor!.id, weekStart: week,
+                      description: desc, amount: parseFloat(amt) || 0,
+                      receiptUrl: receipt?.url ?? null,
+                      receiptMime: receipt?.mime ?? null,
+                    } });
+                    updateToken(r.token); setDesc(""); setAmt(""); setReceipt(null);
+                    qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
+                    qc.invalidateQueries({ queryKey: ["payout", week] });
+                  } catch (e: any) { toast.error(e?.message || "Failed"); }
+                }} disabled={!desc.trim() || !amt || uploading}>Add</Button>
+              </div>
             </div>
             <div className="border border-border rounded-md divide-y divide-border max-h-72 overflow-auto">
               {rq.data?.length === 0 ? (
                 <p className="p-4 text-sm text-muted-foreground text-center">No reimbursements this week.</p>
               ) : rq.data?.map((r: any) => (
-                <div key={r.id} className="px-3 py-2 flex items-center justify-between text-sm">
-                  <div><p>{r.description}</p></div>
-                  <div className="flex items-center gap-2">
+                <div key={r.id} className="px-3 py-2 flex items-center justify-between gap-2 text-sm">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {r.receipt_url ? (
+                      <button type="button"
+                              onClick={() => setViewing({ url: r.receipt_url, mime: r.receipt_mime || "image/jpeg" })}
+                              className="block h-10 w-10 shrink-0 overflow-hidden rounded bg-secondary">
+                        {(r.receipt_mime || "").startsWith("image/") ? (
+                          <img src={r.receipt_url} alt="Receipt" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </button>
+                    ) : null}
+                    <p className="truncate flex items-center gap-1.5">
+                      {r.description}
+                      {r.receipt_url && <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="tabular-nums">{fmtMoney(Number(r.amount))}</span>
                     <Button variant="ghost" size="icon" onClick={async () => {
                       try { const x = await reimbDel({ data: { token, id: r.id } });
@@ -720,6 +824,24 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
               ))}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>Receipt</DialogTitle></DialogHeader>
+          {viewing && (viewing.mime === "application/pdf" ? (
+            <iframe src={viewing.url} title="Receipt" className="w-full h-[70vh] rounded-md border border-border" />
+          ) : (
+            <img src={viewing.url} alt="Receipt" className="w-full max-h-[70vh] object-contain rounded-md" />
+          ))}
+          {viewing && (
+            <DialogFooter>
+              <a href={viewing.url} target="_blank" rel="noreferrer">
+                <Button variant="outline">Open in new tab</Button>
+              </a>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>

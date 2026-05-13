@@ -41,6 +41,8 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          receipt_mime: string | null
+          receipt_url: string | null
           week_start: string
           worker_id: string
         }
@@ -49,6 +51,8 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          receipt_mime?: string | null
+          receipt_url?: string | null
           week_start: string
           worker_id: string
         }
@@ -57,6 +61,8 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          receipt_mime?: string | null
+          receipt_url?: string | null
           week_start?: string
           worker_id?: string
         }
