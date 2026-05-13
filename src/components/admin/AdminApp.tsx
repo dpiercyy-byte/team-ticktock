@@ -779,9 +779,9 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
 
       <Card>
         <CardHeader><CardTitle>Change admin password</CardTitle></CardHeader>
-        <CardContent className="flex gap-2">
-          <Input type="password" placeholder="New password" value={pw} onChange={(e) => setPw(e.target.value)} />
-          <Button disabled={pw.length < 4} onClick={async () => {
+        <CardContent className="flex flex-wrap gap-2">
+          <Input type="password" placeholder="New password" value={pw} onChange={(e) => setPw(e.target.value)} className="flex-1 min-w-[180px]" />
+          <Button disabled={pw.length < 4} className="w-full sm:w-auto" onClick={async () => {
             try { const r = await chFn({ data: { token, newPassword: pw } });
               updateToken(r.token); setPw(""); toast.success("Password changed"); }
             catch (e: any) { toast.error(e?.message || "Failed"); }
