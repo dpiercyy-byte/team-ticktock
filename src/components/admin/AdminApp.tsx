@@ -567,7 +567,7 @@ function RateEditor({ worker, onSave }: { worker: any; onSave: (v: number) => vo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm"><DollarSign className="h-3.5 w-3.5 mr-1" />Rate</Button>
+        <Button variant="outline" size="sm"><DollarSign className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Rate</span></Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Set hourly rate — {worker.name}</DialogTitle></DialogHeader>
