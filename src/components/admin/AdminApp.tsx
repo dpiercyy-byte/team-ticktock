@@ -103,9 +103,6 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
             <Button type="submit" className="w-full" disabled={m.isPending || !pw}>
               {m.isPending ? "…" : "Sign in"}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              Default: <code className="font-mono">admin123</code> — change in Settings.
-            </p>
             <div className="text-center">
               <a href="/" className="text-xs text-muted-foreground hover:text-foreground">
                 ← Back to worker app
