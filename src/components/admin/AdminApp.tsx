@@ -496,19 +496,19 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
          wq.data?.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">No workers yet.</p> :
          <div className="divide-y divide-border">
            {wq.data?.map(w => (
-             <div key={w.id} className="px-5 py-3 flex items-center justify-between gap-3">
-               <div>
-                 <p className="font-medium">{w.name}</p>
+             <div key={w.id} className="px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+               <div className="min-w-0">
+                 <p className="font-medium truncate">{w.name}</p>
                  <p className="text-xs text-muted-foreground">${Number(w.hourly_rate).toFixed(2)}/hr</p>
                </div>
-               <div className="flex items-center gap-2">
+               <div className="flex items-center gap-2 shrink-0 ml-auto">
                  <RateEditor worker={w} onSave={async (v) => {
                    try { const r = await rateFn({ data: { token, workerId: w.id, hourlyRate: v } });
                      updateToken(r.token); refresh(); toast.success("Rate updated"); }
                    catch (e: any) { toast.error(e?.message || "Failed"); }
                  }} />
                  <Button variant="outline" size="sm" onClick={() => { setResetting({ id: w.id, name: w.name }); setNewPin(""); }}>
-                   <KeyRound className="h-3.5 w-3.5 mr-1" />PIN
+                   <KeyRound className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">PIN</span>
                  </Button>
                  <Button variant="ghost" size="icon" onClick={() => setConfirmDel({ id: w.id, name: w.name })}>
                    <Trash2 className="h-4 w-4 text-destructive" />
