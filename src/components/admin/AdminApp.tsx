@@ -586,6 +586,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   const reimbList = useServerFn(listReimbursements);
   const reimbAdd = useServerFn(addReimbursement);
   const reimbDel = useServerFn(deleteReimbursement);
+  const upload = useServerFn(uploadReceipt);
   const qc = useQueryClient();
 
   const [week, setWeek] = useState(startOfWeekISO());
