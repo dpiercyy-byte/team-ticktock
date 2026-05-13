@@ -633,50 +633,56 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-end justify-between">
-        <div>
+        <div className="flex-1 min-w-[160px]">
           <Label className="text-xs">Week starting (Sunday)</Label>
           <Input type="date" value={week} onChange={(e) => {
             const d = new Date(e.target.value);
             d.setDate(d.getDate() - d.getDay());
             setWeek(d.toISOString().slice(0, 10));
-          }} className="mt-1.5 w-[200px]" />
+          }} className="mt-1.5 w-full sm:w-[200px]" />
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={downloadCsv}><Download className="h-4 w-4 mr-2" />Time entries CSV</Button>
-          <Button onClick={downloadPayoutCsv}><Download className="h-4 w-4 mr-2" />Payout CSV</Button>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={downloadCsv} className="flex-1 sm:flex-none">
+            <Download className="h-4 w-4 mr-2" /><span className="hidden xs:inline">Time entries </span>CSV
+          </Button>
+          <Button onClick={downloadPayoutCsv} className="flex-1 sm:flex-none">
+            <Download className="h-4 w-4 mr-2" />Payout CSV
+          </Button>
         </div>
       </div>
 
       <Card><CardContent className="p-0">
         {pq.isLoading ? <p className="p-6 text-sm">Loading…</p> : (
-          <table className="w-full text-sm">
-            <thead className="bg-secondary">
-              <tr className="text-left">
-                <th className="p-3">Worker</th><th className="p-3 text-right">Hours</th>
-                <th className="p-3 text-right">Rate</th><th className="p-3 text-right">Wages</th>
-                <th className="p-3 text-right">Reimb.</th><th className="p-3 text-right">Total</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pq.data?.map((s: any) => (
-                <tr key={s.workerId} className="border-t border-border">
-                  <td className="p-3 font-medium">{s.name}</td>
-                  <td className="p-3 text-right tabular-nums">{s.hours.toFixed(2)}</td>
-                  <td className="p-3 text-right tabular-nums">${s.hourlyRate.toFixed(2)}</td>
-                  <td className="p-3 text-right tabular-nums">{fmtMoney(s.wages)}</td>
-                  <td className="p-3 text-right tabular-nums">{fmtMoney(s.reimbTotal)}</td>
-                  <td className="p-3 text-right tabular-nums font-bold">{fmtMoney(s.total)}</td>
-                  <td className="p-3 text-right">
-                    <Button size="sm" variant="outline"
-                            onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
-                      Reimb.
-                    </Button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead className="bg-secondary">
+                <tr className="text-left">
+                  <th className="p-3">Worker</th><th className="p-3 text-right">Hours</th>
+                  <th className="p-3 text-right">Rate</th><th className="p-3 text-right">Wages</th>
+                  <th className="p-3 text-right">Reimb.</th><th className="p-3 text-right">Total</th>
+                  <th className="p-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pq.data?.map((s: any) => (
+                  <tr key={s.workerId} className="border-t border-border">
+                    <td className="p-3 font-medium">{s.name}</td>
+                    <td className="p-3 text-right tabular-nums">{s.hours.toFixed(2)}</td>
+                    <td className="p-3 text-right tabular-nums">${s.hourlyRate.toFixed(2)}</td>
+                    <td className="p-3 text-right tabular-nums">{fmtMoney(s.wages)}</td>
+                    <td className="p-3 text-right tabular-nums">{fmtMoney(s.reimbTotal)}</td>
+                    <td className="p-3 text-right tabular-nums font-bold">{fmtMoney(s.total)}</td>
+                    <td className="p-3 text-right">
+                      <Button size="sm" variant="outline"
+                              onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
+                        Reimb.
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </CardContent></Card>
 
