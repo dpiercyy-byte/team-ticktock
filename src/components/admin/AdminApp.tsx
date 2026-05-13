@@ -240,18 +240,16 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       )}
 
       <div className="flex flex-wrap items-end gap-3 justify-between">
-        <div className="flex items-end gap-3">
-          <div>
-            <Label className="text-xs">Worker</Label>
-            <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-              <SelectTrigger className="w-[220px] mt-1.5"><SelectValue placeholder="Select worker" /></SelectTrigger>
-              <SelectContent>
-                {wq.data?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex-1 min-w-[180px]">
+          <Label className="text-xs">Worker</Label>
+          <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+            <SelectTrigger className="w-full sm:w-[220px] mt-1.5"><SelectValue placeholder="Select worker" /></SelectTrigger>
+            <SelectContent>
+              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
-        <Button onClick={() => setAdding(true)} disabled={!workerId}>
+        <Button onClick={() => setAdding(true)} disabled={!workerId} className="shrink-0">
           <Plus className="h-4 w-4 mr-2" /> Add entry
         </Button>
       </div>
