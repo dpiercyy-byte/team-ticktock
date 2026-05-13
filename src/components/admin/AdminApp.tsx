@@ -598,6 +598,31 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const [reimbFor, setReimbFor] = useState<{ id: string; name: string } | null>(null);
   const [desc, setDesc] = useState(""); const [amt, setAmt] = useState("");
+  const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
+
+  const handleFile = async (file: File) => {
+    if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
+      toast.error("Only JPG, PNG or PDF allowed");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Max file size is 10MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const base64 = await fileToBase64(file);
+      const r = await upload({ data: { token, filename: file.name, mime: file.type as any, base64 } });
+      updateToken(r.token);
+      setReceipt({ url: r.url, mime: r.mime });
+    } catch (e: any) {
+      toast.error(e?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
   const rq = useQuery({
     enabled: !!reimbFor,
     queryKey: ["reimb", reimbFor?.id, week],
