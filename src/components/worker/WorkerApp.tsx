@@ -182,12 +182,12 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
-      <header className="flex items-center justify-between px-5 py-4 border-b border-border bg-card">
-        <div>
+      <header className="flex items-center justify-between gap-3 px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 border-b border-border bg-card">
+        <div className="min-w-0">
           <p className="text-xs text-muted-foreground">Signed in as</p>
-          <p className="font-semibold">{session.name}</p>
+          <p className="font-semibold truncate">{session.name}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <span className={`flex items-center gap-1 text-xs ${online ? "text-success" : "text-muted-foreground"}`}>
             {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
             {online ? "Online" : "Offline"}
