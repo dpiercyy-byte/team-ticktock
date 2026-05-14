@@ -11,13 +11,20 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText,
+  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
 import { getWorkerState, clockIn, clockOut } from "@/lib/entries.functions";
 import {
   workerSubmitReimbursement, workerUploadReceipt,
+  workerListReimbursements, workerDeleteReimbursement,
 } from "@/lib/reimbursements.functions";
+import { supabase } from "@/integrations/supabase/client";
 import {
   getWorkerSession, setWorkerSession, clearWorkerSession, type WorkerSession,
 } from "@/lib/session";
