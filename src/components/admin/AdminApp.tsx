@@ -826,13 +826,32 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="tabular-nums">{fmtMoney(Number(r.amount))}</span>
-                    <Button variant="ghost" size="icon" onClick={async () => {
-                      try { const x = await reimbDel({ data: { token, id: r.id } });
-                        updateToken(x.token);
-                        qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
-                        qc.invalidateQueries({ queryKey: ["payout", week] });
-                      } catch (e: any) { toast.error(e?.message || "Failed"); }
-                    }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label="Delete reimbursement">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove this reimbursement?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to remove this reimbursement? This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={async () => {
+                            try {
+                              const x = await reimbDel({ data: { token, id: r.id } });
+                              updateToken(x.token);
+                              qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
+                              qc.invalidateQueries({ queryKey: ["payout", week] });
+                            } catch (e: any) { toast.error(e?.message || "Failed"); }
+                          }}>Remove</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               ))}
