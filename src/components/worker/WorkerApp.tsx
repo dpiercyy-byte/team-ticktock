@@ -5,15 +5,39 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Wifi, WifiOff, LogOut, Briefcase, Clock } from "lucide-react";
+import {
+  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText,
+} from "lucide-react";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
 import { getWorkerState, clockIn, clockOut } from "@/lib/entries.functions";
+import {
+  workerSubmitReimbursement, workerUploadReceipt,
+} from "@/lib/reimbursements.functions";
 import {
   getWorkerSession, setWorkerSession, clearWorkerSession, type WorkerSession,
 } from "@/lib/session";
 import { useOnline } from "@/hooks/use-online";
 import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
+
+const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      const i = s.indexOf(",");
+      resolve(i >= 0 ? s.slice(i + 1) : s);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
 
 export function WorkerApp() {
   const [session, setSession] = useState<WorkerSession | null>(null);
