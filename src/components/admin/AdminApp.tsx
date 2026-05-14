@@ -36,6 +36,7 @@ import {
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
 import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
 const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
