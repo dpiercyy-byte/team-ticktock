@@ -1,11 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
-import { requireAdmin } from "./auth.server";
+import { requireAdmin, requireWorker } from "./auth.server";
 
 const adminBase = z.object({ token: z.string() });
+const workerBase = z.object({ token: z.string() });
 
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
+
+function currentWeekStartISO(): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay()); // Sunday
+  return d.toISOString().slice(0, 10);
+}
 
 export const listReimbursements = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
