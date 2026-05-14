@@ -11,13 +11,20 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText,
+  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
 import { getWorkerState, clockIn, clockOut } from "@/lib/entries.functions";
 import {
   workerSubmitReimbursement, workerUploadReceipt,
+  workerListReimbursements, workerDeleteReimbursement,
 } from "@/lib/reimbursements.functions";
+import { supabase } from "@/integrations/supabase/client";
 import {
   getWorkerSession, setWorkerSession, clearWorkerSession, type WorkerSession,
 } from "@/lib/session";
@@ -270,7 +277,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               Tap to refresh
             </button>
 
-            <ReimbursementButton token={session.token} />
+            <ReimbursementsSection token={session.token} workerId={session.id} />
           </>
         )}
       </main>
@@ -292,16 +299,40 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   );
 }
 
-function ReimbursementButton({ token }: { token: string }) {
+function ReimbursementsSection({ token, workerId }: { token: string; workerId: string }) {
   const submitFn = useServerFn(workerSubmitReimbursement);
   const uploadFn = useServerFn(workerUploadReceipt);
+  const listFn = useServerFn(workerListReimbursements);
+  const delFn = useServerFn(workerDeleteReimbursement);
+  const qc = useQueryClient();
+
   const [open, setOpen] = useState(false);
   const [amt, setAmt] = useState("");
   const [desc, setDesc] = useState("");
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
 
   const reset = () => { setAmt(""); setDesc(""); setReceipt(null); };
+
+  const lq = useQuery({
+    queryKey: ["worker-reimb", workerId],
+    queryFn: () => listFn({ data: { token } }),
+  });
+
+  // Realtime: any change to reimbursements for this worker → refetch
+  useEffect(() => {
+    const channel = supabase
+      .channel(`reimb-worker-${workerId}`)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "reimbursements",
+        filter: `worker_id=eq.${workerId}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ["worker-reimb", workerId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [workerId, qc]);
 
   const handleFile = async (file: File) => {
     if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
@@ -336,21 +367,89 @@ function ReimbursementButton({ token }: { token: string }) {
       toast.success("Reimbursement submitted");
       reset();
       setOpen(false);
+      qc.invalidateQueries({ queryKey: ["worker-reimb", workerId] });
     },
     onError: (e: any) => toast.error(e?.message || "Failed to submit"),
   });
 
+  const del = useMutation({
+    mutationFn: (id: string) => delFn({ data: { token, id } }),
+    onSuccess: () => {
+      toast.success("Removed");
+      qc.invalidateQueries({ queryKey: ["worker-reimb", workerId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to remove"),
+  });
+
+  const items = lq.data?.items ?? [];
+  const weekTotal = items.reduce((s: number, r: any) => s + Number(r.amount), 0);
+
   return (
-    <>
+    <div className="w-full max-w-sm space-y-2">
       <Button
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="touch-manipulation"
+        className="w-full touch-manipulation"
       >
         <Receipt className="h-4 w-4 mr-2" />
         Add Reimbursement
       </Button>
+
+      {items.length > 0 && (
+        <div className="rounded-md border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-secondary text-xs">
+            <span className="font-medium uppercase tracking-wider text-muted-foreground">This week</span>
+            <span className="tabular-nums font-semibold">{fmtMoney(weekTotal)}</span>
+          </div>
+          <ul className="divide-y divide-border">
+            {items.map((r: any) => (
+              <li key={r.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                {r.receipt_url ? (
+                  <button type="button"
+                          onClick={() => setViewing({ url: r.receipt_url, mime: r.receipt_mime || "image/jpeg" })}
+                          className="block h-9 w-9 shrink-0 overflow-hidden rounded bg-secondary">
+                    {(r.receipt_mime || "").startsWith("image/") ? (
+                      <img src={r.receipt_url} alt="Receipt" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </button>
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate flex items-center gap-1.5">
+                    {r.description}
+                    {r.receipt_url && <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />}
+                  </p>
+                </div>
+                <span className="tabular-nums shrink-0">{fmtMoney(Number(r.amount))}</span>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"
+                            aria-label="Remove reimbursement">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove this reimbursement?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to remove this reimbursement? This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => del.mutate(r.id)}>Remove</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); setOpen(o); }}>
         <DialogContent className="max-w-sm">
@@ -427,7 +526,17 @@ function ReimbursementButton({ token }: { token: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+
+      <Dialog open={!!viewing} onOpenChange={(o) => { if (!o) setViewing(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Receipt</DialogTitle></DialogHeader>
+          {viewing && (viewing.mime === "application/pdf" ? (
+            <iframe src={viewing.url} className="w-full h-[70vh] rounded border border-border" title="Receipt" />
+          ) : (
+            <img src={viewing.url} alt="Receipt" className="w-full max-h-[70vh] object-contain rounded" />
+          ))}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
-

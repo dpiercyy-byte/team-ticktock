@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ import {
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
 import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
 const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
@@ -610,6 +612,20 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
     queryFn: () => payFn({ data: { token, weekStart: week } }).then(r => { updateToken(r.token); return r.summary; }),
   });
 
+  // Realtime: any reimbursement change → recalc payout & open list
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-reimb")
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "reimbursements",
+      }, () => {
+        qc.invalidateQueries({ queryKey: ["payout", week] });
+        qc.invalidateQueries({ queryKey: ["reimb"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc, week]);
+
   const [reimbFor, setReimbFor] = useState<{ id: string; name: string } | null>(null);
   const [desc, setDesc] = useState(""); const [amt, setAmt] = useState("");
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
@@ -826,13 +842,32 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="tabular-nums">{fmtMoney(Number(r.amount))}</span>
-                    <Button variant="ghost" size="icon" onClick={async () => {
-                      try { const x = await reimbDel({ data: { token, id: r.id } });
-                        updateToken(x.token);
-                        qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
-                        qc.invalidateQueries({ queryKey: ["payout", week] });
-                      } catch (e: any) { toast.error(e?.message || "Failed"); }
-                    }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label="Delete reimbursement">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove this reimbursement?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to remove this reimbursement? This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={async () => {
+                            try {
+                              const x = await reimbDel({ data: { token, id: r.id } });
+                              updateToken(x.token);
+                              qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
+                              qc.invalidateQueries({ queryKey: ["payout", week] });
+                            } catch (e: any) { toast.error(e?.message || "Failed"); }
+                          }}>Remove</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               ))}
