@@ -142,3 +142,39 @@ export const workerSubmitReimbursement = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+export const workerListReimbursements = createServerFn({ method: "POST" })
+  .inputValidator((d) => workerBase.parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const weekStart = currentWeekStartISO();
+    const { data: rows, error } = await supabaseAdmin
+      .from("reimbursements")
+      .select("id, description, amount, week_start, created_at, receipt_url, receipt_mime")
+      .eq("worker_id", wid).eq("week_start", weekStart)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return { items: rows ?? [], weekStart };
+  });
+
+export const workerDeleteReimbursement = createServerFn({ method: "POST" })
+  .inputValidator((d) => workerBase.extend({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    // Only allow deleting own rows
+    const { data: row, error: getErr } = await supabaseAdmin
+      .from("reimbursements").select("id, worker_id, receipt_url").eq("id", data.id).maybeSingle();
+    if (getErr) throw getErr;
+    if (!row || row.worker_id !== wid) throw new Error("Not found");
+    if (row.receipt_url) {
+      const marker = "/object/public/receipts/";
+      const idx = row.receipt_url.indexOf(marker);
+      if (idx >= 0) {
+        const path = row.receipt_url.slice(idx + marker.length);
+        await supabaseAdmin.storage.from("receipts").remove([path]);
+      }
+    }
+    const { error } = await supabaseAdmin.from("reimbursements").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
