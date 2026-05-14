@@ -96,3 +96,49 @@ export const uploadReceipt = createServerFn({ method: "POST" })
     const { data: pub } = supabaseAdmin.storage.from("receipts").getPublicUrl(path);
     return { ...refreshed, url: pub.publicUrl, mime: data.mime };
   });
+
+// ===== Worker-facing =====
+
+export const workerUploadReceipt = createServerFn({ method: "POST" })
+  .inputValidator((d) => workerBase.extend({
+    filename: z.string().min(1).max(200),
+    mime: z.enum(ALLOWED_MIMES),
+    base64: z.string().min(1).max(15_000_000),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    requireWorker(data.token);
+    const bytes = Buffer.from(data.base64, "base64");
+    if (bytes.length > 10 * 1024 * 1024) throw new Error("File too large (max 10MB)");
+    const ext = data.mime === "application/pdf" ? "pdf"
+              : data.mime === "image/png" ? "png" : "jpg";
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabaseAdmin.storage.from("receipts").upload(path, bytes, {
+      contentType: data.mime,
+      upsert: false,
+    });
+    if (error) throw error;
+    const { data: pub } = supabaseAdmin.storage.from("receipts").getPublicUrl(path);
+    return { url: pub.publicUrl, mime: data.mime };
+  });
+
+export const workerSubmitReimbursement = createServerFn({ method: "POST" })
+  .inputValidator((d) => workerBase.extend({
+    description: z.string().trim().min(1).max(200),
+    amount: z.number().min(0).max(100000),
+    receiptUrl: z.string().url().nullable().optional(),
+    receiptMime: z.string().max(100).nullable().optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const weekStart = currentWeekStartISO();
+    const { error } = await supabaseAdmin.from("reimbursements").insert({
+      worker_id: wid,
+      week_start: weekStart,
+      description: data.description,
+      amount: data.amount,
+      receipt_url: data.receiptUrl ?? null,
+      receipt_mime: data.receiptMime ?? null,
+    });
+    if (error) throw error;
+    return { ok: true };
+  });
