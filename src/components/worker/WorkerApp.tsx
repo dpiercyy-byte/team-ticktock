@@ -277,7 +277,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               Tap to refresh
             </button>
 
-            <ReimbursementButton token={session.token} />
+            <ReimbursementsSection token={session.token} workerId={session.id} />
           </>
         )}
       </main>
