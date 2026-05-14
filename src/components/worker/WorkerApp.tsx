@@ -430,22 +430,4 @@ function ReimbursementButton({ token }: { token: string }) {
     </>
   );
 }
-        )}
-      </main>
 
-      <section className="border-t border-border bg-card px-6 py-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>
-          <p className="text-2xl font-bold tabular-nums">{fmtHours(todayDisplay)}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">This Week</p>
-          <p className="text-2xl font-bold tabular-nums">{fmtHours(weekDisplay)}</p>
-          {settings?.show_pay_estimates && (
-            <p className="text-sm text-muted-foreground mt-0.5">{fmtMoney(weekDisplay * rate)} est.</p>
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
