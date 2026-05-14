@@ -611,6 +611,20 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
     queryFn: () => payFn({ data: { token, weekStart: week } }).then(r => { updateToken(r.token); return r.summary; }),
   });
 
+  // Realtime: any reimbursement change → recalc payout & open list
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-reimb")
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "reimbursements",
+      }, () => {
+        qc.invalidateQueries({ queryKey: ["payout", week] });
+        qc.invalidateQueries({ queryKey: ["reimb"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc, week]);
+
   const [reimbFor, setReimbFor] = useState<{ id: string; name: string } | null>(null);
   const [desc, setDesc] = useState(""); const [amt, setAmt] = useState("");
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
