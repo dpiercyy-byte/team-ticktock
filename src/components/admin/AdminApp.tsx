@@ -691,36 +691,50 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
       <Card><CardContent className="p-0">
         {pq.isLoading ? <p className="p-6 text-sm">Loading…</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
-              <thead className="bg-secondary">
-                <tr className="text-left">
-                  <th className="p-3">Worker</th><th className="p-3 text-right">Hours</th>
-                  <th className="p-3 text-right">Rate</th><th className="p-3 text-right">Wages</th>
-                  <th className="p-3 text-right">Reimb.</th><th className="p-3 text-right">Total</th>
-                  <th className="p-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pq.data?.map((s: any) => (
-                  <tr key={s.workerId} className="border-t border-border">
-                    <td className="p-3 font-medium">{s.name}</td>
-                    <td className="p-3 text-right tabular-nums">{s.hours.toFixed(2)}</td>
-                    <td className="p-3 text-right tabular-nums">${s.hourlyRate.toFixed(2)}</td>
-                    <td className="p-3 text-right tabular-nums">{fmtMoney(s.wages)}</td>
-                    <td className="p-3 text-right tabular-nums">{fmtMoney(s.reimbTotal)}</td>
-                    <td className="p-3 text-right tabular-nums font-bold">{fmtMoney(s.total)}</td>
-                    <td className="p-3 text-right">
-                      <Button size="sm" variant="outline"
-                              onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
-                        Reimb.
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="divide-y divide-border">
+            {pq.data?.length === 0 && (
+              <li className="p-6 text-sm text-muted-foreground text-center">No workers yet.</li>
+            )}
+            {pq.data?.map((s: any) => (
+              <li key={s.workerId} className="p-4 sm:p-5 space-y-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-base truncate">{s.name}</p>
+                  <Button size="sm" variant="outline"
+                          onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
+                    <Plus className="h-3.5 w-3.5 mr-1" />Reimb.
+                  </Button>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-muted-foreground">
+                      Labour <span className="tabular-nums">({s.hours.toFixed(2)} hrs × ${s.hourlyRate.toFixed(2)})</span>
+                    </span>
+                    <span className="tabular-nums font-medium">{fmtMoney(s.wages)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-muted-foreground">
+                      Reimbursements <span className="tabular-nums">({s.reimbursements?.length ?? 0})</span>
+                    </span>
+                    <span className="tabular-nums font-medium">{fmtMoney(s.reimbTotal)}</span>
+                  </div>
+                  {s.reimbursements?.length > 0 && (
+                    <ul className="ml-3 mt-1 space-y-0.5 text-xs text-muted-foreground border-l border-border pl-3">
+                      {s.reimbursements.map((r: any) => (
+                        <li key={r.id ?? `${r.description}-${r.amount}`} className="flex items-baseline justify-between gap-2">
+                          <span className="truncate">{r.description}</span>
+                          <span className="tabular-nums">{fmtMoney(Number(r.amount))}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex items-baseline justify-between gap-3 pt-2 mt-1 border-t border-border">
+                    <span className="font-semibold">Total owed</span>
+                    <span className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent></Card>
 

@@ -5,15 +5,39 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Wifi, WifiOff, LogOut, Briefcase, Clock } from "lucide-react";
+import {
+  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText,
+} from "lucide-react";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
 import { getWorkerState, clockIn, clockOut } from "@/lib/entries.functions";
+import {
+  workerSubmitReimbursement, workerUploadReceipt,
+} from "@/lib/reimbursements.functions";
 import {
   getWorkerSession, setWorkerSession, clearWorkerSession, type WorkerSession,
 } from "@/lib/session";
 import { useOnline } from "@/hooks/use-online";
 import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
+
+const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const s = String(r.result || "");
+      const i = s.indexOf(",");
+      resolve(i >= 0 ? s.slice(i + 1) : s);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
 
 export function WorkerApp() {
   const [session, setSession] = useState<WorkerSession | null>(null);
@@ -245,6 +269,8 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
             <button onClick={() => refetch()} className="text-xs text-muted-foreground">
               Tap to refresh
             </button>
+
+            <ReimbursementButton token={session.token} />
           </>
         )}
       </main>
@@ -265,3 +291,143 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     </div>
   );
 }
+
+function ReimbursementButton({ token }: { token: string }) {
+  const submitFn = useServerFn(workerSubmitReimbursement);
+  const uploadFn = useServerFn(workerUploadReceipt);
+  const [open, setOpen] = useState(false);
+  const [amt, setAmt] = useState("");
+  const [desc, setDesc] = useState("");
+  const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const reset = () => { setAmt(""); setDesc(""); setReceipt(null); };
+
+  const handleFile = async (file: File) => {
+    if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
+      toast.error("Only JPG, PNG or PDF allowed");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Max file size is 10MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const base64 = await fileToBase64(file);
+      const r = await uploadFn({ data: { token, filename: file.name, mime: file.type as any, base64 } });
+      setReceipt({ url: r.url, mime: r.mime });
+    } catch (e: any) {
+      toast.error(e?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const submit = useMutation({
+    mutationFn: () => submitFn({ data: {
+      token,
+      description: desc.trim(),
+      amount: parseFloat(amt) || 0,
+      receiptUrl: receipt?.url ?? null,
+      receiptMime: receipt?.mime ?? null,
+    } }),
+    onSuccess: () => {
+      toast.success("Reimbursement submitted");
+      reset();
+      setOpen(false);
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to submit"),
+  });
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="touch-manipulation"
+      >
+        <Receipt className="h-4 w-4 mr-2" />
+        Add Reimbursement
+      </Button>
+
+      <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); setOpen(o); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Submit reimbursement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="r-amt" className="text-xs">Amount ($)</Label>
+              <Input
+                id="r-amt" type="number" step="0.01" inputMode="decimal" min="0"
+                value={amt} onChange={(e) => setAmt(e.target.value)}
+                placeholder="0.00" className="mt-1.5 h-11 text-base"
+              />
+            </div>
+            <div>
+              <Label htmlFor="r-desc" className="text-xs">Description</Label>
+              <Textarea
+                id="r-desc" value={desc} onChange={(e) => setDesc(e.target.value)}
+                placeholder="e.g. Screws from Home Depot"
+                rows={2} maxLength={200} className="mt-1.5 text-base"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Receipt photo (optional)</Label>
+              <div className="mt-1.5">
+                {receipt ? (
+                  <div className="flex items-center gap-2 rounded-md border border-border p-2">
+                    <div className="h-12 w-12 overflow-hidden rounded bg-secondary shrink-0">
+                      {receipt.mime.startsWith("image/") ? (
+                        <img src={receipt.url} alt="Receipt" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground flex-1">Receipt attached</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setReceipt(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,application/pdf"
+                      capture="environment"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.currentTarget.value = "";
+                        if (f) handleFile(f);
+                      }}
+                    />
+                    <span className={`flex items-center justify-center gap-2 text-sm px-3 py-2.5 rounded-md border border-dashed border-border cursor-pointer hover:bg-secondary ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+                      <Upload className="h-4 w-4" />
+                      {uploading ? "Uploading…" : "Attach receipt"}
+                    </span>
+                  </label>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => submit.mutate()}
+              disabled={!desc.trim() || !amt || parseFloat(amt) <= 0 || uploading || submit.isPending}
+            >
+              {submit.isPending ? "Submitting…" : "Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
