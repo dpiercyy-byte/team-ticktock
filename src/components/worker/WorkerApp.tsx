@@ -99,22 +99,23 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
         </div>
 
         {!workerId ? (
-          <Card className="p-2">
+          <Card className="p-4 space-y-4">
             {isLoading ? (
-              <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+              <p className="text-sm text-muted-foreground">Loading…</p>
             ) : workers && workers.length > 0 ? (
-              <ul className="divide-y divide-border">
-                {workers.map((w) => (
-                  <li key={w.id}>
-                    <button
-                      onClick={() => setWorkerId(w.id)}
-                      className="w-full text-left px-4 py-3.5 hover:bg-secondary rounded-md transition-colors text-base font-medium"
-                    >
-                      {w.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div>
+                <Label className="text-xs text-muted-foreground">Select your name</Label>
+                <Select onValueChange={(val) => setWorkerId(val)}>
+                  <SelectTrigger className="w-full mt-1.5">
+                    <SelectValue placeholder="Choose a worker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workers.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             ) : (
               <p className="p-6 text-sm text-muted-foreground text-center">
                 No workers yet. Ask your admin to add you.
