@@ -172,8 +172,11 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
         )}
 
         <div className="text-center">
-          <a href="/admin" className="text-xs text-muted-foreground hover:text-foreground">
-            Admin sign in
+          <a
+            href="/admin"
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-5 py-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground active:scale-95"
+          >
+            Admin sign in →
           </a>
         </div>
       </div>
