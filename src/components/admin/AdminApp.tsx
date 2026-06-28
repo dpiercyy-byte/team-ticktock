@@ -1037,8 +1037,6 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     setERadius(s.radius_m ?? 100);
     setEKind((s.kind ?? "client") as "client" | "supplier");
   };
-  const [label, setLabel] = useState("");
-  const [radius, setRadius] = useState(100);
 
   const reset = () => { setAddress(""); setLabel(""); setRadius(100); setKind("client"); };
 
