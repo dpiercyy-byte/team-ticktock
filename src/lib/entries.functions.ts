@@ -34,7 +34,8 @@ export const getWorkerState = createServerFn({ method: "POST" })
 
     const [{ data: active }, { data: weekRows }, { data: worker }, { data: settings }] =
       await Promise.all([
-        supabaseAdmin.from("time_entries").select("id, clock_in, project, geo_status, offsite_reason_code")
+        supabaseAdmin.from("time_entries")
+          .select("id, clock_in, project, geo_status, offsite_reason_code, planned_job_site_id, planned_job:job_sites!planned_job_site_id(label)")
           .eq("worker_id", wid).is("clock_out", null).order("clock_in", { ascending: false }).limit(1).maybeSingle(),
         supabaseAdmin.from("time_entries").select("clock_in, clock_out")
           .eq("worker_id", wid).gte("clock_in", wkStart.toISOString()),
@@ -58,6 +59,7 @@ export const getWorkerState = createServerFn({ method: "POST" })
       settings,
     };
   });
+
 
 export const clockIn = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
