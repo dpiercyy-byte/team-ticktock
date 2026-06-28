@@ -1453,13 +1453,15 @@ function reasonLabel(code: string | null | undefined) {
 }
 
 function GeoTagEditor({
-  entry, sites, onUpdate,
+  entry, sites, onUpdate, onUpdatePlanned,
 }: {
   entry: any;
   sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
+  onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+
   const status: GeoStatus | null = entry.geo_status ?? null;
 
   const trigger =
