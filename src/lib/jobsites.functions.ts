@@ -97,7 +97,7 @@ export const adminUpdateJobSite = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: prev } = await supabaseAdmin
       .from("job_sites").select("label, address, radius_m, kind, lat, lng").eq("id", data.id).maybeSingle();
-    const patch: Record<string, unknown> = { label: data.label, radius_m: data.radius_m };
+    const patch: { label: string; radius_m: number; kind?: string; address?: string; lat?: number; lng?: number } = { label: data.label, radius_m: data.radius_m };
     if (data.kind) patch.kind = data.kind;
     if (data.address && prev && data.address.trim() !== prev.address) {
       const geo = await geocodeAddress(data.address);
