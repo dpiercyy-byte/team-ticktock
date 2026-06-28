@@ -67,9 +67,8 @@ export const deleteReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
-    // Best-effort delete the storage object too
     const { data: row } = await supabaseAdmin
-      .from("reimbursements").select("receipt_url").eq("id", data.id).maybeSingle();
+      .from("reimbursements").select("id, worker_id, week_start, description, amount, receipt_url").eq("id", data.id).maybeSingle();
     if (row?.receipt_url) {
       const marker = "/object/public/receipts/";
       const idx = row.receipt_url.indexOf(marker);
@@ -80,6 +79,13 @@ export const deleteReimbursement = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("reimbursements").delete().eq("id", data.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "reimbursement_delete",
+      entityType: "reimbursement",
+      entityId: data.id,
+      before: row ?? undefined,
+    });
     return refreshed;
   });
 
