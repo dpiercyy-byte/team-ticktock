@@ -206,6 +206,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   }, [data?.active]);
 
   const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
+  const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
 
   const inMut = useMutation({
     mutationFn: async () => {
