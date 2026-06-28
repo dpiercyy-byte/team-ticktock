@@ -350,7 +350,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
 
 
-            {active && active.geo_status && active.geo_status !== "verified" && !active.offsite_reason_code && (
+            {active && active.geo_status && active.geo_status !== "verified" && active.geo_status !== "supplier" && !active.offsite_reason_code && (
               <button
                 onClick={() => setReasonPrompt({
                   entryId: active.id,
