@@ -629,26 +629,31 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
   );
 }
 
-function RateEditor({ worker, onSave }: { worker: any; onSave: (v: number) => void }) {
+function WorkerEditor({ worker, onSave }: { worker: any; onSave: (v: { name: string; rate: number }) => void }) {
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState(String(worker.hourly_rate));
-  useEffect(() => setV(String(worker.hourly_rate)), [worker.hourly_rate, open]);
+  const [name, setName] = useState(worker.name);
+  const [rate, setRate] = useState(String(worker.hourly_rate));
+  useEffect(() => { setName(worker.name); setRate(String(worker.hourly_rate)); }, [worker.name, worker.hourly_rate, open]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm"><DollarSign className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Rate</span></Button>
+        <Button variant="outline" size="sm"><Pencil className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Edit</span></Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Set hourly rate — {worker.name}</DialogTitle></DialogHeader>
-        <Input type="number" step="0.01" value={v} onChange={(e) => setV(e.target.value)} />
+        <DialogHeader><DialogTitle>Edit worker</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div><Label>Hourly rate ($)</Label><Input type="number" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} /></div>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={() => { onSave(parseFloat(v) || 0); setOpen(false); }}>Save</Button>
+          <Button disabled={!name.trim()} onClick={() => { onSave({ name: name.trim(), rate: parseFloat(rate) || 0 }); setOpen(false); }}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 // ===== Payouts tab =====
 function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
