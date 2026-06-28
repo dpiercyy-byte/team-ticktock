@@ -1,81 +1,38 @@
-## Job Sites: archive + supplier "shadow" locations
+## Bulk-add supplier locations
 
-Two changes to the **Job Sites** tab so you can manage dozens of locations cleanly:
+Add a "Bulk add" button to the Suppliers view in the Job Sites tab that opens a dialog with two input modes, a previewable parsed list, and a single save action.
 
-1. **Archive completed jobs** — keep history without cluttering the active list, restore in one click.
-2. **Shadow / supplier locations** — bulk-add places like Home Depot, Rona, lumber yards. Workers clocking in there are recognised (no off-site reason prompt) but the entry is **not** counted as a verified job site for payroll.
+### UX
 
----
+In the Job Sites tab → Suppliers view, next to the existing "Add" form, add a **Bulk add** button. Opens a dialog containing:
 
-### Job Sites tab redesign
+1. **Brand prefix field** — e.g. `Home Depot`. Used to label every row as `{Brand} — {Street}`.
+2. **Default radius slider** — applies to the whole batch (default 100m).
+3. **Tabbed input methods:**
+   - **Paste addresses** — textarea, one address per line. Click "Parse" to geocode each line in parallel.
+   - **Search & pick** — text input ("Home Depot Toronto"), runs Places API (New) `places:searchText` through the gateway, renders results as a checkbox list (name + formatted address). Tick the ones to add.
+4. **Preview list** — shows every parsed/picked location with:
+   - Auto-generated label `{Brand} — {street}` (editable inline)
+   - Resolved formatted address (read-only)
+   - Status icon: pending / resolved / failed (with reason)
+   - Remove (×) per row
+5. **Save all** — inserts every resolved row as `kind='supplier'`, single audit log entry per row, toast with success/fail counts. Dialog closes; list refreshes via existing query invalidation.
 
-Three segmented views inside the tab:
+### Technical details
 
-- **Active Jobs** — current client sites (today's behaviour).
-- **Supplier Locations** — shadow locations.
-- **Archived** — completed jobs, with a search box.
+**Server function** — new `adminBulkAddJobSites` in `src/lib/jobsites.functions.ts`:
+- Input: `{ token, kind: 'supplier' | 'client', radius_m, items: Array<{ label, address }> }` (max 50 items per call).
+- For each item: call existing `geocodeAddress` helper, insert row, write audit entry (`action: 'job_site_create'`, `metadata: { bulk: true }`). Failures collected per-row, not fatal to the batch.
+- Returns `{ added: number, failed: Array<{ address, reason }> }`.
 
-Each row gets new actions:
+**Places search** — reuse the existing gateway pattern from `geo.server.ts`. New server function `adminSearchPlaces({ token, query })` calls `places/v1/places:searchText` with field mask `places.id,places.displayName,places.formattedAddress,places.location`. Returns array of `{ placeId, name, address, lat, lng }`. Admin-gated.
 
-```text
-Active Job row:    [ Radius slider ]  [ Archive ]  [ Delete ]
-Supplier row:      [ Radius slider ]  [ Delete ]
-Archived row:      [ Restore ]        [ Delete permanently ]
-```
+**Label generation** — `{brand} — {street}` derived from the first comma-segment of the formatted address (e.g. `"1245 Castlefield Ave, Toronto, ON"` → `"1245 Castlefield Ave"`). Inline editable before save.
 
-The "Add Site" dialog gains a **Type** toggle: *Client job* (default) vs *Supplier / shadow location*. Supplier add gets a lighter form (label + address + radius, no "friendly name" distinction needed).
+**Client UI** — new `BulkAddSuppliersDialog` component in `src/components/admin/AdminApp.tsx` (kept local to match existing pattern). Uses shadcn `Tabs`, `Textarea`, `Checkbox`, `Dialog`. Calls the two new server fns via TanStack Query mutations. On save, invalidates the job sites query.
 
-### Geo resolution behaviour
+### Out of scope
 
-| Location type | Worker sees | Admin badge | Triggers reason prompt? | Counts as verified job site? |
-|---|---|---|---|---|
-| Active client job | "Verified at {label}" (green) | Green pin + label | No | Yes |
-| Supplier (shadow) | "At {label}" (blue/neutral) | Blue pin + label, "supplier" tag | No | No |
-| Archived | (ignored, treated as off-site) | Off-site / amber | Yes | No |
-| Truly off-site | Off-site (amber) | Amber | Yes | No |
-| No GPS | "Location unavailable" | Grey | Yes | No |
-
-The geo-tag editor popover lets you reassign an entry to any active client OR supplier site, and shows archived sites greyed-out under a collapsed "Archived" section so you can still tag historical entries to them if needed.
-
-### Audit & data integrity
-
-- Archiving/unarchiving and creating supplier sites are logged to the audit log with before/after state.
-- Existing `time_entries.job_site_id` references are preserved when a site is archived (no cascade), so historical reports keep their labels.
-- Deleting an active or supplier site behaves as today (entries keep `job_site_id` but lose the join label). Deleting from Archived shows a stronger confirmation since it's typically permanent cleanup.
-
----
-
-### Technical section
-
-**Schema (single migration):**
-```sql
-ALTER TABLE public.job_sites
-  ADD COLUMN kind text NOT NULL DEFAULT 'client'
-    CHECK (kind IN ('client','supplier')),
-  ADD COLUMN archived_at timestamptz;
-
-CREATE INDEX job_sites_active_idx
-  ON public.job_sites (kind) WHERE archived_at IS NULL;
-```
-
-**`src/lib/geo.server.ts`:**
-- Extend `GeoStatus` with `"supplier"`.
-- `resolveSite` filters `archived_at IS NULL`, returns `status: "supplier"` when the nearest hit is a `kind='supplier'` row.
-
-**`src/lib/entries.functions.ts`:**
-- `clockIn` / `clockOut` return `needsReason: status === "off_site" || status === "no_gps"` (supplier excluded — no prompt).
-- `adminUpdateEntryGeo` accepts the new `"supplier"` status.
-
-**`src/lib/jobsites.functions.ts`:**
-- `adminListJobSites` returns all rows including `kind` and `archived_at`; UI filters per tab.
-- Add `adminAddJobSite` `kind` arg (default `"client"`).
-- New `adminArchiveJobSite({ id, archived: boolean })` — sets/clears `archived_at`, logs to audit.
-
-**`src/components/admin/AdminApp.tsx`:**
-- `JobSitesTab`: add segmented control (Active / Suppliers / Archived), search input on Archived view, Archive/Restore buttons, type toggle in Add dialog.
-- `GeoTagEditor`: render supplier badge variant (blue, "Supplier · {label}"), group archived sites in a collapsible bottom section of the popover.
-
-**`src/components/worker/WorkerApp.tsx`:**
-- Add `"supplier"` to the `lastGeo.status` union, render "At {label}" in a neutral/info colour, skip the off-site reason dialog for that status.
-
-No changes needed to payouts or CSV exports — they read hours, not geo status.
+- Importing across both client jobs + supplier locations in the same batch (separate flows).
+- Duplicate detection across existing rows (kept simple — admin can archive/delete after).
+- CSV file upload (paste covers the same use case).
