@@ -32,7 +32,7 @@ import {
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
-  adminUpdateEntryGeo, adminUpdateEntryPlannedJob,
+  adminUpdateEntryGeo, adminUpdateEntryPlannedJob, adminForceClockOut,
 } from "@/lib/entries.functions";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
