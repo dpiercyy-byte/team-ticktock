@@ -802,54 +802,71 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         </div>
       </div>
 
-      <Card><CardContent className="p-0">
-        {pq.isLoading ? <p className="p-6 text-sm">Loading…</p> : (
-          <ul className="divide-y divide-border">
-            {pq.data?.length === 0 && (
-              <li className="p-6 text-sm text-muted-foreground text-center">No workers yet.</li>
-            )}
-            {pq.data?.map((s: any) => (
-              <li key={s.workerId} className="p-4 sm:p-5 space-y-2.5">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold text-base truncate">{s.name}</p>
+      {pq.isLoading ? (
+        <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
+      ) : pq.data?.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-sm text-muted-foreground text-center">
+            No workers yet.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+          {pq.data?.map((s: any) => {
+            const initials = s.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+            return (
+              <Card key={s.workerId} className="overflow-hidden flex flex-col">
+                <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 py-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
+                      {initials || "?"}
+                    </span>
+                    <p className="font-semibold text-base truncate">{s.name}</p>
+                  </div>
                   <Button size="sm" variant="outline"
                           onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
                     <Plus className="h-3.5 w-3.5 mr-1" />Reimb.
                   </Button>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-muted-foreground">
-                      Labour <span className="tabular-nums">({s.hours.toFixed(2)} hrs × ${s.hourlyRate.toFixed(2)})</span>
-                    </span>
-                    <span className="tabular-nums font-medium">{fmtMoney(s.wages)}</span>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-3 pt-0 pb-4">
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium">Labour</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {s.hours.toFixed(2)} hrs × ${s.hourlyRate.toFixed(2)}
+                      </p>
+                    </div>
+                    <span className="tabular-nums font-semibold">{fmtMoney(s.wages)}</span>
                   </div>
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-muted-foreground">
-                      Reimbursements <span className="tabular-nums">({s.reimbursements?.length ?? 0})</span>
-                    </span>
-                    <span className="tabular-nums font-medium">{fmtMoney(s.reimbTotal)}</span>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium">Reimbursements</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {s.reimbursements?.length ?? 0} {(s.reimbursements?.length ?? 0) === 1 ? "item" : "items"}
+                      </p>
+                    </div>
+                    <span className="tabular-nums font-semibold">{fmtMoney(s.reimbTotal)}</span>
                   </div>
                   {s.reimbursements?.length > 0 && (
-                    <ul className="ml-3 mt-1 space-y-0.5 text-xs text-muted-foreground border-l border-border pl-3">
+                    <ul className="rounded-md bg-muted/40 p-2 space-y-1 text-xs">
                       {s.reimbursements.map((r: any) => (
                         <li key={r.id ?? `${r.description}-${r.amount}`} className="flex items-baseline justify-between gap-2">
-                          <span className="truncate">{r.description}</span>
+                          <span className="truncate text-muted-foreground">{r.description}</span>
                           <span className="tabular-nums">{fmtMoney(Number(r.amount))}</span>
                         </li>
                       ))}
                     </ul>
                   )}
-                  <div className="flex items-baseline justify-between gap-3 pt-2 mt-1 border-t border-border">
-                    <span className="font-semibold">Total owed</span>
-                    <span className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</span>
-                  </div>
+                </CardContent>
+                <div className="flex items-baseline justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
+                  <span className="text-sm font-semibold">Total owed</span>
+                  <span className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</span>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent></Card>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={!!reimbFor} onOpenChange={(o) => { if (!o) { setReimbFor(null); setReceipt(null); setDesc(""); setAmt(""); } }}>
         <DialogContent>
