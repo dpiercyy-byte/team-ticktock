@@ -384,7 +384,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
             <button
               onClick={() => {
                 refetch();
-                qc.invalidateQueries({ queryKey: ["worker-reimbursements", session.id] });
+                qc.invalidateQueries({ queryKey: ["worker-reimb", session.id] });
                 toast.success("Refreshed");
               }}
               disabled={isFetching}
