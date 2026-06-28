@@ -962,3 +962,82 @@ function PlannedJobDialog({
   );
 }
 
+
+function SyncStatusPill({ status, pending, failed, onRetry }: {
+  status: "idle" | "offline" | "syncing" | "failed";
+  pending: number;
+  failed: number;
+  onRetry: () => void;
+}) {
+  if (status === "failed") {
+    return (
+      <button
+        onClick={onRetry}
+        className="inline-flex items-center gap-1 text-xs text-destructive font-medium"
+      >
+        <AlertCircle className="h-3.5 w-3.5" />
+        Sync failed — retry
+      </button>
+    );
+  }
+  if (status === "syncing") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-primary">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Syncing{pending > 0 ? ` ${pending}` : ""}…
+      </span>
+    );
+  }
+  if (status === "offline") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-warning">
+        <CloudOff className="h-3.5 w-3.5" />
+        Offline
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-success">
+      <Wifi className="h-3.5 w-3.5" />
+      Online
+    </span>
+  );
+}
+
+function PendingBanner({ pending, failed, online, syncing, onSyncNow, onRetry }: {
+  pending: number;
+  failed: number;
+  online: boolean;
+  syncing: boolean;
+  onSyncNow: () => void;
+  onRetry: () => void;
+}) {
+  if (failed > 0) {
+    return (
+      <div className="flex items-center justify-between gap-3 px-5 py-2.5 bg-destructive/10 border-b border-destructive/30 text-sm">
+        <span className="inline-flex items-center gap-2 text-destructive font-medium">
+          <AlertCircle className="h-4 w-4" />
+          {failed} action{failed === 1 ? "" : "s"} failed to sync
+        </span>
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-between gap-3 px-5 py-2.5 bg-warning/10 border-b border-warning/30 text-sm">
+      <span className="inline-flex items-center gap-2 text-warning-foreground">
+        {syncing
+          ? <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          : <CloudOff className="h-4 w-4 text-warning" />}
+        <span className="text-foreground">
+          {pending} action{pending === 1 ? "" : "s"} waiting to sync
+        </span>
+      </span>
+      <Button size="sm" variant="outline" onClick={onSyncNow} disabled={!online || syncing}>
+        {syncing ? "Syncing…" : "Sync now"}
+      </Button>
+    </div>
+  );
+}
