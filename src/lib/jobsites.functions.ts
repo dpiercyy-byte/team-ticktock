@@ -63,7 +63,7 @@ export const adminAddJobSite = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const geo = await geocodeAddress(data.address);
-    const label = data.label?.trim() || geo.formatted;
+    const label = data.label?.trim() || geo.formatted.split(",")[0].trim();
     const { data: inserted, error } = await supabaseAdmin.from("job_sites").insert({
       label,
       address: geo.formatted,
