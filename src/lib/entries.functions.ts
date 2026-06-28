@@ -62,37 +62,58 @@ export const getWorkerState = createServerFn({ method: "POST" })
   });
 
 export const clockIn = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ token: z.string(), project: z.string().trim().max(100).optional() }).parse(d))
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    project: z.string().trim().max(100).optional(),
+    lat: z.number().finite().optional().nullable(),
+    lng: z.number().finite().optional().nullable(),
+  }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
     const { data: existing } = await supabaseAdmin
       .from("time_entries").select("id").eq("worker_id", wid).is("clock_out", null).maybeSingle();
     if (existing) throw new Response("Already clocked in", { status: 400 });
+    const geo = await resolveSite(data.lat, data.lng);
     const { error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
       clock_in: new Date().toISOString(),
-      project: data.project || null,
+      project: data.project || geo.siteLabel || null,
       created_by: "worker",
+      clock_in_lat: data.lat ?? null,
+      clock_in_lng: data.lng ?? null,
+      job_site_id: geo.jobSiteId,
+      geo_status: geo.status,
     });
     if (error) throw error;
-    return { ok: true };
+    return { ok: true, geo };
   });
 
 export const clockOut = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ token: z.string() }).parse(d))
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    lat: z.number().finite().optional().nullable(),
+    lng: z.number().finite().optional().nullable(),
+  }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
     const { data: active } = await supabaseAdmin
-      .from("time_entries").select("id, clock_in").eq("worker_id", wid).is("clock_out", null).maybeSingle();
+      .from("time_entries").select("id, clock_in, job_site_id, geo_status").eq("worker_id", wid).is("clock_out", null).maybeSingle();
     if (!active) throw new Response("Not clocked in", { status: 400 });
     const now = new Date();
     const flagged = now.getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
+    const geo = await resolveSite(data.lat, data.lng);
     const { error } = await supabaseAdmin.from("time_entries")
-      .update({ clock_out: now.toISOString(), flagged_review: flagged })
+      .update({
+        clock_out: now.toISOString(),
+        flagged_review: flagged,
+        clock_out_lat: data.lat ?? null,
+        clock_out_lng: data.lng ?? null,
+      })
       .eq("id", active.id);
     if (error) throw error;
-    return { ok: true };
+    return { ok: true, geo };
   });
+
 
 // === Admin ===
 
