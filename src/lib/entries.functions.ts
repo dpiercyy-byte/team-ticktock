@@ -91,7 +91,7 @@ export const clockIn = createServerFn({ method: "POST" })
       entityId: inserted?.id,
       after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null },
     });
-    return { ok: true, geo };
+    return { ok: true, geo, entryId: inserted?.id, needsReason: geo.status !== "verified" };
   });
 
 export const clockOut = createServerFn({ method: "POST" })
