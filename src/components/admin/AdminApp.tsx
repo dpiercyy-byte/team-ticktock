@@ -203,6 +203,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const addE = useServerFn(adminAddEntry);
   const editE = useServerFn(adminEditEntry);
   const delE = useServerFn(adminDeleteEntry);
+  const forceOut = useServerFn(adminForceClockOut);
   const updGeo = useServerFn(adminUpdateEntryGeo);
   const updPlanned = useServerFn(adminUpdateEntryPlannedJob);
 
