@@ -335,6 +335,14 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 } catch (err: any) { toast.error(err?.message || "Failed"); }
                               }}
                             />
+                            {e.offsite_reason_code && (
+                              <span
+                                className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
+                                title={e.offsite_reason_note || undefined}
+                              >
+                                · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
+                              </span>
+                            )}
                           </p>
 
                         </div>
