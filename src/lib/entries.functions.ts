@@ -142,7 +142,7 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, job_sites(label)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_sites(label)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
 
     if (data.from) q = q.gte("clock_in", data.from);
