@@ -238,6 +238,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const [editing, setEditing] = useState<any | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [confirmForce, setConfirmForce] = useState<string | null>(null);
 
   const projectsEnabled = sq.data?.project_tracking_enabled;
 
