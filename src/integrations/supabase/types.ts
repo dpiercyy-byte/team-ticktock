@@ -80,8 +80,10 @@ export type Database = {
       job_sites: {
         Row: {
           address: string
+          archived_at: string | null
           created_at: string
           id: string
+          kind: string
           label: string
           lat: number
           lng: number
@@ -89,8 +91,10 @@ export type Database = {
         }
         Insert: {
           address: string
+          archived_at?: string | null
           created_at?: string
           id?: string
+          kind?: string
           label: string
           lat: number
           lng: number
@@ -98,8 +102,10 @@ export type Database = {
         }
         Update: {
           address?: string
+          archived_at?: string | null
           created_at?: string
           id?: string
+          kind?: string
           label?: string
           lat?: number
           lng?: number

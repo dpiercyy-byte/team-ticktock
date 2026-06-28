@@ -1,61 +1,81 @@
-# Off-Site Clock-In Reason Capture
+## Job Sites: archive + supplier "shadow" locations
 
-When a worker clocks in (or out) and the GPS resolves to **Off-site** (or No GPS), prompt them for a quick reason so admins have context. The clock-in itself still succeeds — this is just metadata for review.
+Two changes to the **Job Sites** tab so you can manage dozens of locations cleanly:
 
-## Worker experience
+1. **Archive completed jobs** — keep history without cluttering the active list, restore in one click.
+2. **Shadow / supplier locations** — bulk-add places like Home Depot, Rona, lumber yards. Workers clocking in there are recognised (no off-site reason prompt) but the entry is **not** counted as a verified job site for payroll.
 
-1. Worker taps **Clock In**. App grabs GPS as today.
-2. Server resolves location:
-   - **Verified** at a job site → proceed silently (no popup).
-   - **Off-site** or **No GPS** → clock-in still succeeds, then a modal appears:
-     > "You clocked in away from a saved job site. Quick reason?"
-     - Preset chips: *Material pickup*, *Client meeting*, *Travel between sites*, *Forgot to clock out yesterday*, *Working from new site*, *Other*
-     - "Other" reveals a short text field (max 200 chars)
-     - Buttons: **Save** / **Skip**
-3. Same flow on **Clock Out** if it resolves off-site (covers the "left the site without clocking out" amber case — when they do clock out from somewhere else, they can flag it).
-4. Reason shows on the worker's own active/recent entry as a small note, with a pencil to edit while the entry is still today.
+---
 
-## Admin experience
+### Job Sites tab redesign
 
-- In the **Entries** tab, off-site / no-gps rows show the reason inline next to the amber badge (e.g. `Off-site · Material pickup`).
-- A paperclip-style note icon appears when a reason is attached; hover/tap shows full text.
-- Existing **GeoTagEditor** popover gets a new section showing the worker's reason (read-only) so the admin can use it as context when reassigning the entry to a job site or marking it verified.
-- Reason persists on the entry even after the admin re-tags it (so the audit trail still shows why it was originally off-site).
-- Every reason submission and admin edit flows through the existing **audit log**.
+Three segmented views inside the tab:
 
-## Preset reasons
+- **Active Jobs** — current client sites (today's behaviour).
+- **Supplier Locations** — shadow locations.
+- **Archived** — completed jobs, with a search box.
 
-Hard-coded list to start (no admin-managed CRUD yet — can add later if needed):
-- Material pickup
-- Client / site visit
-- Travel between sites
-- Forgot to clock out previously
-- Working from new / temporary site
-- Other (free text)
+Each row gets new actions:
 
-## Technical notes
+```text
+Active Job row:    [ Radius slider ]  [ Archive ]  [ Delete ]
+Supplier row:      [ Radius slider ]  [ Delete ]
+Archived row:      [ Restore ]        [ Delete permanently ]
+```
 
-- **Schema**: add two nullable columns to `time_entries`
-  - `offsite_reason_code text` (enum-style string: `material_pickup` | `client_visit` | `travel` | `forgot_clockout` | `new_site` | `other`)
-  - `offsite_reason_note text` (free text, max 200, used when code is `other` or to add detail)
-  - Index not required; low cardinality.
-- **Server functions** (`src/lib/entries.functions.ts`):
-  - Extend `clockIn` / `clockOut` return value to include `needsReason: boolean` when `geo.status !== "verified"`.
-  - New `workerSetEntryReason({ token, entryId, code, note })` — verifies the entry belongs to the worker and is from today; writes columns; logs audit (`entry_reason_set`).
-  - Admin list queries (`adminListEntries`, `adminFlaggedEntries`) include the two new columns.
-- **Worker UI** (`src/components/worker/WorkerApp.tsx`):
-  - After successful clock action, if `needsReason`, open a `Dialog` with chip buttons + conditional textarea.
-  - Save calls the new server fn; Skip closes the dialog.
-  - Show the current reason near the timer with a small "Edit reason" link while clocked in.
-- **Admin UI** (`src/components/admin/AdminApp.tsx`):
-  - Entry rows render reason text after the geo badge.
-  - `GeoTagEditor` popover adds a "Worker note" block at the top when a reason exists.
-- **Audit log**: every reason save / edit logs before/after with actor = worker (or admin if admin edits later — not in this scope unless requested).
+The "Add Site" dialog gains a **Type** toggle: *Client job* (default) vs *Supplier / shadow location*. Supplier add gets a lighter form (label + address + radius, no "friendly name" distinction needed).
 
-## Out of scope for this pass
+### Geo resolution behaviour
 
-- Admin-editable preset list (can add a small settings UI later).
-- Photo attachment on the reason (can add later if useful).
-- Auto-reminders for missed clock-outs (separate feature; you previously mentioned weekly confirmation, which is the better fit there).
+| Location type | Worker sees | Admin badge | Triggers reason prompt? | Counts as verified job site? |
+|---|---|---|---|---|
+| Active client job | "Verified at {label}" (green) | Green pin + label | No | Yes |
+| Supplier (shadow) | "At {label}" (blue/neutral) | Blue pin + label, "supplier" tag | No | No |
+| Archived | (ignored, treated as off-site) | Off-site / amber | Yes | No |
+| Truly off-site | Off-site (amber) | Amber | Yes | No |
+| No GPS | "Location unavailable" | Grey | Yes | No |
 
-Confirm and I'll build it.
+The geo-tag editor popover lets you reassign an entry to any active client OR supplier site, and shows archived sites greyed-out under a collapsed "Archived" section so you can still tag historical entries to them if needed.
+
+### Audit & data integrity
+
+- Archiving/unarchiving and creating supplier sites are logged to the audit log with before/after state.
+- Existing `time_entries.job_site_id` references are preserved when a site is archived (no cascade), so historical reports keep their labels.
+- Deleting an active or supplier site behaves as today (entries keep `job_site_id` but lose the join label). Deleting from Archived shows a stronger confirmation since it's typically permanent cleanup.
+
+---
+
+### Technical section
+
+**Schema (single migration):**
+```sql
+ALTER TABLE public.job_sites
+  ADD COLUMN kind text NOT NULL DEFAULT 'client'
+    CHECK (kind IN ('client','supplier')),
+  ADD COLUMN archived_at timestamptz;
+
+CREATE INDEX job_sites_active_idx
+  ON public.job_sites (kind) WHERE archived_at IS NULL;
+```
+
+**`src/lib/geo.server.ts`:**
+- Extend `GeoStatus` with `"supplier"`.
+- `resolveSite` filters `archived_at IS NULL`, returns `status: "supplier"` when the nearest hit is a `kind='supplier'` row.
+
+**`src/lib/entries.functions.ts`:**
+- `clockIn` / `clockOut` return `needsReason: status === "off_site" || status === "no_gps"` (supplier excluded — no prompt).
+- `adminUpdateEntryGeo` accepts the new `"supplier"` status.
+
+**`src/lib/jobsites.functions.ts`:**
+- `adminListJobSites` returns all rows including `kind` and `archived_at`; UI filters per tab.
+- Add `adminAddJobSite` `kind` arg (default `"client"`).
+- New `adminArchiveJobSite({ id, archived: boolean })` — sets/clears `archived_at`, logs to audit.
+
+**`src/components/admin/AdminApp.tsx`:**
+- `JobSitesTab`: add segmented control (Active / Suppliers / Archived), search input on Archived view, Archive/Restore buttons, type toggle in Add dialog.
+- `GeoTagEditor`: render supplier badge variant (blue, "Supplier · {label}"), group archived sites in a collapsible bottom section of the popover.
+
+**`src/components/worker/WorkerApp.tsx`:**
+- Add `"supplier"` to the `lastGeo.status` union, render "At {label}" in a neutral/info colour, skip the off-site reason dialog for that status.
+
+No changes needed to payouts or CSV exports — they read hours, not geo status.
