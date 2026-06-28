@@ -191,7 +191,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const outFn = useServerFn(clockOut);
   const qc = useQueryClient();
 
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["worker-state", session.id],
     queryFn: () => stateFn({ data: { token: session.token } }),
     refetchInterval: 30_000,
