@@ -303,7 +303,23 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             <span className="truncate max-w-[160px]">{e.project ?? "General"}</span>
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
+                            {e.geo_status === "verified" && e.job_sites?.label && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-success text-success">
+                                <MapPin className="h-2.5 w-2.5 mr-0.5" />{e.job_sites.label}
+                              </Badge>
+                            )}
+                            {e.geo_status === "off_site" && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning">
+                                <MapPin className="h-2.5 w-2.5 mr-0.5" />Off-site
+                              </Badge>
+                            )}
+                            {e.geo_status === "no_gps" && (
+                              <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground">
+                                <MapPinOff className="h-2.5 w-2.5 mr-0.5" />No GPS
+                              </Badge>
+                            )}
                           </p>
+
                         </div>
                         <div className="flex gap-0.5 shrink-0">
                           <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
