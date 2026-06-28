@@ -773,3 +773,92 @@ function OffsiteReasonDialog({
   );
 }
 
+type PlannedPrompt = { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" };
+
+function PlannedJobDialog({
+  token, prompt, onClose, onSaved,
+}: {
+  token: string;
+  prompt: PlannedPrompt | null;
+  onClose: () => void;
+  onSaved: (p: PlannedPrompt) => void;
+}) {
+  const listFn = useServerFn(workerListActiveClientSites);
+  const setFn = useServerFn(workerSetPlannedJob);
+  const [selected, setSelected] = useState<string>("");
+
+  const sitesQ = useQuery({
+    enabled: !!prompt,
+    queryKey: ["worker-active-client-sites"],
+    queryFn: () => listFn({ data: { token } }),
+  });
+
+  useEffect(() => { if (prompt) setSelected(""); }, [prompt?.entryId]);
+
+  const save = useMutation({
+    mutationFn: () => setFn({ data: {
+      token,
+      entryId: prompt!.entryId,
+      jobSiteId: selected === "__none__" ? null : selected,
+    } }),
+    onSuccess: () => {
+      toast.success(selected === "__none__" ? "Saved" : "Heading to job set");
+      const p = prompt!;
+      onSaved(p);
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save"),
+  });
+
+  const open = !!prompt;
+  const sites = sitesQ.data?.sites ?? [];
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        // Required choice — prevent closing without selection by ignoring outside dismiss.
+        if (!o && !save.isPending && selected) onClose();
+      }}
+    >
+      <DialogContent
+        className="max-w-sm"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>Which job are you heading to?</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            You clocked in away from a client job site. Tell your admin which job you're working today.
+          </p>
+          <div>
+            <Label className="text-xs text-muted-foreground">Planned job site</Label>
+            <Select value={selected} onValueChange={setSelected}>
+              <SelectTrigger className="w-full mt-1.5">
+                <SelectValue placeholder={sitesQ.isLoading ? "Loading…" : "Choose a job"} />
+              </SelectTrigger>
+              <SelectContent>
+                {sites.map((s: any) => (
+                  <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                ))}
+                <SelectItem value="__none__">No job today / other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!selected || save.isPending}
+            className="w-full"
+          >
+            {save.isPending ? "Saving…" : "Continue"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
