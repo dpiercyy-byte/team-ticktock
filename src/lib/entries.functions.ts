@@ -34,7 +34,7 @@ export const getWorkerState = createServerFn({ method: "POST" })
 
     const [{ data: active }, { data: weekRows }, { data: worker }, { data: settings }] =
       await Promise.all([
-        supabaseAdmin.from("time_entries").select("id, clock_in, project")
+        supabaseAdmin.from("time_entries").select("id, clock_in, project, geo_status, offsite_reason_code")
           .eq("worker_id", wid).is("clock_out", null).order("clock_in", { ascending: false }).limit(1).maybeSingle(),
         supabaseAdmin.from("time_entries").select("clock_in, clock_out")
           .eq("worker_id", wid).gte("clock_in", wkStart.toISOString()),
