@@ -148,40 +148,6 @@ export const clockOut = createServerFn({ method: "POST" })
 
 
 
-export const clockOut = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({
-    token: z.string(),
-    lat: z.number().finite().optional().nullable(),
-    lng: z.number().finite().optional().nullable(),
-  }).parse(d))
-  .handler(async ({ data }) => {
-    const wid = requireWorker(data.token);
-    const { data: active } = await supabaseAdmin
-      .from("time_entries").select("id, clock_in, job_site_id, geo_status").eq("worker_id", wid).is("clock_out", null).maybeSingle();
-    if (!active) throw new Response("Not clocked in", { status: 400 });
-    const now = new Date();
-    const flagged = now.getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
-    const geo = await resolveSite(data.lat, data.lng);
-    const { error } = await supabaseAdmin.from("time_entries")
-      .update({
-        clock_out: now.toISOString(),
-        flagged_review: flagged,
-        clock_out_lat: data.lat ?? null,
-        clock_out_lng: data.lng ?? null,
-      })
-      .eq("id", active.id);
-    if (error) throw error;
-    await logAudit({
-      actor: { kind: "worker", id: wid },
-      action: "clock_out",
-      entityType: "time_entry",
-      entityId: active.id,
-      after: { clock_out: now.toISOString(), flagged_review: flagged },
-      metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
-    });
-    const needsReason = geo.status === "off_site" || geo.status === "no_gps";
-    return { ok: true, geo, entryId: active.id, needsReason };
-  });
 
 
 const REASON_CODES = ["material_pickup", "client_visit", "travel", "forgot_clockout", "new_site", "other"] as const;
