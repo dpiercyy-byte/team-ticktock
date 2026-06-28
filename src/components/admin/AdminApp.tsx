@@ -813,7 +813,15 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   };
 
   return (
-    <div className="space-y-4">
+    <Tabs defaultValue="weekly" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="weekly">Weekly</TabsTrigger>
+        <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
+      </TabsList>
+      <TabsContent value="lifetime" className="mt-0">
+        <LifetimePayoutView token={token} updateToken={updateToken} />
+      </TabsContent>
+      <TabsContent value="weekly" className="mt-0 space-y-4">
       <div className="flex flex-wrap gap-3 items-end justify-between">
         <div className="flex-1 min-w-[160px]">
           <Label className="text-xs">Week starting (Sunday)</Label>
