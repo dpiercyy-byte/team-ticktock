@@ -24,9 +24,9 @@ export async function logAudit(e: AuditEntry): Promise<void> {
       action: e.action,
       entity_type: e.entityType,
       entity_id: e.entityId ?? null,
-      before: e.before ?? null,
-      after: e.after ?? null,
-      metadata: e.metadata ?? null,
+      before: (e.before ?? null) as never,
+      after: (e.after ?? null) as never,
+      metadata: (e.metadata ?? null) as never,
     });
   } catch (err) {
     // Never let audit failures break the user's action.
