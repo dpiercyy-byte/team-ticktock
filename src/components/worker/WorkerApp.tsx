@@ -334,7 +334,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               <div className="flex flex-col items-center gap-1 -mt-2">
                 <p className={`text-xs inline-flex items-center gap-1.5 ${
                   lastGeo.status === "verified" ? "text-success" :
-                  lastGeo.status === "supplier" ? "text-info" :
+                  lastGeo.status === "supplier" ? "text-primary" :
                   lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
                 }`}>
                   {lastGeo.status === "no_gps"
