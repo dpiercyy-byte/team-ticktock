@@ -1209,7 +1209,16 @@ function GeoTagEditor({
       <PopoverTrigger asChild>
         <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-1" align="start">
+      <PopoverContent className="w-64 p-1" align="start">
+        {entry.offsite_reason_code && (
+          <div className="px-2 py-2 mb-1 rounded bg-warning/10 border border-warning/30 text-[11px]">
+            <div className="font-semibold text-warning uppercase tracking-wide mb-0.5">Worker reason</div>
+            <div className="text-foreground">{reasonLabel(entry.offsite_reason_code)}</div>
+            {entry.offsite_reason_note && (
+              <div className="text-muted-foreground italic mt-0.5">"{entry.offsite_reason_note}"</div>
+            )}
+          </div>
+        )}
         <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Job site</div>
         {sites.length === 0 && (
           <div className="px-2 py-1.5 text-xs text-muted-foreground">No job sites yet</div>
