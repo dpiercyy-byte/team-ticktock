@@ -1470,37 +1470,43 @@ function reasonLabel(code: string | null | undefined) {
 }
 
 function GeoTagEditor({
-  entry, sites, onUpdate, onUpdatePlanned,
+  entry, sites, onUpdate, onUpdatePlanned, field = "in",
 }: {
   entry: any;
+  field?: "in" | "out";
   sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
   onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
 
-  const status: GeoStatus | null = entry.geo_status ?? null;
+  const status: GeoStatus | null = (field === "out" ? entry.clock_out_geo_status : entry.geo_status) ?? null;
+  const siteLabel: string | null =
+    field === "out"
+      ? entry.clock_out_site?.label ?? null
+      : entry.job_sites?.label ?? null;
+  const prefix = field === "out" ? "Out: " : "In: ";
 
   const trigger =
-    status === "verified" && entry.job_sites?.label ? (
+    status === "verified" && siteLabel ? (
       <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
-        <MapPin className="h-2.5 w-2.5 mr-0.5" />{entry.job_sites.label}
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
       </Badge>
-    ) : status === "supplier" && entry.job_sites?.label ? (
+    ) : status === "supplier" && siteLabel ? (
       <Badge variant="outline" className="h-4 text-[10px] border-primary text-primary cursor-pointer hover:bg-primary/10">
-        <Truck className="h-2.5 w-2.5 mr-0.5" />{entry.job_sites.label}
+        <Truck className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
       </Badge>
     ) : status === "off_site" ? (
       <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
-        <MapPin className="h-2.5 w-2.5 mr-0.5" />Off-site
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}Off-site
       </Badge>
     ) : status === "no_gps" ? (
       <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
-        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />No GPS
+        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}No GPS
       </Badge>
     ) : (
       <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
-        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />Set tag
+        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}Set tag
       </Badge>
     );
 
@@ -1508,6 +1514,7 @@ function GeoTagEditor({
     setOpen(false);
     await onUpdate(s, jid);
   };
+
 
   const active = sites.filter((s) => !s.archived_at);
   const clientSites = active.filter((s) => (s.kind ?? "client") === "client");
