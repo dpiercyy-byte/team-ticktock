@@ -334,13 +334,14 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
                             <GeoTagEditor
                               entry={e}
+                              field="in"
                               sites={sitesQ.data ?? []}
                               onUpdate={async (status, jobSiteId) => {
                                 try {
-                                  const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId } });
+                                  const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
                                   updateToken(r.token);
                                   qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                  toast.success("Tag updated");
+                                  toast.success("In tag updated");
                                 } catch (err: any) { toast.error(err?.message || "Failed"); }
                               }}
                               onUpdatePlanned={async (jobSiteId) => {
@@ -352,11 +353,27 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 } catch (err: any) { toast.error(err?.message || "Failed"); }
                               }}
                             />
+                            {e.clock_out && (
+                              <GeoTagEditor
+                                entry={e}
+                                field="out"
+                                sites={sitesQ.data ?? []}
+                                onUpdate={async (status, jobSiteId) => {
+                                  try {
+                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("Out tag updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                              />
+                            )}
                             {e.planned_job?.label && (
                               <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
                                 → {e.planned_job.label}
                               </Badge>
                             )}
+
                             {e.offsite_reason_code && (
                               <span
                                 className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
