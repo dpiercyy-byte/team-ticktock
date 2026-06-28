@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin, requireWorker } from "./auth.server";
+import { logAudit } from "./audit.server";
 
 const adminBase = z.object({ token: z.string() });
 const workerBase = z.object({ token: z.string() });
