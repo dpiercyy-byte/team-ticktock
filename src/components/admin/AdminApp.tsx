@@ -389,6 +389,11 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
 
                         </div>
                         <div className="flex gap-0.5 shrink-0">
+                          {!e.clock_out && (
+                            <Button variant="ghost" size="icon" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
+                              <PowerOff className="h-4 w-4 text-warning" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
