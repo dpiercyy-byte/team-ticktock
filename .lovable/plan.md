@@ -1,41 +1,22 @@
 ## Goal
-Make Weekly Payouts feel like the rest of the admin app — each worker as its own self-contained card with clear hierarchy — instead of a flat divided list where every row blends into the next.
+Make the auto-generated "friendly name" for job sites use only the street portion of the address (everything before the first comma), and backfill existing active sites.
 
-## Current problem
-`PayoutsTab` renders all workers as `<li>` rows inside one shared `Card` separated only by hairline dividers. Labour, reimbursement count, sub-list of reimbursements, and total are all stacked as plain text rows, which makes the section read as one long unsightly block with no visual isolation between workers.
+## Changes
 
-## Redesign (frontend only, `src/components/admin/AdminApp.tsx` ~lines 805–852)
+### 1. `src/lib/jobsites.functions.ts` — `adminAddJobSite`
+- When `data.label` is empty, default to the first comma-delimited segment of `geo.formatted` instead of the whole formatted string.
+- Small helper: `const shortLabel = (addr: string) => addr.split(",")[0].trim();`
+- `adminBulkAddJobSites` is unchanged (labels come from the user/Places `displayName`, not the formatted address).
+- `adminUpdateJobSite` is unchanged (label is user-provided).
 
-Replace the single divided `<ul>` with a responsive **grid of worker cards** (1 col mobile, 2 col `md`, matching the spacing language used elsewhere in the admin app).
+### 2. Data backfill (active sites only, `archived_at IS NULL`)
+Run a one-shot UPDATE that sets `label = split_part(address, ',', 1)` for every active site.
 
-Each worker card:
+Assumption: this overwrites any custom label on active sites too. Most current labels match the full formatted address (the old default), so the practical effect is a cleanup. If you'd rather only touch rows where `label = address` (i.e. never customized), say so and I'll scope the UPDATE with `WHERE label = address`.
 
-```text
-┌─────────────────────────────────────────────┐
-│  ⬤  Jane Doe                    [+ Reimb.]  │  ← header: avatar initials + name + action
-├─────────────────────────────────────────────┤
-│  Labour              32.50 hrs × $28.00     │  ← muted label row
-│                                  $910.00    │  ← right-aligned tabular amount
-│  Reimbursements                  3 items    │
-│                                   $84.20    │
-│   • Gas — Shell                    $42.10   │  ← collapsible / subtle inset list
-│   • Lunch w/ client                $42.10   │
-├─────────────────────────────────────────────┤
-│  Total owed                       $994.20   │  ← emphasized footer strip
-└─────────────────────────────────────────────┘
-```
-
-Concretely:
-- Wrap each worker in its own `<Card>` (same component used in Entries/Workers tabs) instead of `<li>` inside a shared card.
-- `CardHeader`: initials badge (rounded circle, `bg-secondary text-secondary-foreground`) + worker name (`text-base font-semibold`) on the left; `Reimb.` button on the right.
-- `CardContent`: two stat rows for Labour and Reimbursements using the existing label/value pattern — muted left label, large tabular right value. Reimbursement sub-list stays but rendered as a subtle inset block (`bg-muted/40 rounded-md p-2 text-xs`) instead of a left-border list, so it visually nests inside the card.
-- Footer strip: a full-width band (`bg-muted/60 border-t -mx-6 px-6 py-3`) with "Total owed" left, bold amount right — gives each card a clear terminal accent that matches how summary totals are shown elsewhere.
-- Empty state: keep the "No workers yet." message but render it inside a single dashed-border placeholder card to match other empty states.
+Archived sites are left as-is to preserve historical display.
 
 ## Out of scope
-- No business-logic, data, or server-function changes.
-- No changes to the reimbursement dialog or receipt viewer.
-- No new design tokens; reuse existing semantic tokens (`muted`, `secondary`, `border`, `foreground`).
-
-## Files touched
-- `src/components/admin/AdminApp.tsx` — `PayoutsTab` render block only (lines ~805–852).
+- No schema change.
+- No UI change (the Add Job Site form already shows "Friendly name (optional)" and falls back to whatever the server picks).
+- Audit log entries for the backfill: emitted as a single `job_site_label_backfill` admin audit row with a metadata count, not one row per site, to avoid noise.
