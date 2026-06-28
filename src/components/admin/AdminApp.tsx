@@ -1226,14 +1226,23 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                 return (
                   <li key={s.id} className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate flex items-center gap-1.5">
-                        {isSupplier
-                          ? <Truck className="h-4 w-4 text-primary shrink-0" />
-                          : <Building2 className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : "text-success"}`} />}
-                        <span className={isArchived ? "text-muted-foreground" : ""}>{s.label}</span>
-                        {isArchived && <Badge variant="outline" className="h-4 text-[10px] ml-1">Archived</Badge>}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">{s.address}</p>
+                      <button
+                        type="button"
+                        onClick={() => !isArchived && openEdit(s)}
+                        className={`block w-full text-left rounded -mx-1 px-1 py-0.5 ${isArchived ? "cursor-default" : "hover:bg-secondary/60 cursor-pointer"}`}
+                        title={isArchived ? undefined : "Click to edit"}
+                      >
+                        <p className="font-medium truncate flex items-center gap-1.5">
+                          {isSupplier
+                            ? <Truck className="h-4 w-4 text-primary shrink-0" />
+                            : <Building2 className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : "text-success"}`} />}
+                          <span className={isArchived ? "text-muted-foreground" : ""}>{s.label}</span>
+                          {isArchived && <Badge variant="outline" className="h-4 text-[10px] ml-1">Archived</Badge>}
+                          {!isArchived && <Pencil className="h-3 w-3 text-muted-foreground/60 ml-1 shrink-0" />}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{s.address}</p>
+                      </button>
+
                       {!isArchived && (
                         <div className="flex items-center gap-2 mt-2">
                           <Label className="text-xs text-muted-foreground">Radius</Label>
