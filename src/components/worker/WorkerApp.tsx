@@ -384,15 +384,24 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
           <p className="font-semibold truncate">{session.name}</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <span className={`flex items-center gap-1 text-xs ${online ? "text-success" : "text-muted-foreground"}`}>
-            {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-            {online ? "Online" : "Offline"}
-          </span>
+          <SyncStatusPill status={sync.status} pending={sync.pending.length} failed={sync.failed.length} onRetry={sync.retry} />
           <Button variant="ghost" size="sm" onClick={onLogout} aria-label="Log out">
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
+
+      {(sync.pending.length > 0 || sync.failed.length > 0) && (
+        <PendingBanner
+          pending={sync.pending.length}
+          failed={sync.failed.length}
+          online={sync.online}
+          syncing={sync.status === "syncing"}
+          onSyncNow={sync.flush}
+          onRetry={sync.retry}
+        />
+      )}
+
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
         {isLoading ? (
