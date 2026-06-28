@@ -1157,6 +1157,19 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
 
 type GeoStatus = "verified" | "off_site" | "no_gps";
 
+const REASON_LABELS: Record<string, string> = {
+  material_pickup: "Material pickup",
+  client_visit: "Client visit",
+  travel: "Travel between sites",
+  forgot_clockout: "Forgot to clock out",
+  new_site: "New / unlisted site",
+  other: "Other",
+};
+function reasonLabel(code: string | null | undefined) {
+  if (!code) return "";
+  return REASON_LABELS[code] ?? code;
+}
+
 function GeoTagEditor({
   entry, sites, onUpdate,
 }: {
