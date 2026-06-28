@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
-import { getWorkerState, clockIn, clockOut, workerSetEntryReason } from "@/lib/entries.functions";
+import { getWorkerState, clockIn, clockOut, workerSetEntryReason, workerListActiveClientSites, workerSetPlannedJob } from "@/lib/entries.functions";
 import {
   workerSubmitReimbursement, workerUploadReceipt,
   workerListReimbursements, workerDeleteReimbursement,
