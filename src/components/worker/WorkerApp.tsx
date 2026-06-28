@@ -210,6 +210,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
   const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "supplier" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
   const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
+  const [plannedPrompt, setPlannedPrompt] = useState<null | { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" }>(null);
 
   const inMut = useMutation({
     mutationFn: async () => {
@@ -226,12 +227,19 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked in");
-      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+      if (r.needsPlannedJob && r.entryId) {
+        setPlannedPrompt({
+          entryId: r.entryId,
+          alsoNeedsReason: !!r.needsReason,
+          reasonStatus: r.needsReason ? (r.geo.status as "off_site" | "no_gps") : undefined,
+        });
+      } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
         setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
       }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
   const outMut = useMutation({
     mutationFn: async () => {
       const coords = await getGeo();
