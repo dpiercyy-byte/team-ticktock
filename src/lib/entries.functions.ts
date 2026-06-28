@@ -2,6 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireWorker, requireAdmin } from "./auth.server";
+import { resolveSite } from "./geo.server";
+
+const geoInput = z.object({
+  lat: z.number().finite().optional().nullable(),
+  lng: z.number().finite().optional().nullable(),
+}).partial();
+
 
 const FOURTEEN_HOURS_MS = 14 * 60 * 60 * 1000;
 
