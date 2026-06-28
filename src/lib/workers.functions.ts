@@ -55,6 +55,21 @@ export const setWorkerRate = createServerFn({ method: "POST" })
     return refreshed;
   });
 
+export const setWorkerName = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminInput.extend({
+    workerId: z.string().uuid(), name: z.string().trim().min(1).max(80),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: existing } = await supabaseAdmin
+      .from("workers").select("id").ilike("name", data.name).neq("id", data.workerId).maybeSingle();
+    if (existing) throw new Response("Name already exists", { status: 400 });
+    const { error } = await supabaseAdmin.from("workers")
+      .update({ name: data.name }).eq("id", data.workerId);
+    if (error) throw new Response(error.message, { status: 400 });
+    return refreshed;
+  });
+
 export const resetWorkerPin = createServerFn({ method: "POST" })
   .inputValidator((d) => adminInput.extend({
     workerId: z.string().uuid(), newPin: z.string().min(4).max(12),
@@ -67,3 +82,4 @@ export const resetWorkerPin = createServerFn({ method: "POST" })
     if (error) throw error;
     return refreshed;
   });
+
