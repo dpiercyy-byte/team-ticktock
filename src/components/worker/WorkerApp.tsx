@@ -335,8 +335,29 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
 
 
-  const active = data?.active;
+  // Compute effective active state by applying queued (unsynced) actions on top of server state.
+  const serverActive = data?.active ?? null;
   const settings = data?.settings;
+
+  let active: any = serverActive;
+  let optimisticPendingKind: "in" | "out" | null = null;
+  for (const q of sync.pending) {
+    optimisticPendingKind = q.kind;
+    if (q.kind === "in" && !active) {
+      active = {
+        id: `pending-${q.id}`,
+        clock_in: q.payload.clientTimestamp,
+        project: q.payload.project ?? null,
+        geo_status: null,
+        offsite_reason_code: null,
+        planned_job: null,
+        __pending: true,
+      };
+    } else if (q.kind === "out" && active) {
+      active = null;
+    }
+  }
+
   const sessionHours = active ? diffHours(active.clock_in, new Date()) : 0;
   // include live session in totals
   const todayDisplay = (data?.todayHours ?? 0) + sessionHours;
@@ -352,6 +373,8 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     const s = Math.floor((ms % 60_000) / 1000);
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   })();
+  void optimisticPendingKind;
+
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
