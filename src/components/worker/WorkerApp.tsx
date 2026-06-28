@@ -205,16 +205,43 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     return () => clearInterval(i);
   }, [data?.active]);
 
+  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
+
   const inMut = useMutation({
-    mutationFn: () => inFn({ data: { token: session.token, project: project || undefined } }),
-    onSuccess: () => { setProject(""); qc.invalidateQueries({ queryKey: ["worker-state", session.id] }); toast.success("Clocked in"); },
+    mutationFn: async () => {
+      const coords = await getGeo();
+      return inFn({ data: {
+        token: session.token,
+        project: project || undefined,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+      } });
+    },
+    onSuccess: (r) => {
+      setProject("");
+      setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+      qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+      toast.success("Clocked in");
+    },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
   const outMut = useMutation({
-    mutationFn: () => outFn({ data: { token: session.token } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["worker-state", session.id] }); toast.success("Clocked out"); },
+    mutationFn: async () => {
+      const coords = await getGeo();
+      return outFn({ data: {
+        token: session.token,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+      } });
+    },
+    onSuccess: (r) => {
+      setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+      qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+      toast.success("Clocked out");
+    },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
 
   const active = data?.active;
   const settings = data?.settings;
