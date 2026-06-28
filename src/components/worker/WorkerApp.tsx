@@ -410,6 +410,20 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         onClose={() => setReasonPrompt(null)}
         onSaved={() => qc.invalidateQueries({ queryKey: ["worker-state", session.id] })}
       />
+
+      <PlannedJobDialog
+        token={session.token}
+        prompt={plannedPrompt}
+        onClose={() => setPlannedPrompt(null)}
+        onSaved={(prompt) => {
+          qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+          // If GPS also needed a reason, chain into reason dialog now.
+          if (prompt.alsoNeedsReason && prompt.reasonStatus) {
+            setReasonPrompt({ entryId: prompt.entryId, status: prompt.reasonStatus, kind: "in" });
+          }
+        }}
+      />
+
     </div>
   );
 }
