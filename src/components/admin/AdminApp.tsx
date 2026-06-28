@@ -335,6 +335,14 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 } catch (err: any) { toast.error(err?.message || "Failed"); }
                               }}
                             />
+                            {e.offsite_reason_code && (
+                              <span
+                                className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
+                                title={e.offsite_reason_note || undefined}
+                              >
+                                · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
+                              </span>
+                            )}
                           </p>
 
                         </div>
@@ -1149,6 +1157,19 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
 
 type GeoStatus = "verified" | "off_site" | "no_gps";
 
+const REASON_LABELS: Record<string, string> = {
+  material_pickup: "Material pickup",
+  client_visit: "Client visit",
+  travel: "Travel between sites",
+  forgot_clockout: "Forgot to clock out",
+  new_site: "New / unlisted site",
+  other: "Other",
+};
+function reasonLabel(code: string | null | undefined) {
+  if (!code) return "";
+  return REASON_LABELS[code] ?? code;
+}
+
 function GeoTagEditor({
   entry, sites, onUpdate,
 }: {
@@ -1188,7 +1209,16 @@ function GeoTagEditor({
       <PopoverTrigger asChild>
         <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-1" align="start">
+      <PopoverContent className="w-64 p-1" align="start">
+        {entry.offsite_reason_code && (
+          <div className="px-2 py-2 mb-1 rounded bg-warning/10 border border-warning/30 text-[11px]">
+            <div className="font-semibold text-warning uppercase tracking-wide mb-0.5">Worker reason</div>
+            <div className="text-foreground">{reasonLabel(entry.offsite_reason_code)}</div>
+            {entry.offsite_reason_note && (
+              <div className="text-muted-foreground italic mt-0.5">"{entry.offsite_reason_note}"</div>
+            )}
+          </div>
+        )}
         <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Job site</div>
         {sites.length === 0 && (
           <div className="px-2 py-1.5 text-xs text-muted-foreground">No job sites yet</div>

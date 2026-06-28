@@ -34,7 +34,7 @@ export const getWorkerState = createServerFn({ method: "POST" })
 
     const [{ data: active }, { data: weekRows }, { data: worker }, { data: settings }] =
       await Promise.all([
-        supabaseAdmin.from("time_entries").select("id, clock_in, project")
+        supabaseAdmin.from("time_entries").select("id, clock_in, project, geo_status, offsite_reason_code")
           .eq("worker_id", wid).is("clock_out", null).order("clock_in", { ascending: false }).limit(1).maybeSingle(),
         supabaseAdmin.from("time_entries").select("clock_in, clock_out")
           .eq("worker_id", wid).gte("clock_in", wkStart.toISOString()),
@@ -91,7 +91,7 @@ export const clockIn = createServerFn({ method: "POST" })
       entityId: inserted?.id,
       after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null },
     });
-    return { ok: true, geo };
+    return { ok: true, geo, entryId: inserted?.id, needsReason: geo.status !== "verified" };
   });
 
 export const clockOut = createServerFn({ method: "POST" })
@@ -125,11 +125,46 @@ export const clockOut = createServerFn({ method: "POST" })
       after: { clock_out: now.toISOString(), flagged_review: flagged },
       metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
     });
-    return { ok: true, geo };
+    return { ok: true, geo, entryId: active.id, needsReason: geo.status !== "verified" };
+  });
+
+
+const REASON_CODES = ["material_pickup", "client_visit", "travel", "forgot_clockout", "new_site", "other"] as const;
+
+export const workerSetEntryReason = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    entryId: z.string().uuid(),
+    code: z.enum(REASON_CODES).nullable(),
+    note: z.string().trim().max(200).nullable().optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const { data: row, error: e0 } = await supabaseAdmin
+      .from("time_entries")
+      .select("id, worker_id, offsite_reason_code, offsite_reason_note")
+      .eq("id", data.entryId).maybeSingle();
+    if (e0) throw e0;
+    if (!row || row.worker_id !== wid) throw new Response("Not found", { status: 404 });
+    const note = data.note?.trim() || null;
+    const { error } = await supabaseAdmin.from("time_entries")
+      .update({ offsite_reason_code: data.code, offsite_reason_note: note })
+      .eq("id", data.entryId);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "entry_reason_set",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { offsite_reason_code: row.offsite_reason_code, offsite_reason_note: row.offsite_reason_note },
+      after: { offsite_reason_code: data.code, offsite_reason_note: note },
+    });
+    return { ok: true };
   });
 
 
 // === Admin ===
+
 
 const adminBase = z.object({ token: z.string() });
 
@@ -142,7 +177,7 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, job_sites(label)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_sites(label)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
 
     if (data.from) q = q.gte("clock_in", data.from);

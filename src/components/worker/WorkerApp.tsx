@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
-import { getWorkerState, clockIn, clockOut } from "@/lib/entries.functions";
+import { getWorkerState, clockIn, clockOut, workerSetEntryReason } from "@/lib/entries.functions";
 import {
   workerSubmitReimbursement, workerUploadReceipt,
   workerListReimbursements, workerDeleteReimbursement,
@@ -206,6 +206,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   }, [data?.active]);
 
   const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
+  const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
 
   const inMut = useMutation({
     mutationFn: async () => {
@@ -222,6 +223,9 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked in");
+      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+        setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
+      }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
@@ -238,6 +242,9 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked out");
+      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+        setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+      }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
@@ -324,22 +331,37 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
             )}
 
             {lastGeo && (
-              <p className={`text-xs inline-flex items-center gap-1.5 -mt-2 ${
-                lastGeo.status === "verified" ? "text-success" :
-                lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
-              }`}>
-                {lastGeo.status === "no_gps"
-                  ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
-                  : lastGeo.status === "verified"
-                  ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
-                  : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
-              </p>
+              <div className="flex flex-col items-center gap-1 -mt-2">
+                <p className={`text-xs inline-flex items-center gap-1.5 ${
+                  lastGeo.status === "verified" ? "text-success" :
+                  lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
+                }`}>
+                  {lastGeo.status === "no_gps"
+                    ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
+                    : lastGeo.status === "verified"
+                    ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
+                    : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
+                </p>
+              </div>
+            )}
+
+            {active && active.geo_status && active.geo_status !== "verified" && !active.offsite_reason_code && (
+              <button
+                onClick={() => setReasonPrompt({
+                  entryId: active.id,
+                  status: active.geo_status as any,
+                  kind: "in",
+                })}
+                className="text-xs text-warning underline underline-offset-2"
+              >
+                Add reason for off-site clock-in
+              </button>
             )}
 
             <button onClick={() => refetch()} className="text-xs text-muted-foreground">
               Tap to refresh
-
             </button>
+
 
             <ReimbursementsSection token={session.token} workerId={session.id} />
           </>
@@ -359,6 +381,13 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
           )}
         </div>
       </section>
+
+      <OffsiteReasonDialog
+        token={session.token}
+        prompt={reasonPrompt}
+        onClose={() => setReasonPrompt(null)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["worker-state", session.id] })}
+      />
     </div>
   );
 }
@@ -604,3 +633,107 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
     </div>
   );
 }
+
+const REASON_OPTIONS: { code: string; label: string }[] = [
+  { code: "material_pickup", label: "Material pickup" },
+  { code: "client_visit", label: "Client visit" },
+  { code: "travel", label: "Travel between sites" },
+  { code: "forgot_clockout", label: "Forgot to clock out" },
+  { code: "new_site", label: "New / unlisted site" },
+  { code: "other", label: "Other" },
+];
+
+function OffsiteReasonDialog({
+  token, prompt, onClose, onSaved,
+}: {
+  token: string;
+  prompt: { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" } | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const setFn = useServerFn(workerSetEntryReason);
+  const [code, setCode] = useState<string>("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (prompt) { setCode(""); setNote(""); }
+  }, [prompt?.entryId]);
+
+  const save = useMutation({
+    mutationFn: () => setFn({ data: {
+      token,
+      entryId: prompt!.entryId,
+      code: code as any,
+      note: note.trim() || null,
+    } }),
+    onSuccess: () => {
+      toast.success("Reason saved");
+      onSaved();
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save"),
+  });
+
+  const open = !!prompt;
+  const title = prompt?.status === "no_gps"
+    ? "No location detected"
+    : "Clocked in off-site";
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Help your admin verify this {prompt?.kind === "out" ? "clock-out" : "clock-in"}.
+            Pick the closest reason.
+          </p>
+          <div className="grid grid-cols-1 gap-2">
+            {REASON_OPTIONS.map((r) => (
+              <button
+                key={r.code}
+                type="button"
+                onClick={() => setCode(r.code)}
+                className={`text-left rounded-md border px-3 py-2 text-sm transition ${
+                  code === r.code
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          {(code === "other" || code === "new_site") && (
+            <div>
+              <Label htmlFor="reason-note" className="text-xs text-muted-foreground">
+                Add a brief note
+              </Label>
+              <Textarea
+                id="reason-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. Picked up lumber at Home Depot"
+                maxLength={200}
+                className="mt-1.5"
+                rows={3}
+              />
+            </div>
+          )}
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="ghost" onClick={onClose}>Skip</Button>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!code || save.isPending || ((code === "other" || code === "new_site") && !note.trim())}
+          >
+            {save.isPending ? "Saving…" : "Save reason"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

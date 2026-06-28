@@ -162,6 +162,8 @@ export type Database = {
           geo_status: string | null
           id: string
           job_site_id: string | null
+          offsite_reason_code: string | null
+          offsite_reason_note: string | null
           project: string | null
           worker_id: string
         }
@@ -178,6 +180,8 @@ export type Database = {
           geo_status?: string | null
           id?: string
           job_site_id?: string | null
+          offsite_reason_code?: string | null
+          offsite_reason_note?: string | null
           project?: string | null
           worker_id: string
         }
@@ -194,6 +198,8 @@ export type Database = {
           geo_status?: string | null
           id?: string
           job_site_id?: string | null
+          offsite_reason_code?: string | null
+          offsite_reason_note?: string | null
           project?: string | null
           worker_id?: string
         }
