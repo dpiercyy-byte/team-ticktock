@@ -76,7 +76,6 @@ export const clockIn = createServerFn({ method: "POST" })
     if (existing) throw new Response("Already clocked in", { status: 400 });
     const geo = await resolveSite(data.lat, data.lng);
     const nowISO = new Date().toISOString();
-    const isNonClient = geo.status === "supplier" || geo.status === "off_site" || geo.status === "no_gps";
     const plannedId = data.plannedJobSiteId ?? null;
     const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
@@ -98,9 +97,55 @@ export const clockIn = createServerFn({ method: "POST" })
       after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null, planned_job_site_id: plannedId },
     });
     const needsReason = geo.status === "off_site" || geo.status === "no_gps";
-    const needsPlannedJob = isNonClient && !plannedId;
-    return { ok: true, geo, entryId: inserted?.id, needsReason, needsPlannedJob };
+    return { ok: true, geo, entryId: inserted?.id, needsReason };
   });
+
+
+export const clockOut = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    lat: z.number().finite().optional().nullable(),
+    lng: z.number().finite().optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const { data: active } = await supabaseAdmin
+      .from("time_entries").select("id, clock_in, job_site_id, geo_status, planned_job_site_id").eq("worker_id", wid).is("clock_out", null).maybeSingle();
+    if (!active) throw new Response("Not clocked in", { status: 400 });
+    const now = new Date();
+    const flagged = now.getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
+    const geo = await resolveSite(data.lat, data.lng);
+    const { error } = await supabaseAdmin.from("time_entries")
+      .update({
+        clock_out: now.toISOString(),
+        flagged_review: flagged,
+        clock_out_lat: data.lat ?? null,
+        clock_out_lng: data.lng ?? null,
+        clock_out_geo_status: geo.status,
+        clock_out_job_site_id: geo.jobSiteId,
+      })
+      .eq("id", active.id);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "clock_out",
+      entityType: "time_entry",
+      entityId: active.id,
+      after: {
+        clock_out: now.toISOString(),
+        flagged_review: flagged,
+        clock_out_geo_status: geo.status,
+        clock_out_job_site_id: geo.jobSiteId,
+      },
+      metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
+    });
+    const needsReason = geo.status === "off_site" || geo.status === "no_gps";
+    const inNonClient = active.geo_status === "supplier" || active.geo_status === "off_site" || active.geo_status === "no_gps";
+    const outNonClient = geo.status === "supplier" || geo.status === "off_site" || geo.status === "no_gps";
+    const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
+    return { ok: true, geo, entryId: active.id, needsReason, needsPlannedJob };
+  });
+
 
 
 export const clockOut = createServerFn({ method: "POST" })
