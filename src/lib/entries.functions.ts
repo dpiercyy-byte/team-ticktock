@@ -147,6 +147,68 @@ export const clockOut = createServerFn({ method: "POST" })
   });
 
 
+// Shared helper: when clocking out without GPS (admin force / auto), mirror the clock-in tag.
+export async function forceCloseEntry(opts: {
+  entryId: string;
+  clockOutISO: string;
+  actor: { kind: "admin" } | { kind: "system" };
+  reason: "admin_force" | "auto_8pm";
+}) {
+  const { data: row, error: e0 } = await supabaseAdmin
+    .from("time_entries")
+    .select("id, clock_in, clock_out, geo_status, job_site_id")
+    .eq("id", opts.entryId).maybeSingle();
+  if (e0) throw e0;
+  if (!row) throw new Response("Entry not found", { status: 404 });
+  if (row.clock_out) throw new Response("Already clocked out", { status: 400 });
+
+  let outISO = opts.clockOutISO;
+  if (new Date(outISO) <= new Date(row.clock_in)) {
+    outISO = new Date(new Date(row.clock_in).getTime() + 60_000).toISOString();
+  }
+  const flagged = new Date(outISO).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS;
+  const mirroredStatus = row.geo_status ?? "no_gps";
+  const mirroredSite = row.job_site_id ?? null;
+
+  const { error } = await supabaseAdmin.from("time_entries").update({
+    clock_out: outISO,
+    flagged_review: flagged,
+    clock_out_geo_status: mirroredStatus,
+    clock_out_job_site_id: mirroredSite,
+  }).eq("id", opts.entryId);
+  if (error) throw error;
+
+  await logAudit({
+    actor: opts.actor,
+    action: opts.reason === "admin_force" ? "entry_force_clock_out" : "entry_auto_clock_out",
+    entityType: "time_entry",
+    entityId: opts.entryId,
+    before: { clock_out: null },
+    after: {
+      clock_out: outISO,
+      flagged_review: flagged,
+      clock_out_geo_status: mirroredStatus,
+      clock_out_job_site_id: mirroredSite,
+    },
+    metadata: { reason: opts.reason, hours: (new Date(outISO).getTime() - new Date(row.clock_in).getTime()) / 3600_000 },
+  });
+  return { entryId: opts.entryId, clockOut: outISO, flagged };
+}
+
+export const adminForceClockOut = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ entryId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    await forceCloseEntry({
+      entryId: data.entryId,
+      clockOutISO: new Date().toISOString(),
+      actor: { kind: "admin" },
+      reason: "admin_force",
+    });
+    return refreshed;
+  });
+
+
 
 
 
