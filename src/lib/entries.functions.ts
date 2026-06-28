@@ -211,6 +211,27 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
     return refreshed;
   });
 
+export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({
+    entryId: z.string().uuid(),
+    status: z.enum(["verified", "off_site", "no_gps"]),
+    jobSiteId: z.string().uuid().nullable(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    if (data.status === "verified" && !data.jobSiteId) {
+      throw new Response("Job site required for verified status", { status: 400 });
+    }
+    const { error } = await supabaseAdmin.from("time_entries")
+      .update({
+        geo_status: data.status,
+        job_site_id: data.status === "verified" ? data.jobSiteId : null,
+      })
+      .eq("id", data.entryId);
+    if (error) throw error;
+    return refreshed;
+  });
+
 export const adminFlaggedEntries = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
   .handler(async ({ data }) => {

@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
+  adminUpdateEntryGeo,
 } from "@/lib/entries.functions";
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
@@ -191,8 +193,15 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const addE = useServerFn(adminAddEntry);
   const editE = useServerFn(adminEditEntry);
   const delE = useServerFn(adminDeleteEntry);
+  const updGeo = useServerFn(adminUpdateEntryGeo);
+  const listSites = useServerFn(adminListJobSites);
   const settingsFn = useServerFn(getPublicSettings);
   const qc = useQueryClient();
+
+  const sitesQ = useQuery({
+    queryKey: ["adm-jobsites"],
+    queryFn: () => listSites({ data: { token } }).then(r => { updateToken(r.token); return r.sites; }),
+  });
 
   const wq = useQuery({
     queryKey: ["adm-workers"],
@@ -311,21 +320,18 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             <span className="truncate max-w-[160px]">{e.project ?? "General"}</span>
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
-                            {e.geo_status === "verified" && e.job_sites?.label && (
-                              <Badge variant="outline" className="h-4 text-[10px] border-success text-success">
-                                <MapPin className="h-2.5 w-2.5 mr-0.5" />{e.job_sites.label}
-                              </Badge>
-                            )}
-                            {e.geo_status === "off_site" && (
-                              <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning">
-                                <MapPin className="h-2.5 w-2.5 mr-0.5" />Off-site
-                              </Badge>
-                            )}
-                            {e.geo_status === "no_gps" && (
-                              <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground">
-                                <MapPinOff className="h-2.5 w-2.5 mr-0.5" />No GPS
-                              </Badge>
-                            )}
+                            <GeoTagEditor
+                              entry={e}
+                              sites={sitesQ.data ?? []}
+                              onUpdate={async (status, jobSiteId) => {
+                                try {
+                                  const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId } });
+                                  updateToken(r.token);
+                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                  toast.success("Tag updated");
+                                } catch (err: any) { toast.error(err?.message || "Failed"); }
+                              }}
+                            />
                           </p>
 
                         </div>
@@ -1137,4 +1143,85 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     </div>
   );
 }
+
+type GeoStatus = "verified" | "off_site" | "no_gps";
+
+function GeoTagEditor({
+  entry, sites, onUpdate,
+}: {
+  entry: any;
+  sites: Array<{ id: string; label: string }>;
+  onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const status: GeoStatus | null = entry.geo_status ?? null;
+
+  const trigger =
+    status === "verified" && entry.job_sites?.label ? (
+      <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />{entry.job_sites.label}
+      </Badge>
+    ) : status === "off_site" ? (
+      <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />Off-site
+      </Badge>
+    ) : status === "no_gps" ? (
+      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />No GPS
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />Set tag
+      </Badge>
+    );
+
+  const pick = async (s: GeoStatus, jid: string | null) => {
+    setOpen(false);
+    await onUpdate(s, jid);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-1" align="start">
+        <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Job site</div>
+        {sites.length === 0 && (
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">No job sites yet</div>
+        )}
+        {sites.map((s) => {
+          const active = status === "verified" && entry.job_site_id === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => pick("verified", s.id)}
+              className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${active ? "bg-secondary" : ""}`}
+            >
+              <MapPin className="h-3 w-3 text-success" />
+              <span className="truncate">{s.label}</span>
+            </button>
+          );
+        })}
+        <div className="my-1 h-px bg-border" />
+        <button
+          type="button"
+          onClick={() => pick("off_site", null)}
+          className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${status === "off_site" ? "bg-secondary" : ""}`}
+        >
+          <MapPin className="h-3 w-3 text-warning" /> Off-site
+        </button>
+        <button
+          type="button"
+          onClick={() => pick("no_gps", null)}
+          className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${status === "no_gps" ? "bg-secondary" : ""}`}
+        >
+          <MapPinOff className="h-3 w-3 text-muted-foreground" /> No GPS
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
