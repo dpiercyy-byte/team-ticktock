@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip,
+  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip, Banknote,
   MapPin, MapPinOff,
 } from "lucide-react";
 
@@ -191,7 +191,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const outFn = useServerFn(clockOut);
   const qc = useQueryClient();
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["worker-state", session.id],
     queryFn: () => stateFn({ data: { token: session.token } }),
     refetchInterval: 30_000,
@@ -381,8 +381,16 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               </button>
             )}
 
-            <button onClick={() => refetch()} className="text-xs text-muted-foreground">
-              Tap to refresh
+            <button
+              onClick={() => {
+                refetch();
+                qc.invalidateQueries({ queryKey: ["worker-reimb", session.id] });
+                toast.success("Refreshed");
+              }}
+              disabled={isFetching}
+              className="text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-50"
+            >
+              {isFetching ? "Refreshing…" : "Tap to refresh"}
             </button>
 
 
@@ -522,7 +530,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
         onClick={() => setOpen(true)}
         className="w-full touch-manipulation"
       >
-        <Receipt className="h-4 w-4 mr-2" />
+        <Banknote className="h-4 w-4 mr-2 text-success" />
         Add Reimbursement
       </Button>
 
