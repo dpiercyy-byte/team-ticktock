@@ -1064,7 +1064,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   });
 
   const upd = useMutation({
-    mutationFn: (v: { id: string; label: string; radius_m: number }) =>
+    mutationFn: (v: { id: string; label: string; radius_m: number; address?: string; kind?: "client" | "supplier" }) =>
       updFn({ data: { token, ...v } }),
     onSuccess: (r) => {
       updateToken(r.token);
@@ -1072,6 +1072,19 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
+  const saveEdit = useMutation({
+    mutationFn: (v: { id: string; label: string; radius_m: number; address?: string; kind: "client" | "supplier" }) =>
+      updFn({ data: { token, ...v } }),
+    onSuccess: (r) => {
+      updateToken(r.token);
+      toast.success("Saved");
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not save"),
+  });
+
 
   const arch = useMutation({
     mutationFn: (v: { id: string; archived: boolean }) => archFn({ data: { token, ...v } }),
