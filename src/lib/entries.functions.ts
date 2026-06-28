@@ -129,7 +129,42 @@ export const clockOut = createServerFn({ method: "POST" })
   });
 
 
+const REASON_CODES = ["material_pickup", "client_visit", "travel", "forgot_clockout", "new_site", "other"] as const;
+
+export const workerSetEntryReason = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    entryId: z.string().uuid(),
+    code: z.enum(REASON_CODES).nullable(),
+    note: z.string().trim().max(200).nullable().optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const { data: row, error: e0 } = await supabaseAdmin
+      .from("time_entries")
+      .select("id, worker_id, offsite_reason_code, offsite_reason_note")
+      .eq("id", data.entryId).maybeSingle();
+    if (e0) throw e0;
+    if (!row || row.worker_id !== wid) throw new Response("Not found", { status: 404 });
+    const note = data.note?.trim() || null;
+    const { error } = await supabaseAdmin.from("time_entries")
+      .update({ offsite_reason_code: data.code, offsite_reason_note: note })
+      .eq("id", data.entryId);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "entry_reason_set",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { offsite_reason_code: row.offsite_reason_code, offsite_reason_note: row.offsite_reason_note },
+      after: { offsite_reason_code: data.code, offsite_reason_note: note },
+    });
+    return { ok: true };
+  });
+
+
 // === Admin ===
+
 
 const adminBase = z.object({ token: z.string() });
 
