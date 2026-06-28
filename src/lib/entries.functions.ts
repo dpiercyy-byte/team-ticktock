@@ -34,7 +34,8 @@ export const getWorkerState = createServerFn({ method: "POST" })
 
     const [{ data: active }, { data: weekRows }, { data: worker }, { data: settings }] =
       await Promise.all([
-        supabaseAdmin.from("time_entries").select("id, clock_in, project, geo_status, offsite_reason_code")
+        supabaseAdmin.from("time_entries")
+          .select("id, clock_in, project, geo_status, offsite_reason_code, planned_job_site_id, planned_job:job_sites!planned_job_site_id(label)")
           .eq("worker_id", wid).is("clock_out", null).order("clock_in", { ascending: false }).limit(1).maybeSingle(),
         supabaseAdmin.from("time_entries").select("clock_in, clock_out")
           .eq("worker_id", wid).gte("clock_in", wkStart.toISOString()),
@@ -59,12 +60,14 @@ export const getWorkerState = createServerFn({ method: "POST" })
     };
   });
 
+
 export const clockIn = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     token: z.string(),
     project: z.string().trim().max(100).optional(),
     lat: z.number().finite().optional().nullable(),
     lng: z.number().finite().optional().nullable(),
+    plannedJobSiteId: z.string().uuid().nullable().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
@@ -73,6 +76,8 @@ export const clockIn = createServerFn({ method: "POST" })
     if (existing) throw new Response("Already clocked in", { status: 400 });
     const geo = await resolveSite(data.lat, data.lng);
     const nowISO = new Date().toISOString();
+    const isNonClient = geo.status === "supplier" || geo.status === "off_site" || geo.status === "no_gps";
+    const plannedId = data.plannedJobSiteId ?? null;
     const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
       clock_in: nowISO,
@@ -82,6 +87,7 @@ export const clockIn = createServerFn({ method: "POST" })
       clock_in_lng: data.lng ?? null,
       job_site_id: geo.jobSiteId,
       geo_status: geo.status,
+      planned_job_site_id: plannedId,
     }).select("id").single();
     if (error) throw error;
     await logAudit({
@@ -89,11 +95,13 @@ export const clockIn = createServerFn({ method: "POST" })
       action: "clock_in",
       entityType: "time_entry",
       entityId: inserted?.id,
-      after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null },
+      after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null, planned_job_site_id: plannedId },
     });
     const needsReason = geo.status === "off_site" || geo.status === "no_gps";
-    return { ok: true, geo, entryId: inserted?.id, needsReason };
+    const needsPlannedJob = isNonClient && !plannedId;
+    return { ok: true, geo, entryId: inserted?.id, needsReason, needsPlannedJob };
   });
+
 
 export const clockOut = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
@@ -179,8 +187,9 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, job_sites(label, kind, archived_at)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
+
 
     if (data.from) q = q.gte("clock_in", data.from);
     if (data.to) q = q.lte("clock_in", data.to);
@@ -335,3 +344,86 @@ export const adminFlaggedEntries = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ...refreshed, entries: rows ?? [] };
   });
+
+// === Planned job site (heading-to) ===
+
+export const workerListActiveClientSites = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({ token: z.string() }).parse(d))
+  .handler(async ({ data }) => {
+    requireWorker(data.token);
+    const { data: rows, error } = await supabaseAdmin
+      .from("job_sites")
+      .select("id, label")
+      .eq("kind", "client")
+      .is("archived_at", null)
+      .order("label", { ascending: true });
+    if (error) throw error;
+    return { sites: rows ?? [] };
+  });
+
+export const workerSetPlannedJob = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    entryId: z.string().uuid(),
+    jobSiteId: z.string().uuid().nullable(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const { data: row, error: e0 } = await supabaseAdmin
+      .from("time_entries")
+      .select("id, worker_id, planned_job_site_id")
+      .eq("id", data.entryId).maybeSingle();
+    if (e0) throw e0;
+    if (!row || row.worker_id !== wid) throw new Response("Not found", { status: 404 });
+    let label: string | null = null;
+    if (data.jobSiteId) {
+      const { data: s } = await supabaseAdmin.from("job_sites").select("label, kind, archived_at").eq("id", data.jobSiteId).maybeSingle();
+      if (!s || s.archived_at || s.kind !== "client") throw new Response("Invalid job site", { status: 400 });
+      label = s.label;
+    }
+    const { error } = await supabaseAdmin.from("time_entries")
+      .update({ planned_job_site_id: data.jobSiteId })
+      .eq("id", data.entryId);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "entry_planned_job_set",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { planned_job_site_id: row.planned_job_site_id },
+      after: { planned_job_site_id: data.jobSiteId, planned_job_label: label },
+    });
+    return { ok: true };
+  });
+
+export const adminUpdateEntryPlannedJob = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({
+    entryId: z.string().uuid(),
+    jobSiteId: z.string().uuid().nullable(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: prev } = await supabaseAdmin
+      .from("time_entries")
+      .select("planned_job_site_id, planned_job:job_sites!planned_job_site_id(label)")
+      .eq("id", data.entryId).maybeSingle();
+    let label: string | null = null;
+    if (data.jobSiteId) {
+      const { data: s } = await supabaseAdmin.from("job_sites").select("label").eq("id", data.jobSiteId).maybeSingle();
+      label = s?.label ?? null;
+    }
+    const { error } = await supabaseAdmin.from("time_entries")
+      .update({ planned_job_site_id: data.jobSiteId })
+      .eq("id", data.entryId);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "entry_planned_job_update",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { planned_job_site_id: prev?.planned_job_site_id ?? null, planned_job_label: (prev as any)?.planned_job?.label ?? null },
+      after: { planned_job_site_id: data.jobSiteId, planned_job_label: label },
+    });
+    return refreshed;
+  });
+

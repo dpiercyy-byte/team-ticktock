@@ -170,6 +170,7 @@ export type Database = {
           job_site_id: string | null
           offsite_reason_code: string | null
           offsite_reason_note: string | null
+          planned_job_site_id: string | null
           project: string | null
           worker_id: string
         }
@@ -188,6 +189,7 @@ export type Database = {
           job_site_id?: string | null
           offsite_reason_code?: string | null
           offsite_reason_note?: string | null
+          planned_job_site_id?: string | null
           project?: string | null
           worker_id: string
         }
@@ -206,6 +208,7 @@ export type Database = {
           job_site_id?: string | null
           offsite_reason_code?: string | null
           offsite_reason_note?: string | null
+          planned_job_site_id?: string | null
           project?: string | null
           worker_id?: string
         }
@@ -213,6 +216,13 @@ export type Database = {
           {
             foreignKeyName: "time_entries_job_site_id_fkey"
             columns: ["job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_planned_job_site_id_fkey"
+            columns: ["planned_job_site_id"]
             isOneToOne: false
             referencedRelation: "job_sites"
             referencedColumns: ["id"]

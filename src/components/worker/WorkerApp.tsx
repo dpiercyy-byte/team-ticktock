@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
-import { getWorkerState, clockIn, clockOut, workerSetEntryReason } from "@/lib/entries.functions";
+import { getWorkerState, clockIn, clockOut, workerSetEntryReason, workerListActiveClientSites, workerSetPlannedJob } from "@/lib/entries.functions";
 import {
   workerSubmitReimbursement, workerUploadReceipt,
   workerListReimbursements, workerDeleteReimbursement,
@@ -210,6 +210,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
   const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "supplier" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
   const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
+  const [plannedPrompt, setPlannedPrompt] = useState<null | { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" }>(null);
 
   const inMut = useMutation({
     mutationFn: async () => {
@@ -226,12 +227,19 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked in");
-      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+      if (r.needsPlannedJob && r.entryId) {
+        setPlannedPrompt({
+          entryId: r.entryId,
+          alsoNeedsReason: !!r.needsReason,
+          reasonStatus: r.needsReason ? (r.geo.status as "off_site" | "no_gps") : undefined,
+        });
+      } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
         setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
       }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
   const outMut = useMutation({
     mutationFn: async () => {
       const coords = await getGeo();
@@ -306,6 +314,12 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                   <Briefcase className="h-3.5 w-3.5" /> {active.project}
                 </p>
               )}
+              {active?.planned_job?.label && (
+                <p className="mt-1 text-xs text-primary inline-flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3" /> Heading to: {active.planned_job.label}
+                </p>
+              )}
+
             </div>
 
             {!active && settings?.project_tracking_enabled && (
@@ -396,6 +410,20 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         onClose={() => setReasonPrompt(null)}
         onSaved={() => qc.invalidateQueries({ queryKey: ["worker-state", session.id] })}
       />
+
+      <PlannedJobDialog
+        token={session.token}
+        prompt={plannedPrompt}
+        onClose={() => setPlannedPrompt(null)}
+        onSaved={(prompt) => {
+          qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+          // If GPS also needed a reason, chain into reason dialog now.
+          if (prompt.alsoNeedsReason && prompt.reasonStatus) {
+            setReasonPrompt({ entryId: prompt.entryId, status: prompt.reasonStatus, kind: "in" });
+          }
+        }}
+      />
+
     </div>
   );
 }
@@ -738,6 +766,95 @@ function OffsiteReasonDialog({
             disabled={!code || save.isPending || ((code === "other" || code === "new_site") && !note.trim())}
           >
             {save.isPending ? "Saving…" : "Save reason"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type PlannedPrompt = { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" };
+
+function PlannedJobDialog({
+  token, prompt, onClose, onSaved,
+}: {
+  token: string;
+  prompt: PlannedPrompt | null;
+  onClose: () => void;
+  onSaved: (p: PlannedPrompt) => void;
+}) {
+  const listFn = useServerFn(workerListActiveClientSites);
+  const setFn = useServerFn(workerSetPlannedJob);
+  const [selected, setSelected] = useState<string>("");
+
+  const sitesQ = useQuery({
+    enabled: !!prompt,
+    queryKey: ["worker-active-client-sites"],
+    queryFn: () => listFn({ data: { token } }),
+  });
+
+  useEffect(() => { if (prompt) setSelected(""); }, [prompt?.entryId]);
+
+  const save = useMutation({
+    mutationFn: () => setFn({ data: {
+      token,
+      entryId: prompt!.entryId,
+      jobSiteId: selected === "__none__" ? null : selected,
+    } }),
+    onSuccess: () => {
+      toast.success(selected === "__none__" ? "Saved" : "Heading to job set");
+      const p = prompt!;
+      onSaved(p);
+      onClose();
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save"),
+  });
+
+  const open = !!prompt;
+  const sites = sitesQ.data?.sites ?? [];
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        // Required choice — prevent closing without selection by ignoring outside dismiss.
+        if (!o && !save.isPending && selected) onClose();
+      }}
+    >
+      <DialogContent
+        className="max-w-sm"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>Which job are you heading to?</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            You clocked in away from a client job site. Tell your admin which job you're working today.
+          </p>
+          <div>
+            <Label className="text-xs text-muted-foreground">Planned job site</Label>
+            <Select value={selected} onValueChange={setSelected}>
+              <SelectTrigger className="w-full mt-1.5">
+                <SelectValue placeholder={sitesQ.isLoading ? "Loading…" : "Choose a job"} />
+              </SelectTrigger>
+              <SelectContent>
+                {sites.map((s: any) => (
+                  <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                ))}
+                <SelectItem value="__none__">No job today / other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!selected || save.isPending}
+            className="w-full"
+          >
+            {save.isPending ? "Saving…" : "Continue"}
           </Button>
         </DialogFooter>
       </DialogContent>

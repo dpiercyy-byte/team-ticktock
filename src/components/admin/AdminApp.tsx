@@ -32,8 +32,9 @@ import {
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
-  adminUpdateEntryGeo,
+  adminUpdateEntryGeo, adminUpdateEntryPlannedJob,
 } from "@/lib/entries.functions";
+
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
   listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
@@ -203,6 +204,8 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const editE = useServerFn(adminEditEntry);
   const delE = useServerFn(adminDeleteEntry);
   const updGeo = useServerFn(adminUpdateEntryGeo);
+  const updPlanned = useServerFn(adminUpdateEntryPlannedJob);
+
   const listSites = useServerFn(adminListJobSites);
   const settingsFn = useServerFn(getPublicSettings);
   const qc = useQueryClient();
@@ -340,7 +343,20 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                   toast.success("Tag updated");
                                 } catch (err: any) { toast.error(err?.message || "Failed"); }
                               }}
+                              onUpdatePlanned={async (jobSiteId) => {
+                                try {
+                                  const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                  updateToken(r.token);
+                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                  toast.success("Planned job updated");
+                                } catch (err: any) { toast.error(err?.message || "Failed"); }
+                              }}
                             />
+                            {e.planned_job?.label && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
+                                → {e.planned_job.label}
+                              </Badge>
+                            )}
                             {e.offsite_reason_code && (
                               <span
                                 className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
@@ -349,6 +365,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
                               </span>
                             )}
+
                           </p>
 
                         </div>
@@ -1436,13 +1453,15 @@ function reasonLabel(code: string | null | undefined) {
 }
 
 function GeoTagEditor({
-  entry, sites, onUpdate,
+  entry, sites, onUpdate, onUpdatePlanned,
 }: {
   entry: any;
   sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
+  onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+
   const status: GeoStatus | null = entry.geo_status ?? null;
 
   const trigger =
@@ -1492,7 +1511,27 @@ function GeoTagEditor({
             )}
           </div>
         )}
+        {onUpdatePlanned && (
+          <div className="px-2 py-2 mb-1 rounded bg-primary/5 border border-primary/20">
+            <div className="text-[11px] font-medium text-primary uppercase tracking-wide mb-1">Planned job</div>
+            <Select
+              value={entry.planned_job_site_id ?? "__none__"}
+              onValueChange={async (v) => {
+                await onUpdatePlanned(v === "__none__" ? null : v);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— None —</SelectItem>
+                {clientSites.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Client job</div>
+
         {clientSites.length === 0 && (
           <div className="px-2 py-1.5 text-xs text-muted-foreground">No active jobs</div>
         )}

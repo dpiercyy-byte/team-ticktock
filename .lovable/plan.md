@@ -1,38 +1,47 @@
-## Bulk-add supplier locations
+## Planned-job prompt for non-client clock-ins
 
-Add a "Bulk add" button to the Suppliers view in the Job Sites tab that opens a dialog with two input modes, a previewable parsed list, and a single save action.
+When a worker clocks in and GPS resolves to a **supplier** or **off-site** location, force them to pick the client job site they're planning to work at that day before the clock-in completes. The entry's primary geo tag stays truthful to where they actually clocked in (supplier or off-site), and the planned job is attached as a separate field that admins can see on the entry. Clock-out at a supplier later in the day does NOT re-prompt — the planned job set at clock-in covers the whole entry.
 
-### UX
+### Worker experience
 
-In the Job Sites tab → Suppliers view, next to the existing "Add" form, add a **Bulk add** button. Opens a dialog containing:
+1. Worker taps Clock In. GPS resolves.
+2. If `geo_status` is `supplier` or `off_site` → a **required** dialog appears listing active client job sites (searchable dropdown, same source as admin's active jobs). Includes a "No job today / other" option that falls back to the existing free-text off-site reason.
+3. Worker picks a planned job → clock-in completes. The site label is stored on the entry as `planned_job_site_id`.
+4. Clock-in card shows two chips: the actual geo badge ("At Home Depot — Castlefield") plus a secondary "Heading to: 123 Main St".
+5. The existing off-site reason dialog still fires for off-site clock-ins (material pickup, client visit, etc.) — the planned-job prompt is in addition to it, not a replacement.
 
-1. **Brand prefix field** — e.g. `Home Depot`. Used to label every row as `{Brand} — {Street}`.
-2. **Default radius slider** — applies to the whole batch (default 100m).
-3. **Tabbed input methods:**
-   - **Paste addresses** — textarea, one address per line. Click "Parse" to geocode each line in parallel.
-   - **Search & pick** — text input ("Home Depot Toronto"), runs Places API (New) `places:searchText` through the gateway, renders results as a checkbox list (name + formatted address). Tick the ones to add.
-4. **Preview list** — shows every parsed/picked location with:
-   - Auto-generated label `{Brand} — {street}` (editable inline)
-   - Resolved formatted address (read-only)
-   - Status icon: pending / resolved / failed (with reason)
-   - Remove (×) per row
-5. **Save all** — inserts every resolved row as `kind='supplier'`, single audit log entry per row, toast with success/fail counts. Dialog closes; list refreshes via existing query invalidation.
+### Admin experience
+
+- Entries list: existing geo badge is unchanged. A small "→ Planned: 123 Main St" chip appears next to it on supplier/off-site entries.
+- `GeoTagEditor` popover gains a "Planned job" row showing the chosen site, with a dropdown to change/clear it (audit logged).
+- Payouts / reporting unchanged — the planned job is metadata only for now.
 
 ### Technical details
 
-**Server function** — new `adminBulkAddJobSites` in `src/lib/jobsites.functions.ts`:
-- Input: `{ token, kind: 'supplier' | 'client', radius_m, items: Array<{ label, address }> }` (max 50 items per call).
-- For each item: call existing `geocodeAddress` helper, insert row, write audit entry (`action: 'job_site_create'`, `metadata: { bulk: true }`). Failures collected per-row, not fatal to the batch.
-- Returns `{ added: number, failed: Array<{ address, reason }> }`.
+**Schema** — new migration:
+- `time_entries.planned_job_site_id uuid references public.job_sites(id) on delete set null`
 
-**Places search** — reuse the existing gateway pattern from `geo.server.ts`. New server function `adminSearchPlaces({ token, query })` calls `places/v1/places:searchText` with field mask `places.id,places.displayName,places.formattedAddress,places.location`. Returns array of `{ placeId, name, address, lat, lng }`. Admin-gated.
+**Server functions** (`src/lib/entries.functions.ts`):
+- `clockIn` — accepts optional `plannedJobSiteId`. If geo resolves to `supplier` or `off_site` and `plannedJobSiteId` is missing, return `{ needsPlannedJob: true, geo, entryId }` without committing (or commit and flag `needsPlannedJob` so the worker app can prompt and then call a follow-up). Simpler path: always create the entry, return `needsPlannedJob`, and let the worker app submit the choice via a new `workerSetPlannedJob` fn.
+- `workerSetPlannedJob({ token, entryId, jobSiteId | null })` — writes `planned_job_site_id`, audit logs `entry_planned_job_set`.
+- `adminUpdateEntryPlannedJob({ token, entryId, jobSiteId | null })` — admin override, audit logged.
+- `adminListEntries` — extend select to include `planned_job:job_sites!planned_job_site_id(label)`.
+- `getWorkerState` — include `planned_job_site_id` and label on the active entry so the worker card can show the "Heading to" chip.
 
-**Label generation** — `{brand} — {street}` derived from the first comma-segment of the formatted address (e.g. `"1245 Castlefield Ave, Toronto, ON"` → `"1245 Castlefield Ave"`). Inline editable before save.
+**Worker UI** (`src/components/worker/WorkerApp.tsx`):
+- New `PlannedJobDialog` component: required Select listing active client job sites (fetched via a new lightweight `workerListActiveClientSites` server fn that returns `{id, label}` only — no admin token needed), plus "No job today" option. Cannot be dismissed without a choice.
+- After `clockIn` returns `needsPlannedJob: true`, open `PlannedJobDialog` first; on save call `workerSetPlannedJob`. Then chain into the existing `OffsiteReasonDialog` if `needsReason` is also true.
+- Active session card shows the planned-job chip when present.
 
-**Client UI** — new `BulkAddSuppliersDialog` component in `src/components/admin/AdminApp.tsx` (kept local to match existing pattern). Uses shadcn `Tabs`, `Textarea`, `Checkbox`, `Dialog`. Calls the two new server fns via TanStack Query mutations. On save, invalidates the job sites query.
+**Admin UI** (`src/components/admin/AdminApp.tsx`):
+- Entries list row: render planned-job chip next to geo badge when `planned_job` is present.
+- `GeoTagEditor` popover: add "Planned job" Select bound to active client sites, calls `adminUpdateEntryPlannedJob`.
+
+**Audit** — three new actions: `entry_planned_job_set` (worker), `entry_planned_job_update` (admin), included in before/after diffs.
 
 ### Out of scope
 
-- Importing across both client jobs + supplier locations in the same batch (separate flows).
-- Duplicate detection across existing rows (kept simple — admin can archive/delete after).
-- CSV file upload (paste covers the same use case).
+- Multi-site visit timeline within one entry (deferred).
+- Auto-splitting hours across planned vs actual sites.
+- Re-prompt on supplier clock-out.
+- Changing payout/job-costing logic.
