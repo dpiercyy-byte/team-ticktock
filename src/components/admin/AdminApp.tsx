@@ -35,6 +35,10 @@ import {
   listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
 } from "@/lib/reimbursements.functions";
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
+import {
+  adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite,
+} from "@/lib/jobsites.functions";
+
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
 import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
