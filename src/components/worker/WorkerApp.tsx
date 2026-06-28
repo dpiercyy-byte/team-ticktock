@@ -214,23 +214,78 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
   const [plannedPrompt, setPlannedPrompt] = useState<null | { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" }>(null);
 
+  const handleSynced = (r: Parameters<NonNullable<Parameters<typeof useOfflineSync>[0]["onSynced"]>>[0]) => {
+    if (r.kind === "in") {
+      setLastGeo({ status: r.res.geo.status, siteLabel: r.res.geo.siteLabel });
+      toast.success("Clock-in synced");
+      if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified") {
+        setReasonPrompt({ entryId: r.res.entryId, status: r.res.geo.status as any, kind: "in" });
+      }
+    } else {
+      setLastGeo(null);
+      toast.success("Clock-out synced");
+      if (r.res.needsPlannedJob && r.res.entryId) {
+        setPlannedPrompt({
+          entryId: r.res.entryId,
+          alsoNeedsReason: !!r.res.needsReason && r.res.geo.status !== "verified",
+          reasonStatus: r.res.needsReason && r.res.geo.status !== "verified" ? (r.res.geo.status as "off_site" | "no_gps") : undefined,
+        });
+      } else if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified") {
+        setReasonPrompt({ entryId: r.res.entryId, status: r.res.geo.status as any, kind: "out" });
+      }
+    }
+  };
+
+  const sync = useOfflineSync({ workerId: session.id, onSynced: handleSynced });
+
+  const queueAction = (kind: "in" | "out", coords: GeoCoords, projectVal?: string) => {
+    enqueueClock({
+      kind,
+      token: session.token,
+      workerId: session.id,
+      payload: {
+        project: projectVal,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+        clientTimestamp: new Date().toISOString(),
+      },
+    });
+  };
+
   const inMut = useMutation({
     mutationFn: async () => {
       const coords = await getGeo();
-      return inFn({ data: {
-        token: session.token,
-        project: project || undefined,
-        lat: coords?.lat ?? null,
-        lng: coords?.lng ?? null,
-      } });
+      // If offline or already pending, queue it.
+      if (!navigator.onLine || sync.pending.length > 0) {
+        queueAction("in", coords, project || undefined);
+        return { queued: true as const };
+      }
+      try {
+        const res = await inFn({ data: {
+          token: session.token,
+          project: project || undefined,
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+        } });
+        return { queued: false as const, res };
+      } catch (e) {
+        // Network-style failure → queue.
+        queueAction("in", coords, project || undefined);
+        return { queued: true as const };
+      }
     },
-    onSuccess: (r) => {
+    onSuccess: (out) => {
       setProject("");
-      setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
-      toast.success("Clocked in");
-      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
-        setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
+      if (out.queued) {
+        toast.success("Clock-in saved — will sync when online");
+      } else {
+        const r = out.res;
+        setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+        toast.success("Clocked in");
+        if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+          setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
+        }
       }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
@@ -239,28 +294,44 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const outMut = useMutation({
     mutationFn: async () => {
       const coords = await getGeo();
-      return outFn({ data: {
-        token: session.token,
-        lat: coords?.lat ?? null,
-        lng: coords?.lng ?? null,
-      } });
+      if (!navigator.onLine || sync.pending.length > 0) {
+        queueAction("out", coords);
+        return { queued: true as const };
+      }
+      try {
+        const res = await outFn({ data: {
+          token: session.token,
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+        } });
+        return { queued: false as const, res };
+      } catch (e) {
+        queueAction("out", coords);
+        return { queued: true as const };
+      }
     },
-    onSuccess: (r) => {
-      setLastGeo(null);
+    onSuccess: (out) => {
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
-      toast.success("Clocked out");
-      if (r.needsPlannedJob && r.entryId) {
-        setPlannedPrompt({
-          entryId: r.entryId,
-          alsoNeedsReason: !!r.needsReason && r.geo.status !== "verified",
-          reasonStatus: r.needsReason && r.geo.status !== "verified" ? (r.geo.status as "off_site" | "no_gps") : undefined,
-        });
-      } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
-        setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+      if (out.queued) {
+        toast.success("Clock-out saved — will sync when online");
+      } else {
+        const r = out.res;
+        setLastGeo(null);
+        toast.success("Clocked out");
+        if (r.needsPlannedJob && r.entryId) {
+          setPlannedPrompt({
+            entryId: r.entryId,
+            alsoNeedsReason: !!r.needsReason && r.geo.status !== "verified",
+            reasonStatus: r.needsReason && r.geo.status !== "verified" ? (r.geo.status as "off_site" | "no_gps") : undefined,
+          });
+        } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+          setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+        }
       }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
 
 
 
