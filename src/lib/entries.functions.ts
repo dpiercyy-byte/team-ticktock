@@ -76,6 +76,21 @@ export const getWorkerState = createServerFn({ method: "POST" })
   });
 
 
+// Accept a client-captured timestamp for offline queue replay. Clamp to a sane
+// window so a wonky device clock can't backdate / future-date entries.
+function resolveClientTimestamp(raw?: string | null): { iso: string; backdated: boolean } {
+  const now = Date.now();
+  if (!raw) return { iso: new Date(now).toISOString(), backdated: false };
+  const t = new Date(raw).getTime();
+  if (!Number.isFinite(t)) return { iso: new Date(now).toISOString(), backdated: false };
+  const MAX_PAST = 24 * 60 * 60 * 1000; // 24h
+  const MAX_FUTURE = 2 * 60 * 1000;     // 2m
+  if (t > now + MAX_FUTURE) return { iso: new Date(now).toISOString(), backdated: false };
+  if (now - t > MAX_PAST) return { iso: new Date(now).toISOString(), backdated: false };
+  if (Math.abs(now - t) < 5_000) return { iso: new Date(now).toISOString(), backdated: false };
+  return { iso: new Date(t).toISOString(), backdated: true };
+}
+
 export const clockIn = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     token: z.string(),
@@ -83,6 +98,7 @@ export const clockIn = createServerFn({ method: "POST" })
     lat: z.number().finite().optional().nullable(),
     lng: z.number().finite().optional().nullable(),
     plannedJobSiteId: z.string().uuid().nullable().optional(),
+    clientTimestamp: z.string().datetime().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
@@ -90,11 +106,11 @@ export const clockIn = createServerFn({ method: "POST" })
       .from("time_entries").select("id").eq("worker_id", wid).is("clock_out", null).maybeSingle();
     if (existing) throw new Response("Already clocked in", { status: 400 });
     const geo = await resolveSite(data.lat, data.lng);
-    const nowISO = new Date().toISOString();
+    const ts = resolveClientTimestamp(data.clientTimestamp);
     const plannedId = data.plannedJobSiteId ?? null;
     const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
-      clock_in: nowISO,
+      clock_in: ts.iso,
       project: data.project || geo.siteLabel || null,
       created_by: "worker",
       clock_in_lat: data.lat ?? null,
@@ -109,7 +125,8 @@ export const clockIn = createServerFn({ method: "POST" })
       action: "clock_in",
       entityType: "time_entry",
       entityId: inserted?.id,
-      after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null, planned_job_site_id: plannedId },
+      after: { clock_in: ts.iso, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null, planned_job_site_id: plannedId },
+      metadata: ts.backdated ? { offline_sync: true, client_timestamp: data.clientTimestamp } : undefined,
     });
     const needsReason = geo.status === "off_site" || geo.status === "no_gps";
     return { ok: true, geo, entryId: inserted?.id, needsReason };
@@ -121,19 +138,24 @@ export const clockOut = createServerFn({ method: "POST" })
     token: z.string(),
     lat: z.number().finite().optional().nullable(),
     lng: z.number().finite().optional().nullable(),
+    clientTimestamp: z.string().datetime().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
     const { data: active } = await supabaseAdmin
       .from("time_entries").select("id, clock_in, job_site_id, geo_status, planned_job_site_id").eq("worker_id", wid).is("clock_out", null).maybeSingle();
     if (!active) throw new Response("Not clocked in", { status: 400 });
-    const now = new Date();
-    const flagged = now.getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
+    const ts = resolveClientTimestamp(data.clientTimestamp);
+    let outISO = ts.iso;
+    if (new Date(outISO) <= new Date(active.clock_in)) {
+      outISO = new Date(new Date(active.clock_in).getTime() + 60_000).toISOString();
+    }
+    const flagged = new Date(outISO).getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
     const geo = await resolveSite(data.lat, data.lng);
     const outTag = resolvedClockOutTag(geo, active);
     const { error } = await supabaseAdmin.from("time_entries")
       .update({
-        clock_out: now.toISOString(),
+        clock_out: outISO,
         flagged_review: flagged,
         clock_out_lat: data.lat ?? null,
         clock_out_lng: data.lng ?? null,
@@ -148,12 +170,15 @@ export const clockOut = createServerFn({ method: "POST" })
       entityType: "time_entry",
       entityId: active.id,
       after: {
-        clock_out: now.toISOString(),
+        clock_out: outISO,
         flagged_review: flagged,
         clock_out_geo_status: outTag.status,
         clock_out_job_site_id: outTag.jobSiteId,
       },
-      metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
+      metadata: {
+        hours: (new Date(outISO).getTime() - new Date(active.clock_in).getTime()) / 3600_000,
+        ...(ts.backdated ? { offline_sync: true, client_timestamp: data.clientTimestamp } : {}),
+      },
     });
     const needsReason = outTag.status === "off_site" || outTag.status === "no_gps";
     const inNonClient = active.geo_status === "supplier" || active.geo_status === "off_site" || active.geo_status === "no_gps";
@@ -161,6 +186,7 @@ export const clockOut = createServerFn({ method: "POST" })
     const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
     return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob };
   });
+
 
 
 // Shared helper: when clocking out without GPS (admin force / auto), mirror the clock-in tag.

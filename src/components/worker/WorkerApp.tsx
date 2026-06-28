@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import {
   Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip, Banknote,
-  MapPin, MapPinOff,
+  MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2,
 } from "lucide-react";
 
 import {
@@ -33,7 +33,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getWorkerSession, setWorkerSession, clearWorkerSession, type WorkerSession,
 } from "@/lib/session";
-import { useOnline } from "@/hooks/use-online";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { enqueueClock } from "@/lib/offline-queue";
 import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
 
 const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
@@ -185,7 +186,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
 }
 
 function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout: () => void }) {
-  const online = useOnline();
+  
   const stateFn = useServerFn(getWorkerState);
   const inFn = useServerFn(clockIn);
   const outFn = useServerFn(clockOut);
@@ -212,23 +213,78 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
   const [plannedPrompt, setPlannedPrompt] = useState<null | { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" }>(null);
 
+  const handleSynced = (r: Parameters<NonNullable<Parameters<typeof useOfflineSync>[0]["onSynced"]>>[0]) => {
+    if (r.kind === "in") {
+      setLastGeo({ status: r.res.geo.status, siteLabel: r.res.geo.siteLabel });
+      toast.success("Clock-in synced");
+      if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified") {
+        setReasonPrompt({ entryId: r.res.entryId, status: r.res.geo.status as any, kind: "in" });
+      }
+    } else {
+      setLastGeo(null);
+      toast.success("Clock-out synced");
+      if (r.res.needsPlannedJob && r.res.entryId) {
+        setPlannedPrompt({
+          entryId: r.res.entryId,
+          alsoNeedsReason: !!r.res.needsReason && r.res.geo.status !== "verified",
+          reasonStatus: r.res.needsReason && r.res.geo.status !== "verified" ? (r.res.geo.status as "off_site" | "no_gps") : undefined,
+        });
+      } else if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified") {
+        setReasonPrompt({ entryId: r.res.entryId, status: r.res.geo.status as any, kind: "out" });
+      }
+    }
+  };
+
+  const sync = useOfflineSync({ workerId: session.id, onSynced: handleSynced });
+
+  const queueAction = (kind: "in" | "out", coords: GeoCoords, projectVal?: string) => {
+    enqueueClock({
+      kind,
+      token: session.token,
+      workerId: session.id,
+      payload: {
+        project: projectVal,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+        clientTimestamp: new Date().toISOString(),
+      },
+    });
+  };
+
   const inMut = useMutation({
     mutationFn: async () => {
       const coords = await getGeo();
-      return inFn({ data: {
-        token: session.token,
-        project: project || undefined,
-        lat: coords?.lat ?? null,
-        lng: coords?.lng ?? null,
-      } });
+      // If offline or already pending, queue it.
+      if (!navigator.onLine || sync.pending.length > 0) {
+        queueAction("in", coords, project || undefined);
+        return { queued: true as const };
+      }
+      try {
+        const res = await inFn({ data: {
+          token: session.token,
+          project: project || undefined,
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+        } });
+        return { queued: false as const, res };
+      } catch (e) {
+        // Network-style failure → queue.
+        queueAction("in", coords, project || undefined);
+        return { queued: true as const };
+      }
     },
-    onSuccess: (r) => {
+    onSuccess: (out) => {
       setProject("");
-      setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
-      toast.success("Clocked in");
-      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
-        setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
+      if (out.queued) {
+        toast.success("Clock-in saved — will sync when online");
+      } else {
+        const r = out.res;
+        setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+        toast.success("Clocked in");
+        if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+          setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
+        }
       }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
@@ -237,24 +293,39 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const outMut = useMutation({
     mutationFn: async () => {
       const coords = await getGeo();
-      return outFn({ data: {
-        token: session.token,
-        lat: coords?.lat ?? null,
-        lng: coords?.lng ?? null,
-      } });
+      if (!navigator.onLine || sync.pending.length > 0) {
+        queueAction("out", coords);
+        return { queued: true as const };
+      }
+      try {
+        const res = await outFn({ data: {
+          token: session.token,
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+        } });
+        return { queued: false as const, res };
+      } catch (e) {
+        queueAction("out", coords);
+        return { queued: true as const };
+      }
     },
-    onSuccess: (r) => {
-      setLastGeo(null);
+    onSuccess: (out) => {
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
-      toast.success("Clocked out");
-      if (r.needsPlannedJob && r.entryId) {
-        setPlannedPrompt({
-          entryId: r.entryId,
-          alsoNeedsReason: !!r.needsReason && r.geo.status !== "verified",
-          reasonStatus: r.needsReason && r.geo.status !== "verified" ? (r.geo.status as "off_site" | "no_gps") : undefined,
-        });
-      } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
-        setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+      if (out.queued) {
+        toast.success("Clock-out saved — will sync when online");
+      } else {
+        const r = out.res;
+        setLastGeo(null);
+        toast.success("Clocked out");
+        if (r.needsPlannedJob && r.entryId) {
+          setPlannedPrompt({
+            entryId: r.entryId,
+            alsoNeedsReason: !!r.needsReason && r.geo.status !== "verified",
+            reasonStatus: r.needsReason && r.geo.status !== "verified" ? (r.geo.status as "off_site" | "no_gps") : undefined,
+          });
+        } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+          setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+        }
       }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
@@ -262,8 +333,30 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
 
 
-  const active = data?.active;
+
+  // Compute effective active state by applying queued (unsynced) actions on top of server state.
+  const serverActive = data?.active ?? null;
   const settings = data?.settings;
+
+  let active: any = serverActive;
+  let optimisticPendingKind: "in" | "out" | null = null;
+  for (const q of sync.pending) {
+    optimisticPendingKind = q.kind;
+    if (q.kind === "in" && !active) {
+      active = {
+        id: `pending-${q.id}`,
+        clock_in: q.payload.clientTimestamp,
+        project: q.payload.project ?? null,
+        geo_status: null,
+        offsite_reason_code: null,
+        planned_job: null,
+        __pending: true,
+      };
+    } else if (q.kind === "out" && active) {
+      active = null;
+    }
+  }
+
   const sessionHours = active ? diffHours(active.clock_in, new Date()) : 0;
   // include live session in totals
   const todayDisplay = (data?.todayHours ?? 0) + sessionHours;
@@ -279,6 +372,8 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     const s = Math.floor((ms % 60_000) / 1000);
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   })();
+  void optimisticPendingKind;
+
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
@@ -288,15 +383,24 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
           <p className="font-semibold truncate">{session.name}</p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <span className={`flex items-center gap-1 text-xs ${online ? "text-success" : "text-muted-foreground"}`}>
-            {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-            {online ? "Online" : "Offline"}
-          </span>
+          <SyncStatusPill status={sync.status} pending={sync.pending.length} failed={sync.failed.length} onRetry={sync.retry} />
           <Button variant="ghost" size="sm" onClick={onLogout} aria-label="Log out">
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
+
+      {(sync.pending.length > 0 || sync.failed.length > 0) && (
+        <PendingBanner
+          pending={sync.pending.length}
+          failed={sync.failed.length}
+          online={sync.online}
+          syncing={sync.status === "syncing"}
+          onSyncNow={sync.flush}
+          onRetry={sync.retry}
+        />
+      )}
+
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
         {isLoading ? (
@@ -857,3 +961,82 @@ function PlannedJobDialog({
   );
 }
 
+
+function SyncStatusPill({ status, pending, failed, onRetry }: {
+  status: "idle" | "offline" | "syncing" | "failed";
+  pending: number;
+  failed: number;
+  onRetry: () => void;
+}) {
+  if (status === "failed") {
+    return (
+      <button
+        onClick={onRetry}
+        className="inline-flex items-center gap-1 text-xs text-destructive font-medium"
+      >
+        <AlertCircle className="h-3.5 w-3.5" />
+        Sync failed — retry
+      </button>
+    );
+  }
+  if (status === "syncing") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-primary">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Syncing{pending > 0 ? ` ${pending}` : ""}…
+      </span>
+    );
+  }
+  if (status === "offline") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-warning">
+        <CloudOff className="h-3.5 w-3.5" />
+        Offline
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-success">
+      <Wifi className="h-3.5 w-3.5" />
+      Online
+    </span>
+  );
+}
+
+function PendingBanner({ pending, failed, online, syncing, onSyncNow, onRetry }: {
+  pending: number;
+  failed: number;
+  online: boolean;
+  syncing: boolean;
+  onSyncNow: () => void;
+  onRetry: () => void;
+}) {
+  if (failed > 0) {
+    return (
+      <div className="flex items-center justify-between gap-3 px-5 py-2.5 bg-destructive/10 border-b border-destructive/30 text-sm">
+        <span className="inline-flex items-center gap-2 text-destructive font-medium">
+          <AlertCircle className="h-4 w-4" />
+          {failed} action{failed === 1 ? "" : "s"} failed to sync
+        </span>
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-between gap-3 px-5 py-2.5 bg-warning/10 border-b border-warning/30 text-sm">
+      <span className="inline-flex items-center gap-2 text-warning-foreground">
+        {syncing
+          ? <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          : <CloudOff className="h-4 w-4 text-warning" />}
+        <span className="text-foreground">
+          {pending} action{pending === 1 ? "" : "s"} waiting to sync
+        </span>
+      </span>
+      <Button size="sm" variant="outline" onClick={onSyncNow} disabled={!online || syncing}>
+        {syncing ? "Syncing…" : "Sync now"}
+      </Button>
+    </div>
+  );
+}
