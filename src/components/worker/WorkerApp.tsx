@@ -381,6 +381,13 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
           )}
         </div>
       </section>
+
+      <OffsiteReasonDialog
+        token={session.token}
+        prompt={reasonPrompt}
+        onClose={() => setReasonPrompt(null)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["worker-state", session.id] })}
+      />
     </div>
   );
 }
