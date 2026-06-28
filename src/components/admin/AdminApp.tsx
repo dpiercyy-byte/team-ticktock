@@ -1144,3 +1144,84 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   );
 }
 
+type GeoStatus = "verified" | "off_site" | "no_gps";
+
+function GeoTagEditor({
+  entry, sites, onUpdate,
+}: {
+  entry: any;
+  sites: Array<{ id: string; label: string }>;
+  onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const status: GeoStatus | null = entry.geo_status ?? null;
+
+  const trigger =
+    status === "verified" && entry.job_sites?.label ? (
+      <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />{entry.job_sites.label}
+      </Badge>
+    ) : status === "off_site" ? (
+      <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />Off-site
+      </Badge>
+    ) : status === "no_gps" ? (
+      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />No GPS
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />Set tag
+      </Badge>
+    );
+
+  const pick = async (s: GeoStatus, jid: string | null) => {
+    setOpen(false);
+    await onUpdate(s, jid);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-1" align="start">
+        <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Job site</div>
+        {sites.length === 0 && (
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">No job sites yet</div>
+        )}
+        {sites.map((s) => {
+          const active = status === "verified" && entry.job_site_id === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => pick("verified", s.id)}
+              className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${active ? "bg-secondary" : ""}`}
+            >
+              <MapPin className="h-3 w-3 text-success" />
+              <span className="truncate">{s.label}</span>
+            </button>
+          );
+        })}
+        <div className="my-1 h-px bg-border" />
+        <button
+          type="button"
+          onClick={() => pick("off_site", null)}
+          className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${status === "off_site" ? "bg-secondary" : ""}`}
+        >
+          <MapPin className="h-3 w-3 text-warning" /> Off-site
+        </button>
+        <button
+          type="button"
+          onClick={() => pick("no_gps", null)}
+          className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${status === "no_gps" ? "bg-secondary" : ""}`}
+        >
+          <MapPinOff className="h-3 w-3 text-muted-foreground" /> No GPS
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+
