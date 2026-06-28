@@ -50,6 +50,42 @@ export const weeklyPayout = createServerFn({ method: "POST" })
     return { ...refreshed, summary, weekStart: data.weekStart };
   });
 
+export const lifetimePayout = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+
+    const [{ data: workers }, { data: entries }, { data: reimbs }] = await Promise.all([
+      supabaseAdmin.from("workers").select("id, name, hourly_rate").order("name"),
+      supabaseAdmin.from("time_entries").select("worker_id, clock_in, clock_out")
+        .not("clock_out", "is", null),
+      supabaseAdmin.from("reimbursements").select("worker_id, amount"),
+    ]);
+
+    const summary = (workers ?? []).map((w) => {
+      const myEntries = (entries ?? []).filter((e) => e.worker_id === w.id);
+      const hours = myEntries.reduce((s, e) =>
+        s + (new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) / 3600_000, 0);
+      const myReimbs = (reimbs ?? []).filter((r) => r.worker_id === w.id);
+      const reimbTotal = myReimbs.reduce((s, r) => s + Number(r.amount), 0);
+      const wages = hours * Number(w.hourly_rate);
+      return {
+        workerId: w.id,
+        name: w.name,
+        hourlyRate: Number(w.hourly_rate),
+        hours,
+        wages,
+        reimbCount: myReimbs.length,
+        reimbTotal,
+        total: wages + reimbTotal,
+      };
+    });
+
+    return { ...refreshed, summary };
+  });
+
 export const exportEntriesCsv = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     token: z.string(),
