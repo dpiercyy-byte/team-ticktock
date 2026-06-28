@@ -167,3 +167,90 @@ export const adminDeleteJobSite = createServerFn({ method: "POST" })
     });
     return refreshed;
   });
+
+export const adminSearchPlaces = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    adminBase.extend({ query: z.string().trim().min(2).max(200) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
+    const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY;
+    if (!LOVABLE_API_KEY || !GMAPS_KEY) {
+      throw new Response("Places not configured", { status: 500 });
+    }
+    const res = await fetch(`${GATEWAY_URL}/places/v1/places:searchText`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "X-Connection-Api-Key": GMAPS_KEY,
+        "Content-Type": "application/json",
+        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location",
+      },
+      body: JSON.stringify({ textQuery: data.query, pageSize: 20 }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Response(`Places search failed (${res.status}): ${body.slice(0, 200)}`, { status: 502 });
+    }
+    const json: any = await res.json();
+    const results = (json.places ?? []).map((p: any) => ({
+      placeId: p.id as string,
+      name: (p.displayName?.text ?? "") as string,
+      address: (p.formattedAddress ?? "") as string,
+      lat: Number(p.location?.latitude ?? 0),
+      lng: Number(p.location?.longitude ?? 0),
+    })).filter((r: any) => r.address && r.lat && r.lng);
+    return { ...refreshed, results };
+  });
+
+export const adminBulkAddJobSites = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    adminBase.extend({
+      kind: z.enum(["client", "supplier"]),
+      radius_m: z.number().int().min(25).max(2000),
+      items: z.array(z.object({
+        label: z.string().trim().min(1).max(80),
+        address: z.string().trim().min(3).max(300),
+        lat: z.number().optional(),
+        lng: z.number().optional(),
+      })).min(1).max(50),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    let added = 0;
+    const failed: Array<{ address: string; reason: string }> = [];
+    for (const item of data.items) {
+      try {
+        let lat = item.lat;
+        let lng = item.lng;
+        let formatted = item.address;
+        if (lat == null || lng == null) {
+          const geo = await geocodeAddress(item.address);
+          lat = geo.lat; lng = geo.lng; formatted = geo.formatted;
+        }
+        const { data: inserted, error } = await supabaseAdmin.from("job_sites").insert({
+          label: item.label,
+          address: formatted,
+          lat, lng,
+          radius_m: data.radius_m,
+          kind: data.kind,
+        }).select("id").single();
+        if (error) throw error;
+        added++;
+        await logAudit({
+          actor: { kind: "admin" },
+          action: "job_site_create",
+          entityType: "job_site",
+          entityId: inserted?.id,
+          after: { label: item.label, address: formatted, radius_m: data.radius_m, kind: data.kind },
+          metadata: { bulk: true },
+        });
+      } catch (e: any) {
+        const reason = e instanceof Response ? await e.text().catch(() => "Failed") : (e?.message || "Failed");
+        failed.push({ address: item.address, reason: String(reason).slice(0, 200) });
+      }
+    }
+    return { ...refreshed, added, failed };
+  });
