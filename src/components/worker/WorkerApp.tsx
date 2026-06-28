@@ -205,7 +205,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     return () => clearInterval(i);
   }, [data?.active]);
 
-  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
+  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "supplier" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
   const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
 
   const inMut = useMutation({

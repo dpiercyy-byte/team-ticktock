@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin } from "./auth.server";
+import { logAudit } from "./audit.server";
 
 const adminBase = z.object({ token: z.string() });
 
@@ -44,7 +45,7 @@ export const adminListJobSites = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: rows, error } = await supabaseAdmin
       .from("job_sites")
-      .select("id, label, address, lat, lng, radius_m, created_at")
+      .select("id, label, address, lat, lng, radius_m, created_at, kind, archived_at")
       .order("created_at", { ascending: false });
     if (error) throw error;
     return { ...refreshed, sites: rows ?? [] };
@@ -56,20 +57,29 @@ export const adminAddJobSite = createServerFn({ method: "POST" })
       address: z.string().trim().min(3).max(300),
       label: z.string().trim().max(80).optional(),
       radius_m: z.number().int().min(25).max(2000).default(100),
+      kind: z.enum(["client", "supplier"]).default("client"),
     }).parse(d),
   )
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const geo = await geocodeAddress(data.address);
     const label = data.label?.trim() || geo.formatted;
-    const { error } = await supabaseAdmin.from("job_sites").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("job_sites").insert({
       label,
       address: geo.formatted,
       lat: geo.lat,
       lng: geo.lng,
       radius_m: data.radius_m,
-    });
+      kind: data.kind,
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "job_site_create",
+      entityType: "job_site",
+      entityId: inserted?.id,
+      after: { label, address: geo.formatted, radius_m: data.radius_m, kind: data.kind },
+    });
     return refreshed;
   });
 
@@ -91,11 +101,48 @@ export const adminUpdateJobSite = createServerFn({ method: "POST" })
     return refreshed;
   });
 
+export const adminArchiveJobSite = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    adminBase.extend({
+      id: z.string().uuid(),
+      archived: z.boolean(),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: prev } = await supabaseAdmin
+      .from("job_sites").select("label, archived_at").eq("id", data.id).maybeSingle();
+    const archived_at = data.archived ? new Date().toISOString() : null;
+    const { error } = await supabaseAdmin
+      .from("job_sites")
+      .update({ archived_at })
+      .eq("id", data.id);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: data.archived ? "job_site_archive" : "job_site_restore",
+      entityType: "job_site",
+      entityId: data.id,
+      before: { archived_at: prev?.archived_at ?? null, label: prev?.label ?? null },
+      after: { archived_at },
+    });
+    return refreshed;
+  });
+
 export const adminDeleteJobSite = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
+    const { data: prev } = await supabaseAdmin
+      .from("job_sites").select("label, kind, archived_at").eq("id", data.id).maybeSingle();
     const { error } = await supabaseAdmin.from("job_sites").delete().eq("id", data.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "job_site_delete",
+      entityType: "job_site",
+      entityId: data.id,
+      before: prev ?? undefined,
+    });
     return refreshed;
   });
