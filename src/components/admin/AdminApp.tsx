@@ -29,6 +29,7 @@ import {
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
+  adminUpdateEntryGeo,
 } from "@/lib/entries.functions";
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
