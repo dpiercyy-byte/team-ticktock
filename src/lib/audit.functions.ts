@@ -18,7 +18,7 @@ export const adminListAuditLog = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin
       .from("audit_log")
-      .select("id, created_at, actor_kind, actor_id, actor_label, action, entity_type, entity_id, before, after, metadata, workers:actor_id(name)")
+      .select("id, created_at, actor_kind, actor_id, actor_label, action, entity_type, entity_id, before, after, metadata")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 200);
     if (data.entityType) q = q.eq("entity_type", data.entityType);
