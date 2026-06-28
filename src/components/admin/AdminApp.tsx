@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
-  Paperclip, Upload, X, FileText, MapPin, MapPinOff,
+  Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2,
 } from "lucide-react";
 
 import {
@@ -38,7 +38,7 @@ import {
 } from "@/lib/reimbursements.functions";
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import {
-  adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite,
+  adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite, adminArchiveJobSite,
 } from "@/lib/jobsites.functions";
 import { adminListAuditLog } from "@/lib/audit.functions";
 
