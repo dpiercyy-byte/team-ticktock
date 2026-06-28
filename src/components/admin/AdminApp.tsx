@@ -341,7 +341,20 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                   toast.success("Tag updated");
                                 } catch (err: any) { toast.error(err?.message || "Failed"); }
                               }}
+                              onUpdatePlanned={async (jobSiteId) => {
+                                try {
+                                  const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                  updateToken(r.token);
+                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                  toast.success("Planned job updated");
+                                } catch (err: any) { toast.error(err?.message || "Failed"); }
+                              }}
                             />
+                            {e.planned_job?.label && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
+                                → {e.planned_job.label}
+                              </Badge>
+                            )}
                             {e.offsite_reason_code && (
                               <span
                                 className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
@@ -350,6 +363,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
                               </span>
                             )}
+
                           </p>
 
                         </div>
