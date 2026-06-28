@@ -18,8 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
-  Paperclip, Upload, X, FileText,
+  Paperclip, Upload, X, FileText, MapPin, MapPinOff,
 } from "lucide-react";
+
 import {
   adminLogin, adminVerify, adminChangePassword,
 } from "@/lib/auth.functions";
