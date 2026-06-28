@@ -1022,6 +1022,21 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [address, setAddress] = useState("");
   const [label, setLabel] = useState("");
   const [radius, setRadius] = useState(100);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [eLabel, setELabel] = useState("");
+  const [eAddress, setEAddress] = useState("");
+  const [eRadius, setERadius] = useState(100);
+  const [eKind, setEKind] = useState<"client" | "supplier">("client");
+  const [eOrigAddress, setEOrigAddress] = useState("");
+
+  const openEdit = (s: any) => {
+    setEditing(s);
+    setELabel(s.label ?? "");
+    setEAddress(s.address ?? "");
+    setEOrigAddress(s.address ?? "");
+    setERadius(s.radius_m ?? 100);
+    setEKind((s.kind ?? "client") as "client" | "supplier");
+  };
 
   const reset = () => { setAddress(""); setLabel(""); setRadius(100); setKind("client"); };
 
@@ -1049,7 +1064,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   });
 
   const upd = useMutation({
-    mutationFn: (v: { id: string; label: string; radius_m: number }) =>
+    mutationFn: (v: { id: string; label: string; radius_m: number; address?: string; kind?: "client" | "supplier" }) =>
       updFn({ data: { token, ...v } }),
     onSuccess: (r) => {
       updateToken(r.token);
@@ -1057,6 +1072,19 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
+  const saveEdit = useMutation({
+    mutationFn: (v: { id: string; label: string; radius_m: number; address?: string; kind: "client" | "supplier" }) =>
+      updFn({ data: { token, ...v } }),
+    onSuccess: (r) => {
+      updateToken(r.token);
+      toast.success("Saved");
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not save"),
+  });
+
 
   const arch = useMutation({
     mutationFn: (v: { id: string; archived: boolean }) => archFn({ data: { token, ...v } }),
@@ -1198,14 +1226,23 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                 return (
                   <li key={s.id} className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate flex items-center gap-1.5">
-                        {isSupplier
-                          ? <Truck className="h-4 w-4 text-primary shrink-0" />
-                          : <Building2 className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : "text-success"}`} />}
-                        <span className={isArchived ? "text-muted-foreground" : ""}>{s.label}</span>
-                        {isArchived && <Badge variant="outline" className="h-4 text-[10px] ml-1">Archived</Badge>}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">{s.address}</p>
+                      <button
+                        type="button"
+                        onClick={() => !isArchived && openEdit(s)}
+                        className={`block w-full text-left rounded -mx-1 px-1 py-0.5 ${isArchived ? "cursor-default" : "hover:bg-secondary/60 cursor-pointer"}`}
+                        title={isArchived ? undefined : "Click to edit"}
+                      >
+                        <p className="font-medium truncate flex items-center gap-1.5">
+                          {isSupplier
+                            ? <Truck className="h-4 w-4 text-primary shrink-0" />
+                            : <Building2 className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : "text-success"}`} />}
+                          <span className={isArchived ? "text-muted-foreground" : ""}>{s.label}</span>
+                          {isArchived && <Badge variant="outline" className="h-4 text-[10px] ml-1">Archived</Badge>}
+                          {!isArchived && <Pencil className="h-3 w-3 text-muted-foreground/60 ml-1 shrink-0" />}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{s.address}</p>
+                      </button>
+
                       {!isArchived && (
                         <div className="flex items-center gap-2 mt-2">
                           <Label className="text-xs text-muted-foreground">Radius</Label>
@@ -1284,9 +1321,79 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editing} onOpenChange={(v) => { if (!v) setEditing(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit location</DialogTitle></DialogHeader>
+          {editing && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!eLabel.trim() || !eAddress.trim()) return;
+                saveEdit.mutate({
+                  id: editing.id,
+                  label: eLabel.trim(),
+                  radius_m: eRadius,
+                  kind: eKind,
+                  address: eAddress.trim() !== eOrigAddress ? eAddress.trim() : undefined,
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <Label className="mb-1.5 block">Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setEKind("client")}
+                    className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${eKind === "client" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Building2 className="h-4 w-4 text-success" />
+                    <div className="leading-tight">
+                      <div className="font-medium">Client job</div>
+                      <div className="text-[11px] text-muted-foreground">Verified work site</div>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setEKind("supplier")}
+                    className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${eKind === "supplier" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Truck className="h-4 w-4 text-primary" />
+                    <div className="leading-tight">
+                      <div className="font-medium">Supplier</div>
+                      <div className="text-[11px] text-muted-foreground">Home Depot, Rona…</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="e-lbl">Friendly name</Label>
+                <Input id="e-lbl" value={eLabel} onChange={(e) => setELabel(e.target.value)} maxLength={80} className="mt-1.5" />
+              </div>
+              <div>
+                <Label htmlFor="e-addr">Address</Label>
+                <Input id="e-addr" value={eAddress} onChange={(e) => setEAddress(e.target.value)} className="mt-1.5" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {eAddress.trim() !== eOrigAddress
+                    ? "Address changed — we'll re-geocode on save."
+                    : "Edit to move the geofence to a new location."}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="e-rad">Radius: {eRadius} m</Label>
+                <input id="e-rad" type="range" min={50} max={500} step={10}
+                       value={eRadius} onChange={(e) => setERadius(parseInt(e.target.value))}
+                       className="w-full mt-2" />
+              </div>
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                <Button type="submit" disabled={saveEdit.isPending || !eLabel.trim() || !eAddress.trim()}>
+                  {saveEdit.isPending ? "Saving…" : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 type GeoStatus = "verified" | "supplier" | "off_site" | "no_gps";
 

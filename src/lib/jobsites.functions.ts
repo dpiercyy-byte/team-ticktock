@@ -89,17 +89,38 @@ export const adminUpdateJobSite = createServerFn({ method: "POST" })
       id: z.string().uuid(),
       label: z.string().trim().max(80),
       radius_m: z.number().int().min(25).max(2000),
+      address: z.string().trim().min(3).max(300).optional(),
+      kind: z.enum(["client", "supplier"]).optional(),
     }).parse(d),
   )
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
+    const { data: prev } = await supabaseAdmin
+      .from("job_sites").select("label, address, radius_m, kind, lat, lng").eq("id", data.id).maybeSingle();
+    const patch: { label: string; radius_m: number; kind?: string; address?: string; lat?: number; lng?: number } = { label: data.label, radius_m: data.radius_m };
+    if (data.kind) patch.kind = data.kind;
+    if (data.address && prev && data.address.trim() !== prev.address) {
+      const geo = await geocodeAddress(data.address);
+      patch.address = geo.formatted;
+      patch.lat = geo.lat;
+      patch.lng = geo.lng;
+    }
     const { error } = await supabaseAdmin
       .from("job_sites")
-      .update({ label: data.label, radius_m: data.radius_m })
+      .update(patch)
       .eq("id", data.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "job_site_edit",
+      entityType: "job_site",
+      entityId: data.id,
+      before: prev ?? undefined,
+      after: { ...prev, ...patch },
+    });
     return refreshed;
   });
+
 
 export const adminArchiveJobSite = createServerFn({ method: "POST" })
   .inputValidator((d) =>
