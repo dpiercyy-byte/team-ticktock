@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireWorker, requireAdmin } from "./auth.server";
-import { resolveSite } from "./geo.server";
+import { resolveSite, type GeoStatus } from "./geo.server";
 import { logAudit } from "./audit.server";
 
 
@@ -25,14 +25,14 @@ function hoursBetween(a: string, b: string) {
 function resolvedClockOutTag(
   geo: { status: string | null; jobSiteId: string | null },
   fallback: { geo_status: string | null; job_site_id: string | null },
-) {
+) : { status: GeoStatus; jobSiteId: string | null } {
   const resolvedStatus = geo.status ?? null;
   const hasUsableResolvedTag =
     resolvedStatus === "verified" ||
     resolvedStatus === "supplier" ||
     resolvedStatus === "off_site";
   return {
-    status: hasUsableResolvedTag ? resolvedStatus : fallback.geo_status ?? "no_gps",
+    status: hasUsableResolvedTag ? resolvedStatus : (fallback.geo_status as GeoStatus | null) ?? "no_gps",
     jobSiteId: hasUsableResolvedTag ? geo.jobSiteId : fallback.job_site_id ?? null,
   };
 }
