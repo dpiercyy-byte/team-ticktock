@@ -198,5 +198,12 @@ export const workerDeleteReimbursement = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("reimbursements").delete().eq("id", data.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "reimbursement_delete",
+      entityType: "reimbursement",
+      entityId: data.id,
+      before: row,
+    });
     return { ok: true };
   });
