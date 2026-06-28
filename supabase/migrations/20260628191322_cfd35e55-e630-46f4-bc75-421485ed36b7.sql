@@ -1,0 +1,1 @@
+UPDATE public.job_sites SET label = 'Home Depot — ' || label WHERE kind = 'supplier' AND label NOT ILIKE 'Home Depot%';
