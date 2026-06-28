@@ -323,8 +323,22 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               </Button>
             )}
 
+            {lastGeo && (
+              <p className={`text-xs inline-flex items-center gap-1.5 -mt-2 ${
+                lastGeo.status === "verified" ? "text-success" :
+                lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
+              }`}>
+                {lastGeo.status === "no_gps"
+                  ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
+                  : lastGeo.status === "verified"
+                  ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
+                  : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
+              </p>
+            )}
+
             <button onClick={() => refetch()} className="text-xs text-muted-foreground">
               Tap to refresh
+
             </button>
 
             <ReimbursementsSection token={session.token} workerId={session.id} />
