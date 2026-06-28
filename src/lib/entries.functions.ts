@@ -117,6 +117,14 @@ export const clockOut = createServerFn({ method: "POST" })
       })
       .eq("id", active.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "clock_out",
+      entityType: "time_entry",
+      entityId: active.id,
+      after: { clock_out: now.toISOString(), flagged_review: flagged },
+      metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
+    });
     return { ok: true, geo };
   });
 
