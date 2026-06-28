@@ -16,6 +16,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
@@ -39,6 +41,7 @@ import {
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import {
   adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite, adminArchiveJobSite,
+  adminSearchPlaces, adminBulkAddJobSites,
 } from "@/lib/jobsites.functions";
 import { adminListAuditLog } from "@/lib/audit.functions";
 
@@ -1133,6 +1136,8 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
             Active jobs verify clock-ins. Supplier locations are recognized but not counted as job work. Archived jobs are hidden from verification.
           </p>
         </div>
+        <div className="flex gap-2">
+          <BulkAddDialog token={token} updateToken={updateToken} onAdded={(k) => setView(k)} />
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Location</Button>
@@ -1188,6 +1193,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">
@@ -1658,5 +1664,259 @@ function AuditTab({ token, updateToken }: { token: string; updateToken: (t: stri
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ===== Bulk add job sites dialog =====
+type BulkRow = {
+  key: string;
+  label: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+  source: "paste" | "places";
+};
+
+function streetFromAddress(addr: string): string {
+  const first = (addr.split(",")[0] || addr).trim();
+  return first || addr;
+}
+
+function BulkAddDialog({
+  token, updateToken, onAdded,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+  onAdded: (kind: "client" | "supplier") => void;
+}) {
+  const qc = useQueryClient();
+  const searchFn = useServerFn(adminSearchPlaces);
+  const bulkFn = useServerFn(adminBulkAddJobSites);
+
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<"client" | "supplier">("supplier");
+  const [brand, setBrand] = useState("");
+  const [radius, setRadius] = useState(100);
+  const [mode, setMode] = useState<"paste" | "search">("paste");
+  const [pasteText, setPasteText] = useState("");
+  const [searchQ, setSearchQ] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ placeId: string; name: string; address: string; lat: number; lng: number }>>([]);
+  const [rows, setRows] = useState<BulkRow[]>([]);
+
+  const reset = () => {
+    setBrand(""); setRadius(100); setMode("paste");
+    setPasteText(""); setSearchQ(""); setSearchResults([]); setRows([]);
+    setKind("supplier");
+  };
+
+  const makeLabel = (addr: string) => {
+    const street = streetFromAddress(addr);
+    return brand.trim() ? `${brand.trim()} — ${street}` : street;
+  };
+
+  const addPasted = () => {
+    const lines = pasteText.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    const newRows: BulkRow[] = lines.map((address, i) => ({
+      key: `paste-${Date.now()}-${i}`,
+      label: makeLabel(address),
+      address,
+      source: "paste",
+    }));
+    setRows((prev) => [...prev, ...newRows]);
+    setPasteText("");
+  };
+
+  const search = useMutation({
+    mutationFn: () => searchFn({ data: { token, query: searchQ.trim() } }),
+    onSuccess: (r) => {
+      updateToken(r.token);
+      setSearchResults(r.results);
+      if (r.results.length === 0) toast.message("No places found");
+    },
+    onError: (e: any) => toast.error(e?.message || "Search failed"),
+  });
+
+  const togglePlace = (p: { placeId: string; name: string; address: string; lat: number; lng: number }) => {
+    setRows((prev) => {
+      const existing = prev.find((r) => r.key === `place-${p.placeId}`);
+      if (existing) return prev.filter((r) => r.key !== `place-${p.placeId}`);
+      return [...prev, {
+        key: `place-${p.placeId}`,
+        label: makeLabel(p.address),
+        address: p.address,
+        lat: p.lat, lng: p.lng,
+        source: "places",
+      }];
+    });
+  };
+
+  // Re-derive labels when brand changes, only for rows the user hasn't edited
+  const [editedKeys, setEditedKeys] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setRows((prev) => prev.map((r) =>
+      editedKeys.has(r.key) ? r : { ...r, label: makeLabel(r.address) }
+    ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brand]);
+
+  const save = useMutation({
+    mutationFn: () => bulkFn({
+      data: {
+        token, kind, radius_m: radius,
+        items: rows.map((r) => ({
+          label: r.label.trim(), address: r.address,
+          lat: r.lat, lng: r.lng,
+        })),
+      },
+    }),
+    onSuccess: (r) => {
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+      onAdded(kind);
+      if (r.failed.length === 0) {
+        toast.success(`Added ${r.added} location${r.added === 1 ? "" : "s"}`);
+      } else {
+        toast.warning(`Added ${r.added}, ${r.failed.length} failed`, {
+          description: r.failed.slice(0, 3).map((f) => `${f.address}: ${f.reason}`).join("\n"),
+        });
+      }
+      setOpen(false);
+      reset();
+    },
+    onError: (e: any) => toast.error(e?.message || "Bulk add failed"),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline"><Upload className="h-4 w-4 mr-1" />Bulk add</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Bulk add locations</DialogTitle></DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setKind("client")}
+              className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${kind === "client" ? "border-primary bg-primary/5" : "border-border"}`}>
+              <Building2 className="h-4 w-4 text-success" />
+              <div className="leading-tight">
+                <div className="font-medium">Client jobs</div>
+                <div className="text-[11px] text-muted-foreground">Verified work sites</div>
+              </div>
+            </button>
+            <button type="button" onClick={() => setKind("supplier")}
+              className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${kind === "supplier" ? "border-primary bg-primary/5" : "border-border"}`}>
+              <Truck className="h-4 w-4 text-primary" />
+              <div className="leading-tight">
+                <div className="font-medium">Suppliers</div>
+                <div className="text-[11px] text-muted-foreground">Home Depot, Rona…</div>
+              </div>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="brand">Brand prefix</Label>
+              <Input id="brand" value={brand} onChange={(e) => setBrand(e.target.value)}
+                placeholder={kind === "supplier" ? "Home Depot" : "Smith Reno"} maxLength={60} className="mt-1.5" />
+              <p className="text-xs text-muted-foreground mt-1">Labels become "{brand.trim() || "Brand"} — Street".</p>
+            </div>
+            <div>
+              <Label htmlFor="brad">Radius: {radius} m</Label>
+              <input id="brad" type="range" min={50} max={500} step={10}
+                value={radius} onChange={(e) => setRadius(parseInt(e.target.value))}
+                className="w-full mt-2" />
+            </div>
+          </div>
+
+          <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="paste">Paste addresses</TabsTrigger>
+              <TabsTrigger value="search">Search & pick</TabsTrigger>
+            </TabsList>
+            <TabsContent value="paste" className="space-y-2 mt-3">
+              <Textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)}
+                placeholder={"123 Main St, Toronto, ON\n456 King Rd, Mississauga, ON"}
+                rows={5} />
+              <div className="flex justify-end">
+                <Button type="button" size="sm" variant="secondary" onClick={addPasted}
+                  disabled={!pasteText.trim()}>
+                  Add to list
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">One address per line. Geocoded when you save.</p>
+            </TabsContent>
+            <TabsContent value="search" className="space-y-2 mt-3">
+              <div className="flex gap-2">
+                <Input value={searchQ} onChange={(e) => setSearchQ(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (searchQ.trim().length >= 2) search.mutate(); } }}
+                  placeholder="e.g. Home Depot Toronto" />
+                <Button type="button" size="sm" onClick={() => search.mutate()}
+                  disabled={search.isPending || searchQ.trim().length < 2}>
+                  {search.isPending ? "Searching…" : "Search"}
+                </Button>
+              </div>
+              {searchResults.length > 0 && (
+                <ul className="border rounded-md divide-y max-h-64 overflow-y-auto">
+                  {searchResults.map((p) => {
+                    const checked = rows.some((r) => r.key === `place-${p.placeId}`);
+                    return (
+                      <li key={p.placeId} className="p-2.5 flex items-start gap-2.5 hover:bg-secondary/40">
+                        <Checkbox checked={checked} onCheckedChange={() => togglePlace(p)} className="mt-0.5" />
+                        <button type="button" onClick={() => togglePlace(p)} className="text-left flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{p.name || streetFromAddress(p.address)}</p>
+                          <p className="text-xs text-muted-foreground truncate">{p.address}</p>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {rows.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <Label>To add ({rows.length})</Label>
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setRows([]); setEditedKeys(new Set()); }}>
+                  Clear all
+                </Button>
+              </div>
+              <ul className="border rounded-md divide-y max-h-72 overflow-y-auto">
+                {rows.map((r) => (
+                  <li key={r.key} className="p-2.5 flex items-start gap-2">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <Input value={r.label} onChange={(e) => {
+                        const v = e.target.value;
+                        setRows((prev) => prev.map((x) => x.key === r.key ? { ...x, label: v } : x));
+                        setEditedKeys((prev) => new Set(prev).add(r.key));
+                      }} maxLength={80} className="h-8 text-sm" />
+                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                        {r.source === "places" ? <MapPin className="h-3 w-3" /> : null}
+                        {r.address}
+                      </p>
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8"
+                      onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2 mt-2">
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button type="button" disabled={save.isPending || rows.length === 0}
+            onClick={() => save.mutate()}>
+            {save.isPending ? "Saving…" : `Save ${rows.length || ""} location${rows.length === 1 ? "" : "s"}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
