@@ -171,6 +171,7 @@ function AdminDashboard({ token, updateToken, onLogout }: {
               <TabsTrigger value="payouts">Weekly Payouts</TabsTrigger>
               <TabsTrigger value="workers">Workers</TabsTrigger>
               <TabsTrigger value="sites">Job Sites</TabsTrigger>
+              <TabsTrigger value="audit">Audit Log</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
           </div>
@@ -178,6 +179,7 @@ function AdminDashboard({ token, updateToken, onLogout }: {
           <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="sites"><JobSitesTab token={token} updateToken={updateToken} /></TabsContent>
+          <TabsContent value="audit"><AuditTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="settings"><SettingsTab token={token} updateToken={updateToken} /></TabsContent>
         </Tabs>
 
