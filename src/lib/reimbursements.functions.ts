@@ -146,15 +146,22 @@ export const workerSubmitReimbursement = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
     const weekStart = currentWeekStartISO();
-    const { error } = await supabaseAdmin.from("reimbursements").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: wid,
       week_start: weekStart,
       description: data.description,
       amount: data.amount,
       receipt_url: data.receiptUrl ?? null,
       receipt_mime: data.receiptMime ?? null,
-    });
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "reimbursement_create",
+      entityType: "reimbursement",
+      entityId: inserted?.id,
+      after: { week_start: weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl },
+    });
     return { ok: true };
   });
 
