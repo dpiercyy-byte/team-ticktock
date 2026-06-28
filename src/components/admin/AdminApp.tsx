@@ -39,7 +39,7 @@ import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
   listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
 } from "@/lib/reimbursements.functions";
-import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
+import { weeklyPayout, exportEntriesCsv, lifetimePayout } from "@/lib/payout.functions";
 import {
   adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite, adminArchiveJobSite,
   adminSearchPlaces, adminBulkAddJobSites,
