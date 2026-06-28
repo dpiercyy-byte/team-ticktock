@@ -204,6 +204,8 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const editE = useServerFn(adminEditEntry);
   const delE = useServerFn(adminDeleteEntry);
   const updGeo = useServerFn(adminUpdateEntryGeo);
+  const updPlanned = useServerFn(adminUpdateEntryPlannedJob);
+
   const listSites = useServerFn(adminListJobSites);
   const settingsFn = useServerFn(getPublicSettings);
   const qc = useQueryClient();
