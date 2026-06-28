@@ -244,7 +244,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       } });
     },
     onSuccess: (r) => {
-      setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+      setLastGeo(null);
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked out");
       if (r.needsPlannedJob && r.entryId) {
