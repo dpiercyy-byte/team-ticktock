@@ -21,7 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
-  Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2,
+  Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
 } from "lucide-react";
 
 import {
@@ -32,7 +32,7 @@ import {
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
-  adminUpdateEntryGeo, adminUpdateEntryPlannedJob,
+  adminUpdateEntryGeo, adminUpdateEntryPlannedJob, adminForceClockOut,
 } from "@/lib/entries.functions";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
@@ -203,6 +203,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const addE = useServerFn(adminAddEntry);
   const editE = useServerFn(adminEditEntry);
   const delE = useServerFn(adminDeleteEntry);
+  const forceOut = useServerFn(adminForceClockOut);
   const updGeo = useServerFn(adminUpdateEntryGeo);
   const updPlanned = useServerFn(adminUpdateEntryPlannedJob);
 
@@ -237,6 +238,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const [editing, setEditing] = useState<any | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [confirmForce, setConfirmForce] = useState<string | null>(null);
 
   const projectsEnabled = sq.data?.project_tracking_enabled;
 
@@ -387,6 +389,11 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
 
                         </div>
                         <div className="flex gap-0.5 shrink-0">
+                          {!e.clock_out && (
+                            <Button variant="ghost" size="icon" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
+                              <PowerOff className="h-4 w-4 text-warning" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -455,6 +462,30 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                 toast.success("Deleted");
               } catch (e: any) { toast.error(e?.message || "Failed"); }
             }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!confirmForce} onOpenChange={() => setConfirmForce(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Force clock out now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The entry will be closed at the current time. The clock-out tag will match the clock-in tag (no GPS reading is taken).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              const id = confirmForce!;
+              setConfirmForce(null);
+              try {
+                const r = await forceOut({ data: { token, entryId: id } });
+                updateToken(r.token);
+                qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                toast.success("Clocked out");
+              } catch (e: any) { toast.error(e?.message || "Failed"); }
+            }}>Clock out</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
