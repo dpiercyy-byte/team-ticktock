@@ -314,6 +314,12 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                   <Briefcase className="h-3.5 w-3.5" /> {active.project}
                 </p>
               )}
+              {active?.planned_job?.label && (
+                <p className="mt-1 text-xs text-primary inline-flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3" /> Heading to: {active.planned_job.label}
+                </p>
+              )}
+
             </div>
 
             {!active && settings?.project_tracking_enabled && (
