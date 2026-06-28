@@ -72,17 +72,25 @@ export const clockIn = createServerFn({ method: "POST" })
       .from("time_entries").select("id").eq("worker_id", wid).is("clock_out", null).maybeSingle();
     if (existing) throw new Response("Already clocked in", { status: 400 });
     const geo = await resolveSite(data.lat, data.lng);
-    const { error } = await supabaseAdmin.from("time_entries").insert({
+    const nowISO = new Date().toISOString();
+    const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
-      clock_in: new Date().toISOString(),
+      clock_in: nowISO,
       project: data.project || geo.siteLabel || null,
       created_by: "worker",
       clock_in_lat: data.lat ?? null,
       clock_in_lng: data.lng ?? null,
       job_site_id: geo.jobSiteId,
       geo_status: geo.status,
-    });
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "clock_in",
+      entityType: "time_entry",
+      entityId: inserted?.id,
+      after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null },
+    });
     return { ok: true, geo };
   });
 
