@@ -522,7 +522,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
         onClick={() => setOpen(true)}
         className="w-full touch-manipulation"
       >
-        <Receipt className="h-4 w-4 mr-2" />
+        <Banknote className="h-4 w-4 mr-2 text-success" />
         Add Reimbursement
       </Button>
 
