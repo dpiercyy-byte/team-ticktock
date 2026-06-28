@@ -331,22 +331,37 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
             )}
 
             {lastGeo && (
-              <p className={`text-xs inline-flex items-center gap-1.5 -mt-2 ${
-                lastGeo.status === "verified" ? "text-success" :
-                lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
-              }`}>
-                {lastGeo.status === "no_gps"
-                  ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
-                  : lastGeo.status === "verified"
-                  ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
-                  : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
-              </p>
+              <div className="flex flex-col items-center gap-1 -mt-2">
+                <p className={`text-xs inline-flex items-center gap-1.5 ${
+                  lastGeo.status === "verified" ? "text-success" :
+                  lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
+                }`}>
+                  {lastGeo.status === "no_gps"
+                    ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
+                    : lastGeo.status === "verified"
+                    ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
+                    : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
+                </p>
+              </div>
+            )}
+
+            {active && active.geo_status && active.geo_status !== "verified" && !active.offsite_reason_code && (
+              <button
+                onClick={() => setReasonPrompt({
+                  entryId: active.id,
+                  status: active.geo_status as any,
+                  kind: "in",
+                })}
+                className="text-xs text-warning underline underline-offset-2"
+              >
+                Add reason for off-site clock-in
+              </button>
             )}
 
             <button onClick={() => refetch()} className="text-xs text-muted-foreground">
               Tap to refresh
-
             </button>
+
 
             <ReimbursementsSection token={session.token} workerId={session.id} />
           </>
