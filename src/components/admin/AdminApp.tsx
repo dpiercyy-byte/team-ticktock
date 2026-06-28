@@ -39,6 +39,7 @@ import {
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import {
   adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite, adminArchiveJobSite,
+  adminSearchPlaces, adminBulkAddJobSites,
 } from "@/lib/jobsites.functions";
 import { adminListAuditLog } from "@/lib/audit.functions";
 
