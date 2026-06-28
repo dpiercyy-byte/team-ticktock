@@ -1022,6 +1022,23 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [address, setAddress] = useState("");
   const [label, setLabel] = useState("");
   const [radius, setRadius] = useState(100);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [eLabel, setELabel] = useState("");
+  const [eAddress, setEAddress] = useState("");
+  const [eRadius, setERadius] = useState(100);
+  const [eKind, setEKind] = useState<"client" | "supplier">("client");
+  const [eOrigAddress, setEOrigAddress] = useState("");
+
+  const openEdit = (s: any) => {
+    setEditing(s);
+    setELabel(s.label ?? "");
+    setEAddress(s.address ?? "");
+    setEOrigAddress(s.address ?? "");
+    setERadius(s.radius_m ?? 100);
+    setEKind((s.kind ?? "client") as "client" | "supplier");
+  };
+  const [label, setLabel] = useState("");
+  const [radius, setRadius] = useState(100);
 
   const reset = () => { setAddress(""); setLabel(""); setRadius(100); setKind("client"); };
 
