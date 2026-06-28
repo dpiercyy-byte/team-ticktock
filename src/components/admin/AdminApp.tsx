@@ -1321,9 +1321,79 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editing} onOpenChange={(v) => { if (!v) setEditing(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit location</DialogTitle></DialogHeader>
+          {editing && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!eLabel.trim() || !eAddress.trim()) return;
+                saveEdit.mutate({
+                  id: editing.id,
+                  label: eLabel.trim(),
+                  radius_m: eRadius,
+                  kind: eKind,
+                  address: eAddress.trim() !== eOrigAddress ? eAddress.trim() : undefined,
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <Label className="mb-1.5 block">Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setEKind("client")}
+                    className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${eKind === "client" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Building2 className="h-4 w-4 text-success" />
+                    <div className="leading-tight">
+                      <div className="font-medium">Client job</div>
+                      <div className="text-[11px] text-muted-foreground">Verified work site</div>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setEKind("supplier")}
+                    className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${eKind === "supplier" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Truck className="h-4 w-4 text-primary" />
+                    <div className="leading-tight">
+                      <div className="font-medium">Supplier</div>
+                      <div className="text-[11px] text-muted-foreground">Home Depot, Rona…</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="e-lbl">Friendly name</Label>
+                <Input id="e-lbl" value={eLabel} onChange={(e) => setELabel(e.target.value)} maxLength={80} className="mt-1.5" />
+              </div>
+              <div>
+                <Label htmlFor="e-addr">Address</Label>
+                <Input id="e-addr" value={eAddress} onChange={(e) => setEAddress(e.target.value)} className="mt-1.5" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {eAddress.trim() !== eOrigAddress
+                    ? "Address changed — we'll re-geocode on save."
+                    : "Edit to move the geofence to a new location."}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="e-rad">Radius: {eRadius} m</Label>
+                <input id="e-rad" type="range" min={50} max={500} step={10}
+                       value={eRadius} onChange={(e) => setERadius(parseInt(e.target.value))}
+                       className="w-full mt-2" />
+              </div>
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                <Button type="submit" disabled={saveEdit.isPending || !eLabel.trim() || !eAddress.trim()}>
+                  {saveEdit.isPending ? "Saving…" : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 type GeoStatus = "verified" | "supplier" | "off_site" | "no_gps";
 
