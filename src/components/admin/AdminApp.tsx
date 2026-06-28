@@ -1136,6 +1136,8 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
             Active jobs verify clock-ins. Supplier locations are recognized but not counted as job work. Archived jobs are hidden from verification.
           </p>
         </div>
+        <div className="flex gap-2">
+          <BulkAddDialog token={token} updateToken={updateToken} onAdded={(k) => setView(k)} />
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Location</Button>
