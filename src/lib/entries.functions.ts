@@ -76,7 +76,6 @@ export const clockIn = createServerFn({ method: "POST" })
     if (existing) throw new Response("Already clocked in", { status: 400 });
     const geo = await resolveSite(data.lat, data.lng);
     const nowISO = new Date().toISOString();
-    const isNonClient = geo.status === "supplier" || geo.status === "off_site" || geo.status === "no_gps";
     const plannedId = data.plannedJobSiteId ?? null;
     const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
@@ -98,8 +97,7 @@ export const clockIn = createServerFn({ method: "POST" })
       after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null, planned_job_site_id: plannedId },
     });
     const needsReason = geo.status === "off_site" || geo.status === "no_gps";
-    const needsPlannedJob = isNonClient && !plannedId;
-    return { ok: true, geo, entryId: inserted?.id, needsReason, needsPlannedJob };
+    return { ok: true, geo, entryId: inserted?.id, needsReason };
   });
 
 
@@ -112,7 +110,7 @@ export const clockOut = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
     const { data: active } = await supabaseAdmin
-      .from("time_entries").select("id, clock_in, job_site_id, geo_status").eq("worker_id", wid).is("clock_out", null).maybeSingle();
+      .from("time_entries").select("id, clock_in, job_site_id, geo_status, planned_job_site_id").eq("worker_id", wid).is("clock_out", null).maybeSingle();
     if (!active) throw new Response("Not clocked in", { status: 400 });
     const now = new Date();
     const flagged = now.getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
@@ -123,6 +121,8 @@ export const clockOut = createServerFn({ method: "POST" })
         flagged_review: flagged,
         clock_out_lat: data.lat ?? null,
         clock_out_lng: data.lng ?? null,
+        clock_out_geo_status: geo.status,
+        clock_out_job_site_id: geo.jobSiteId,
       })
       .eq("id", active.id);
     if (error) throw error;
@@ -131,12 +131,23 @@ export const clockOut = createServerFn({ method: "POST" })
       action: "clock_out",
       entityType: "time_entry",
       entityId: active.id,
-      after: { clock_out: now.toISOString(), flagged_review: flagged },
+      after: {
+        clock_out: now.toISOString(),
+        flagged_review: flagged,
+        clock_out_geo_status: geo.status,
+        clock_out_job_site_id: geo.jobSiteId,
+      },
       metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
     });
     const needsReason = geo.status === "off_site" || geo.status === "no_gps";
-    return { ok: true, geo, entryId: active.id, needsReason };
+    const inNonClient = active.geo_status === "supplier" || active.geo_status === "off_site" || active.geo_status === "no_gps";
+    const outNonClient = geo.status === "supplier" || geo.status === "off_site" || geo.status === "no_gps";
+    const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
+    return { ok: true, geo, entryId: active.id, needsReason, needsPlannedJob };
   });
+
+
+
 
 
 const REASON_CODES = ["material_pickup", "client_visit", "travel", "forgot_clockout", "new_site", "other"] as const;
@@ -187,8 +198,9 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, clock_out_geo_status, clock_out_job_site_id, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label), clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
+
 
 
     if (data.from) q = q.gte("clock_in", data.from);
@@ -303,34 +315,44 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
     entryId: z.string().uuid(),
     status: z.enum(["verified", "supplier", "off_site", "no_gps"]),
     jobSiteId: z.string().uuid().nullable(),
+    field: z.enum(["in", "out"]).optional().default("in"),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     if ((data.status === "verified" || data.status === "supplier") && !data.jobSiteId) {
       throw new Response("Job site required for this status", { status: 400 });
     }
+    const statusCol = data.field === "out" ? "clock_out_geo_status" : "geo_status";
+    const jobCol = data.field === "out" ? "clock_out_job_site_id" : "job_site_id";
     const { data: prev } = await supabaseAdmin
-      .from("time_entries").select("geo_status, job_site_id, job_sites(label)").eq("id", data.entryId).maybeSingle();
+      .from("time_entries")
+      .select(`${statusCol}, ${jobCol}`)
+      .eq("id", data.entryId).maybeSingle();
     const newJobSiteId = data.status === "verified" || data.status === "supplier" ? data.jobSiteId : null;
     let newLabel: string | null = null;
     if (newJobSiteId) {
       const { data: s } = await supabaseAdmin.from("job_sites").select("label").eq("id", newJobSiteId).maybeSingle();
       newLabel = s?.label ?? null;
     }
-    const { error } = await supabaseAdmin.from("time_entries")
-      .update({ geo_status: data.status, job_site_id: newJobSiteId })
+    const update: any = { [statusCol]: data.status, [jobCol]: newJobSiteId };
+    const { error } = await (supabaseAdmin.from("time_entries") as any)
+      .update(update)
       .eq("id", data.entryId);
+
+
     if (error) throw error;
     await logAudit({
       actor: { kind: "admin" },
       action: "entry_geo_update",
       entityType: "time_entry",
       entityId: data.entryId,
-      before: { geo_status: prev?.geo_status ?? null, job_site_id: prev?.job_site_id ?? null, job_site_label: (prev as any)?.job_sites?.label ?? null },
-      after: { geo_status: data.status, job_site_id: newJobSiteId, job_site_label: newLabel },
+      before: { [statusCol]: (prev as any)?.[statusCol] ?? null, [jobCol]: (prev as any)?.[jobCol] ?? null },
+      after: { [statusCol]: data.status, [jobCol]: newJobSiteId, job_site_label: newLabel },
+      metadata: { field: data.field },
     });
     return refreshed;
   });
+
 
 export const adminFlaggedEntries = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))

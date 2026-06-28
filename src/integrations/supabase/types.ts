@@ -160,6 +160,8 @@ export type Database = {
           clock_in_lat: number | null
           clock_in_lng: number | null
           clock_out: string | null
+          clock_out_geo_status: string | null
+          clock_out_job_site_id: string | null
           clock_out_lat: number | null
           clock_out_lng: number | null
           created_at: string
@@ -179,6 +181,8 @@ export type Database = {
           clock_in_lat?: number | null
           clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_geo_status?: string | null
+          clock_out_job_site_id?: string | null
           clock_out_lat?: number | null
           clock_out_lng?: number | null
           created_at?: string
@@ -198,6 +202,8 @@ export type Database = {
           clock_in_lat?: number | null
           clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_geo_status?: string | null
+          clock_out_job_site_id?: string | null
           clock_out_lat?: number | null
           clock_out_lng?: number | null
           created_at?: string
@@ -213,6 +219,13 @@ export type Database = {
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "time_entries_clock_out_job_site_id_fkey"
+            columns: ["clock_out_job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "time_entries_job_site_id_fkey"
             columns: ["job_site_id"]

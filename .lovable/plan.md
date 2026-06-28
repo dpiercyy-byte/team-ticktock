@@ -1,47 +1,83 @@
-## Planned-job prompt for non-client clock-ins
+## Current behavior
 
-When a worker clocks in and GPS resolves to a **supplier** or **off-site** location, force them to pick the client job site they're planning to work at that day before the clock-in completes. The entry's primary geo tag stays truthful to where they actually clocked in (supplier or off-site), and the planned job is attached as a separate field that admins can see on the entry. Clock-out at a supplier later in the day does NOT re-prompt — the planned job set at clock-in covers the whole entry.
+Clock-out captures GPS coords (`clock_out_lat/lng`) but does **not** resolve or store a geo tag for that location. The entry has a single `geo_status` + `job_site_id` pair that reflects only the clock-in. So a "Home Depot → Job Site" day shows up as Home Depot only, which is why we added the forced planned-job prompt to all non-client clock-ins.
 
-### Worker experience
+You're right that this is overkill when the clock-out itself geo-verifies to the job site.
 
-1. Worker taps Clock In. GPS resolves.
-2. If `geo_status` is `supplier` or `off_site` → a **required** dialog appears listing active client job sites (searchable dropdown, same source as admin's active jobs). Includes a "No job today / other" option that falls back to the existing free-text off-site reason.
-3. Worker picks a planned job → clock-in completes. The site label is stored on the entry as `planned_job_site_id`.
-4. Clock-in card shows two chips: the actual geo badge ("At Home Depot — Castlefield") plus a secondary "Heading to: 123 Main St".
-5. The existing off-site reason dialog still fires for off-site clock-ins (material pickup, client visit, etc.) — the planned-job prompt is in addition to it, not a replacement.
+## Proposed change: dual tag (clock-in + clock-out), demote planned-job prompt
 
-### Admin experience
+### 1. Stamp the clock-out location
 
-- Entries list: existing geo badge is unchanged. A small "→ Planned: 123 Main St" chip appears next to it on supplier/off-site entries.
-- `GeoTagEditor` popover gains a "Planned job" row showing the chosen site, with a dropdown to change/clear it (audit logged).
-- Payouts / reporting unchanged — the planned job is metadata only for now.
+Add two columns to `time_entries`:
+- `clock_out_geo_status` (text)
+- `clock_out_job_site_id` (uuid, FK → job_sites)
 
-### Technical details
+In `clockOut`, call `resolveSite(lat, lng)` (already done — result is currently discarded) and persist `clock_out_geo_status` + `clock_out_job_site_id` on the update.
 
-**Schema** — new migration:
-- `time_entries.planned_job_site_id uuid references public.job_sites(id) on delete set null`
+### 2. Move the planned-job prompt to clock-out, and only when needed
 
-**Server functions** (`src/lib/entries.functions.ts`):
-- `clockIn` — accepts optional `plannedJobSiteId`. If geo resolves to `supplier` or `off_site` and `plannedJobSiteId` is missing, return `{ needsPlannedJob: true, geo, entryId }` without committing (or commit and flag `needsPlannedJob` so the worker app can prompt and then call a follow-up). Simpler path: always create the entry, return `needsPlannedJob`, and let the worker app submit the choice via a new `workerSetPlannedJob` fn.
-- `workerSetPlannedJob({ token, entryId, jobSiteId | null })` — writes `planned_job_site_id`, audit logs `entry_planned_job_set`.
-- `adminUpdateEntryPlannedJob({ token, entryId, jobSiteId | null })` — admin override, audit logged.
-- `adminListEntries` — extend select to include `planned_job:job_sites!planned_job_site_id(label)`.
-- `getWorkerState` — include `planned_job_site_id` and label on the active entry so the worker card can show the "Heading to" chip.
+Today: prompt fires at clock-in whenever the start location is supplier/off-site/no_gps.
 
-**Worker UI** (`src/components/worker/WorkerApp.tsx`):
-- New `PlannedJobDialog` component: required Select listing active client job sites (fetched via a new lightweight `workerListActiveClientSites` server fn that returns `{id, label}` only — no admin token needed), plus "No job today" option. Cannot be dismissed without a choice.
-- After `clockIn` returns `needsPlannedJob: true`, open `PlannedJobDialog` first; on save call `workerSetPlannedJob`. Then chain into the existing `OffsiteReasonDialog` if `needsReason` is also true.
-- Active session card shows the planned-job chip when present.
+New rule — prompt only when **both** endpoints are non-client (the 3+ point-of-contact case):
 
-**Admin UI** (`src/components/admin/AdminApp.tsx`):
-- Entries list row: render planned-job chip next to geo badge when `planned_job` is present.
-- `GeoTagEditor` popover: add "Planned job" Select bound to active client sites, calls `adminUpdateEntryPlannedJob`.
+```text
+clock-in tag   clock-out tag   action
+─────────────  ──────────────  ──────────────────────────────
+client         *               no prompt (clock-in is truth)
+*              client          no prompt (clock-out is truth)
+non-client     non-client      prompt for planned job
+```
 
-**Audit** — three new actions: `entry_planned_job_set` (worker), `entry_planned_job_update` (admin), included in before/after diffs.
+Flow:
+- `clockIn` no longer returns `needsPlannedJob`; the planned-job dialog is removed from the clock-in path.
+- `clockOut` returns `needsPlannedJob = (clockInNonClient && clockOutNonClient && !planned_job_site_id)`.
+- Worker app shows the `PlannedJobDialog` after clock-out when that flag is set. Off-site reason prompt continues to fire at the endpoint that was off-site (unchanged).
 
-### Out of scope
+### 3. Display both tags
 
-- Multi-site visit timeline within one entry (deferred).
-- Auto-splitting hours across planned vs actual sites.
-- Re-prompt on supplier clock-out.
-- Changing payout/job-costing logic.
+Worker active-session card: keep showing clock-in tag (only one exists mid-shift). After clock-out the worker view returns to summary; no change needed.
+
+Admin entries list: render two chips per row — "In: {label/status}" and "Out: {label/status}" — using the existing `GeoTagEditor` styling. `GeoTagEditor` gets a `field: "in" | "out"` prop so each chip is independently editable; `adminUpdateEntryGeo` takes a `field` arg and writes to the matching pair of columns.
+
+Planned-job chip still renders when set (now mostly admin-corrections or true 3-stop days), and the planned-job selector stays in the popover.
+
+### 4. Audit
+
+- `clock_out` audit `after` payload includes `clock_out_geo_status` and `clock_out_job_site_id`.
+- `entry_geo_update` audit gains a `field` metadata value ("in" | "out") so the log distinguishes which tag was edited.
+
+## Technical details
+
+**Migration**
+
+```sql
+ALTER TABLE public.time_entries
+  ADD COLUMN clock_out_geo_status text,
+  ADD COLUMN clock_out_job_site_id uuid REFERENCES public.job_sites(id);
+CREATE INDEX time_entries_clock_out_job_site_id_idx
+  ON public.time_entries(clock_out_job_site_id);
+```
+No RLS / grant changes (table already configured).
+
+**Files touched**
+- `src/lib/entries.functions.ts`
+  - `clockIn`: drop `needsPlannedJob` from return; stop blocking on planned job.
+  - `clockOut`: persist clock-out geo; compute & return `needsPlannedJob`.
+  - `adminListEntries`: select new columns + `clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)`.
+  - `adminUpdateEntryGeo`: add `field: "in"|"out"` and write to the right column pair.
+- `src/components/worker/WorkerApp.tsx`
+  - Move `PlannedJobDialog` trigger from clock-in result to clock-out result.
+  - Drop the "Heading to" chip from the live session (no longer prompted up front); keep planned-job display when set by admin override.
+- `src/components/admin/AdminApp.tsx`
+  - Render two `GeoTagEditor` chips per entry (In / Out), pass `field`.
+  - `GeoTagEditor` reads the appropriate status/job-site pair based on `field`.
+
+**Backwards compatibility:** Old entries have NULL clock-out tag → the "Out" chip renders as a muted "—" with a "Set tag" affordance, identical to today's untagged behavior.
+
+## Open question
+
+When the worker clocks out off-site / no-gps (e.g., truck on the highway) and clock-in was at a supplier — that's still 2-point but neither endpoint is a client. Should that case:
+(a) prompt for planned job (current proposed rule — "both non-client → prompt"), or
+(b) skip the prompt and just leave both chips as supplier/off-site for the admin to interpret?
+
+I've written the plan as (a). Say the word if you'd rather have (b).

@@ -227,13 +227,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked in");
-      if (r.needsPlannedJob && r.entryId) {
-        setPlannedPrompt({
-          entryId: r.entryId,
-          alsoNeedsReason: !!r.needsReason,
-          reasonStatus: r.needsReason ? (r.geo.status as "off_site" | "no_gps") : undefined,
-        });
-      } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
         setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
       }
     },
@@ -253,12 +247,19 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked out");
-      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+      if (r.needsPlannedJob && r.entryId) {
+        setPlannedPrompt({
+          entryId: r.entryId,
+          alsoNeedsReason: !!r.needsReason && r.geo.status !== "verified",
+          reasonStatus: r.needsReason && r.geo.status !== "verified" ? (r.geo.status as "off_site" | "no_gps") : undefined,
+        });
+      } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
         setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
       }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
 
 
   const active = data?.active;
