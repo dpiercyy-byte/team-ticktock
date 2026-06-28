@@ -125,7 +125,7 @@ export const clockOut = createServerFn({ method: "POST" })
       after: { clock_out: now.toISOString(), flagged_review: flagged },
       metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
     });
-    return { ok: true, geo };
+    return { ok: true, geo, entryId: active.id, needsReason: geo.status !== "verified" };
   });
 
 
