@@ -22,6 +22,21 @@ function hoursBetween(a: string, b: string) {
   return (new Date(b).getTime() - new Date(a).getTime()) / 3600_000;
 }
 
+function resolvedClockOutTag(
+  geo: { status: string | null; jobSiteId: string | null },
+  fallback: { geo_status: string | null; job_site_id: string | null },
+) {
+  const resolvedStatus = geo.status ?? null;
+  const hasUsableResolvedTag =
+    resolvedStatus === "verified" ||
+    resolvedStatus === "supplier" ||
+    resolvedStatus === "off_site";
+  return {
+    status: hasUsableResolvedTag ? resolvedStatus : fallback.geo_status ?? "no_gps",
+    jobSiteId: hasUsableResolvedTag ? geo.jobSiteId : fallback.job_site_id ?? null,
+  };
+}
+
 // === Worker ===
 
 export const getWorkerState = createServerFn({ method: "POST" })
@@ -115,14 +130,15 @@ export const clockOut = createServerFn({ method: "POST" })
     const now = new Date();
     const flagged = now.getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
     const geo = await resolveSite(data.lat, data.lng);
+    const outTag = resolvedClockOutTag(geo, active);
     const { error } = await supabaseAdmin.from("time_entries")
       .update({
         clock_out: now.toISOString(),
         flagged_review: flagged,
         clock_out_lat: data.lat ?? null,
         clock_out_lng: data.lng ?? null,
-        clock_out_geo_status: geo.status,
-        clock_out_job_site_id: geo.jobSiteId,
+        clock_out_geo_status: outTag.status,
+        clock_out_job_site_id: outTag.jobSiteId,
       })
       .eq("id", active.id);
     if (error) throw error;
@@ -134,16 +150,16 @@ export const clockOut = createServerFn({ method: "POST" })
       after: {
         clock_out: now.toISOString(),
         flagged_review: flagged,
-        clock_out_geo_status: geo.status,
-        clock_out_job_site_id: geo.jobSiteId,
+        clock_out_geo_status: outTag.status,
+        clock_out_job_site_id: outTag.jobSiteId,
       },
       metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
     });
-    const needsReason = geo.status === "off_site" || geo.status === "no_gps";
+    const needsReason = outTag.status === "off_site" || outTag.status === "no_gps";
     const inNonClient = active.geo_status === "supplier" || active.geo_status === "off_site" || active.geo_status === "no_gps";
-    const outNonClient = geo.status === "supplier" || geo.status === "off_site" || geo.status === "no_gps";
+    const outNonClient = outTag.status === "supplier" || outTag.status === "off_site" || outTag.status === "no_gps";
     const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
-    return { ok: true, geo, entryId: active.id, needsReason, needsPlannedJob };
+    return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob };
   });
 
 
