@@ -1046,6 +1046,92 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
           )}
         </DialogContent>
       </Dialog>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+// ===== Lifetime payout =====
+function LifetimePayoutView({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const payFn = useServerFn(lifetimePayout);
+  const pq = useQuery({
+    queryKey: ["payout-lifetime"],
+    queryFn: () => payFn({ data: { token } }).then(r => { updateToken(r.token); return r.summary; }),
+  });
+
+  const downloadCsv = () => {
+    if (!pq.data) return;
+    const header = "Worker,Hours,Rate,Wages,Reimbursements,Total\n";
+    const rows = pq.data.map((s: any) =>
+      `"${s.name}",${s.hours.toFixed(2)},${s.hourlyRate.toFixed(2)},${s.wages.toFixed(2)},${s.reimbTotal.toFixed(2)},${s.total.toFixed(2)}`
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `payout-lifetime.csv`; a.click(); URL.revokeObjectURL(url);
+  };
+
+  const grandTotal = (pq.data ?? []).reduce((s: number, x: any) => s + x.total, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">All-time totals across every worker</p>
+          <p className="text-2xl font-bold tabular-nums">{fmtMoney(grandTotal)}</p>
+        </div>
+        <Button onClick={downloadCsv} disabled={!pq.data?.length}>
+          <Download className="h-4 w-4 mr-2" />Lifetime CSV
+        </Button>
+      </div>
+
+      {pq.isLoading ? (
+        <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
+      ) : pq.data?.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-sm text-muted-foreground text-center">No workers yet.</CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+          {pq.data?.map((s: any) => {
+            const initials = s.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+            return (
+              <Card key={s.workerId} className="overflow-hidden flex flex-col">
+                <CardHeader className="flex-row items-center gap-3 space-y-0 py-4">
+                  <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
+                    {initials || "?"}
+                  </span>
+                  <p className="font-semibold text-base truncate">{s.name}</p>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-3 pt-0 pb-4">
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium">Labour</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {s.hours.toFixed(2)} hrs × ${s.hourlyRate.toFixed(2)}
+                      </p>
+                    </div>
+                    <span className="tabular-nums font-semibold">{fmtMoney(s.wages)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium">Reimbursements</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {s.reimbCount} {s.reimbCount === 1 ? "item" : "items"}
+                      </p>
+                    </div>
+                    <span className="tabular-nums font-semibold">{fmtMoney(s.reimbTotal)}</span>
+                  </div>
+                </CardContent>
+                <div className="flex items-baseline justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
+                  <span className="text-sm font-semibold">Total earned</span>
+                  <span className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</span>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
