@@ -561,19 +561,28 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
                  <p className="font-medium truncate">{w.name}</p>
                  <p className="text-xs text-muted-foreground">${Number(w.hourly_rate).toFixed(2)}/hr</p>
                </div>
-               <div className="flex items-center gap-2 shrink-0 ml-auto">
-                 <RateEditor worker={w} onSave={async (v) => {
-                   try { const r = await rateFn({ data: { token, workerId: w.id, hourlyRate: v } });
-                     updateToken(r.token); refresh(); toast.success("Rate updated"); }
-                   catch (e: any) { toast.error(e?.message || "Failed"); }
-                 }} />
-                 <Button variant="outline" size="sm" onClick={() => { setResetting({ id: w.id, name: w.name }); setNewPin(""); }}>
-                   <KeyRound className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">PIN</span>
-                 </Button>
-                 <Button variant="ghost" size="icon" onClick={() => setConfirmDel({ id: w.id, name: w.name })}>
-                   <Trash2 className="h-4 w-4 text-destructive" />
-                 </Button>
-               </div>
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
+                  <WorkerEditor worker={w} onSave={async ({ name: newName, rate: newRate }) => {
+                    try {
+                      if (newName !== w.name) {
+                        const r1 = await nameFn({ data: { token, workerId: w.id, name: newName } });
+                        updateToken(r1.token);
+                      }
+                      if (newRate !== Number(w.hourly_rate)) {
+                        const r2 = await rateFn({ data: { token, workerId: w.id, hourlyRate: newRate } });
+                        updateToken(r2.token);
+                      }
+                      refresh(); toast.success("Worker updated");
+                    } catch (e: any) { toast.error(e?.message || "Failed"); }
+                  }} />
+                  <Button variant="outline" size="sm" onClick={() => { setResetting({ id: w.id, name: w.name }); setNewPin(""); }}>
+                    <KeyRound className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">PIN</span>
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setConfirmDel({ id: w.id, name: w.name })}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+
              </div>
            ))}
          </div>}
