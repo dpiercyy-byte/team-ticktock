@@ -191,7 +191,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const outFn = useServerFn(clockOut);
   const qc = useQueryClient();
 
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["worker-state", session.id],
     queryFn: () => stateFn({ data: { token: session.token } }),
     refetchInterval: 30_000,
@@ -298,29 +298,23 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
+      <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
         {isLoading ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : (
           <>
-            <div className="text-center">
+            <div className="text-center flex flex-col items-center gap-2">
               <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                 {active ? "Currently Working" : "Not Clocked In"}
               </p>
               {active && (
-                <p className="mt-2 text-5xl sm:text-6xl font-bold tabular-nums tracking-tight select-none">{sessionStr}</p>
+                <p className="text-5xl sm:text-6xl font-bold tabular-nums tracking-tight select-none">{sessionStr}</p>
               )}
               {active?.project && (
-                <p className="mt-2 text-sm text-muted-foreground inline-flex items-center gap-1.5">
+                <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
                   <Briefcase className="h-3.5 w-3.5" /> {active.project}
                 </p>
               )}
-              {active?.planned_job?.label && (
-                <p className="mt-1 text-xs text-primary inline-flex items-center gap-1.5">
-                  <MapPin className="h-3 w-3" /> Heading to: {active.planned_job.label}
-                </p>
-              )}
-
             </div>
 
             {!active && settings?.project_tracking_enabled && (
@@ -336,21 +330,21 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
 
             {active ? (
               <Button size="lg" onClick={() => outMut.mutate()} disabled={outMut.isPending}
-                      className="h-40 w-40 rounded-full text-lg font-bold shadow-lg touch-manipulation select-none active:scale-95 transition-transform"
+                      className="h-56 w-56 rounded-full text-xl font-bold shadow-lg touch-manipulation select-none active:scale-95 transition-transform"
                       style={{ background: "var(--destructive)", color: "var(--destructive-foreground)" }}>
                 {outMut.isPending ? "…" : "Clock Out"}
               </Button>
             ) : (
               <Button size="lg" onClick={() => inMut.mutate()} disabled={inMut.isPending}
-                      className="h-40 w-40 rounded-full text-lg font-bold shadow-[var(--shadow-elevated)] touch-manipulation select-none active:scale-95 transition-transform"
+                      className="h-56 w-56 rounded-full text-xl font-bold shadow-[var(--shadow-elevated)] touch-manipulation select-none active:scale-95 transition-transform"
                       style={{ background: "var(--gradient-primary)", color: "var(--primary-foreground)" }}>
                 {inMut.isPending ? "…" : "Clock In"}
               </Button>
             )}
 
-            {lastGeo && (
-              <div className="flex flex-col items-center gap-1 -mt-2">
-                <p className={`text-xs inline-flex items-center gap-1.5 ${
+            <div className="flex flex-col items-center gap-2">
+              {lastGeo && (
+                <div className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 shadow-sm text-xs ${
                   lastGeo.status === "verified" ? "text-success" :
                   lastGeo.status === "supplier" ? "text-primary" :
                   lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
@@ -362,44 +356,35 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                     : lastGeo.status === "supplier"
                     ? <><MapPin className="h-3.5 w-3.5" /> At {lastGeo.siteLabel}</>
                     : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
-                </p>
-              </div>
-            )}
+                </div>
+              )}
 
+              {active?.planned_job?.label && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 shadow-sm text-xs text-primary">
+                  <MapPin className="h-3.5 w-3.5" /> Heading to: {active.planned_job.label}
+                </div>
+              )}
 
-
-            {active && active.geo_status && active.geo_status !== "verified" && active.geo_status !== "supplier" && !active.offsite_reason_code && (
-              <button
-                onClick={() => setReasonPrompt({
-                  entryId: active.id,
-                  status: active.geo_status as any,
-                  kind: "in",
-                })}
-                className="text-xs text-warning underline underline-offset-2"
-              >
-                Add reason for off-site clock-in
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                refetch();
-                qc.invalidateQueries({ queryKey: ["worker-reimb", session.id] });
-                toast.success("Refreshed");
-              }}
-              disabled={isFetching}
-              className="text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-50"
-            >
-              {isFetching ? "Refreshing…" : "Tap to refresh"}
-            </button>
-
+              {active && active.geo_status && active.geo_status !== "verified" && active.geo_status !== "supplier" && !active.offsite_reason_code && (
+                <button
+                  onClick={() => setReasonPrompt({
+                    entryId: active.id,
+                    status: active.geo_status as any,
+                    kind: "in",
+                  })}
+                  className="inline-flex items-center rounded-full bg-warning/10 text-warning px-3 py-1.5 text-xs font-medium"
+                >
+                  Add reason for off-site clock-in
+                </button>
+              )}
+            </div>
 
             <ReimbursementsSection token={session.token} workerId={session.id} />
           </>
         )}
       </main>
 
-      <section className="border-t border-border bg-card px-6 py-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] grid grid-cols-2 gap-4">
+      <section className="border-t border-border bg-card rounded-t-2xl px-6 py-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>
           <p className="text-2xl font-bold tabular-nums">{fmtHours(todayDisplay)}</p>
@@ -412,6 +397,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
           )}
         </div>
       </section>
+
 
       <OffsiteReasonDialog
         token={session.token}
