@@ -334,10 +334,11 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
       const { data: s } = await supabaseAdmin.from("job_sites").select("label").eq("id", newJobSiteId).maybeSingle();
       newLabel = s?.label ?? null;
     }
-    const update: Record<string, any> = { [statusCol]: data.status, [jobCol]: newJobSiteId };
-    const { error } = await supabaseAdmin.from("time_entries")
+    const update: any = { [statusCol]: data.status, [jobCol]: newJobSiteId };
+    const { error } = await (supabaseAdmin.from("time_entries") as any)
       .update(update)
       .eq("id", data.entryId);
+
 
     if (error) throw error;
     await logAudit({
