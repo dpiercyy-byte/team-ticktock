@@ -1007,6 +1007,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   const addFn = useServerFn(adminAddJobSite);
   const updFn = useServerFn(adminUpdateJobSite);
   const delFn = useServerFn(adminDeleteJobSite);
+  const archFn = useServerFn(adminArchiveJobSite);
   const qc = useQueryClient();
 
   const q = useQuery({
@@ -1014,18 +1015,22 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     queryFn: () => listFn({ data: { token } }).then((r) => { updateToken(r.token); return r.sites; }),
   });
 
+  const [view, setView] = useState<"client" | "supplier" | "archived">("client");
+  const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<"client" | "supplier">("client");
   const [address, setAddress] = useState("");
   const [label, setLabel] = useState("");
   const [radius, setRadius] = useState(100);
 
-  const reset = () => { setAddress(""); setLabel(""); setRadius(100); };
+  const reset = () => { setAddress(""); setLabel(""); setRadius(100); setKind("client"); };
 
   const add = useMutation({
-    mutationFn: () => addFn({ data: { token, address: address.trim(), label: label.trim() || undefined, radius_m: radius } }),
+    mutationFn: () => addFn({ data: { token, address: address.trim(), label: label.trim() || undefined, radius_m: radius, kind } }),
     onSuccess: (r) => {
       updateToken(r.token);
-      toast.success("Job site added");
+      toast.success(kind === "supplier" ? "Supplier location added" : "Job site added");
+      setView(kind);
       reset();
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["job-sites"] });
@@ -1053,22 +1058,81 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
 
+  const arch = useMutation({
+    mutationFn: (v: { id: string; archived: boolean }) => archFn({ data: { token, ...v } }),
+    onSuccess: (r, vars) => {
+      updateToken(r.token);
+      toast.success(vars.archived ? "Job archived" : "Job restored");
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed"),
+  });
+
+  const all = q.data ?? [];
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return all.filter((s: any) => {
+      const isArchived = !!s.archived_at;
+      const k = s.kind ?? "client";
+      if (view === "archived" && !isArchived) return false;
+      if (view !== "archived" && isArchived) return false;
+      if (view === "client" && k !== "client") return false;
+      if (view === "supplier" && k !== "supplier") return false;
+      if (!term) return true;
+      return (
+        (s.label ?? "").toLowerCase().includes(term) ||
+        (s.address ?? "").toLowerCase().includes(term)
+      );
+    });
+  }, [all, view, search]);
+
+  const counts = useMemo(() => {
+    let client = 0, supplier = 0, archived = 0;
+    for (const s of all as any[]) {
+      if (s.archived_at) archived++;
+      else if ((s.kind ?? "client") === "supplier") supplier++;
+      else client++;
+    }
+    return { client, supplier, archived };
+  }, [all]);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="font-semibold">Job Sites</h2>
           <p className="text-xs text-muted-foreground">
-            Add an address — clock-ins inside the radius are automatically verified.
+            Active jobs verify clock-ins. Supplier locations are recognized but not counted as job work. Archived jobs are hidden from verification.
           </p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Site</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Location</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add job site</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Add location</DialogTitle></DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); if (address.trim()) add.mutate(); }} className="space-y-4">
+              <div>
+                <Label className="mb-1.5 block">Type</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setKind("client")}
+                    className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${kind === "client" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Building2 className="h-4 w-4 text-success" />
+                    <div className="leading-tight">
+                      <div className="font-medium">Client job</div>
+                      <div className="text-[11px] text-muted-foreground">Verified work site</div>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setKind("supplier")}
+                    className={`flex items-center gap-2 rounded-md border p-2.5 text-sm text-left ${kind === "supplier" ? "border-primary bg-primary/5" : "border-border"}`}>
+                    <Truck className="h-4 w-4 text-primary" />
+                    <div className="leading-tight">
+                      <div className="font-medium">Supplier</div>
+                      <div className="text-[11px] text-muted-foreground">Home Depot, Rona…</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
               <div>
                 <Label htmlFor="addr">Address</Label>
                 <Input id="addr" value={address} onChange={(e) => setAddress(e.target.value)}
@@ -1078,7 +1142,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
               <div>
                 <Label htmlFor="lbl">Friendly name (optional)</Label>
                 <Input id="lbl" value={label} onChange={(e) => setLabel(e.target.value)}
-                       placeholder="e.g. Smith Reno" maxLength={80} className="mt-1.5" />
+                       placeholder={kind === "supplier" ? "e.g. Home Depot - Main St" : "e.g. Smith Reno"} maxLength={80} className="mt-1.5" />
               </div>
               <div>
                 <Label htmlFor="rad">Radius: {radius} m</Label>
@@ -1090,7 +1154,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={add.isPending || !address.trim()}>
-                  {add.isPending ? "Looking up…" : "Add site"}
+                  {add.isPending ? "Looking up…" : "Add location"}
                 </Button>
               </DialogFooter>
             </form>
@@ -1098,55 +1162,124 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
         </Dialog>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="inline-flex rounded-md border bg-card p-0.5 text-xs w-fit">
+          {(["client", "supplier", "archived"] as const).map((v) => (
+            <button key={v} type="button" onClick={() => setView(v)}
+              className={`px-3 py-1.5 rounded capitalize ${view === v ? "bg-secondary font-medium" : "text-muted-foreground"}`}>
+              {v === "client" ? `Active jobs (${counts.client})` : v === "supplier" ? `Suppliers (${counts.supplier})` : `Archived (${counts.archived})`}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={view === "archived" ? "Search archived…" : "Search…"} className="pl-8 h-9" />
+        </div>
+      </div>
+
       <Card>
         <CardContent className="p-0">
           {q.isLoading ? (
             <p className="p-6 text-sm text-muted-foreground">Loading…</p>
-          ) : !q.data?.length ? (
+          ) : filtered.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground text-center">
-              No job sites yet. Add one to enable geo-verification.
+              {view === "archived"
+                ? (search ? "No archived jobs match your search." : "No archived jobs yet.")
+                : view === "supplier"
+                ? "No supplier locations yet. Add Home Depot, Rona, etc. to recognize material pickup stops."
+                : "No active job sites yet. Add one to enable geo-verification."}
             </p>
           ) : (
             <ul className="divide-y divide-border">
-              {q.data.map((s) => (
-                <li key={s.id} className="p-4 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-success shrink-0" />{s.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{s.address}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Label className="text-xs text-muted-foreground">Radius</Label>
-                      <input type="range" min={50} max={500} step={10} defaultValue={s.radius_m}
-                             onChange={(e) => {
-                               const v = parseInt(e.target.value);
-                               upd.mutate({ id: s.id, label: s.label, radius_m: v });
-                             }}
-                             className="flex-1 max-w-[200px]" />
-                      <span className="text-xs tabular-nums w-16">{s.radius_m} m</span>
+              {filtered.map((s: any) => {
+                const isArchived = !!s.archived_at;
+                const isSupplier = (s.kind ?? "client") === "supplier";
+                return (
+                  <li key={s.id} className="p-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate flex items-center gap-1.5">
+                        {isSupplier
+                          ? <Truck className="h-4 w-4 text-primary shrink-0" />
+                          : <Building2 className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : "text-success"}`} />}
+                        <span className={isArchived ? "text-muted-foreground" : ""}>{s.label}</span>
+                        {isArchived && <Badge variant="outline" className="h-4 text-[10px] ml-1">Archived</Badge>}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{s.address}</p>
+                      {!isArchived && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Label className="text-xs text-muted-foreground">Radius</Label>
+                          <input type="range" min={50} max={500} step={10} defaultValue={s.radius_m}
+                                 onChange={(e) => {
+                                   const v = parseInt(e.target.value);
+                                   upd.mutate({ id: s.id, label: s.label, radius_m: v });
+                                 }}
+                                 className="flex-1 max-w-[200px]" />
+                          <span className="text-xs tabular-nums w-16">{s.radius_m} m</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remove this job site?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Existing time entries stay intact but lose the site label.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => del.mutate(s.id)}>Remove</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </li>
-              ))}
+                    <div className="flex items-center gap-1">
+                      {isArchived ? (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => arch.mutate({ id: s.id, archived: false })}>
+                            <ArchiveRestore className="h-4 w-4 mr-1" />Restore
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" aria-label="Delete permanently">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete this location permanently?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This cannot be undone. Time entries linked to it lose the site label.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => del.mutate(s.id)}>Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label={isSupplier ? "Remove supplier" : "Archive job"}>
+                              {isSupplier
+                                ? <Trash2 className="h-4 w-4 text-destructive" />
+                                : <Archive className="h-4 w-4 text-muted-foreground" />}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {isSupplier ? "Remove this supplier location?" : "Archive this job?"}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {isSupplier
+                                  ? "It will no longer be recognized on clock-ins. Existing entries keep their tag."
+                                  : "Archived jobs are hidden from geo-verification but can be restored anytime. Existing entries stay tagged."}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() =>
+                                isSupplier ? del.mutate(s.id) : arch.mutate({ id: s.id, archived: true })
+                              }>
+                                {isSupplier ? "Remove" : "Archive"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
@@ -1155,7 +1288,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   );
 }
 
-type GeoStatus = "verified" | "off_site" | "no_gps";
+type GeoStatus = "verified" | "supplier" | "off_site" | "no_gps";
 
 const REASON_LABELS: Record<string, string> = {
   material_pickup: "Material pickup",
@@ -1174,7 +1307,7 @@ function GeoTagEditor({
   entry, sites, onUpdate,
 }: {
   entry: any;
-  sites: Array<{ id: string; label: string }>;
+  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -1184,6 +1317,10 @@ function GeoTagEditor({
     status === "verified" && entry.job_sites?.label ? (
       <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
         <MapPin className="h-2.5 w-2.5 mr-0.5" />{entry.job_sites.label}
+      </Badge>
+    ) : status === "supplier" && entry.job_sites?.label ? (
+      <Badge variant="outline" className="h-4 text-[10px] border-primary text-primary cursor-pointer hover:bg-primary/10">
+        <Truck className="h-2.5 w-2.5 mr-0.5" />{entry.job_sites.label}
       </Badge>
     ) : status === "off_site" ? (
       <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
@@ -1204,12 +1341,16 @@ function GeoTagEditor({
     await onUpdate(s, jid);
   };
 
+  const active = sites.filter((s) => !s.archived_at);
+  const clientSites = active.filter((s) => (s.kind ?? "client") === "client");
+  const supplierSites = active.filter((s) => s.kind === "supplier");
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-1" align="start">
+      <PopoverContent className="w-64 p-1 max-h-80 overflow-y-auto" align="start">
         {entry.offsite_reason_code && (
           <div className="px-2 py-2 mb-1 rounded bg-warning/10 border border-warning/30 text-[11px]">
             <div className="font-semibold text-warning uppercase tracking-wide mb-0.5">Worker reason</div>
@@ -1219,24 +1360,46 @@ function GeoTagEditor({
             )}
           </div>
         )}
-        <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Job site</div>
-        {sites.length === 0 && (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">No job sites yet</div>
+        <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Client job</div>
+        {clientSites.length === 0 && (
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">No active jobs</div>
         )}
-        {sites.map((s) => {
-          const active = status === "verified" && entry.job_site_id === s.id;
+        {clientSites.map((s) => {
+          const isActive = status === "verified" && entry.job_site_id === s.id;
           return (
             <button
               key={s.id}
               type="button"
               onClick={() => pick("verified", s.id)}
-              className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${active ? "bg-secondary" : ""}`}
+              className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${isActive ? "bg-secondary" : ""}`}
             >
-              <MapPin className="h-3 w-3 text-success" />
+              <Building2 className="h-3 w-3 text-success" />
               <span className="truncate">{s.label}</span>
             </button>
           );
         })}
+
+        {supplierSites.length > 0 && (
+          <>
+            <div className="my-1 h-px bg-border" />
+            <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Supplier</div>
+            {supplierSites.map((s) => {
+              const isActive = status === "supplier" && entry.job_site_id === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => pick("supplier", s.id)}
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${isActive ? "bg-secondary" : ""}`}
+                >
+                  <Truck className="h-3 w-3 text-primary" />
+                  <span className="truncate">{s.label}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
+
         <div className="my-1 h-px bg-border" />
         <button
           type="button"
@@ -1256,6 +1419,7 @@ function GeoTagEditor({
     </Popover>
   );
 }
+
 
 
 
