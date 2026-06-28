@@ -315,14 +315,19 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
     entryId: z.string().uuid(),
     status: z.enum(["verified", "supplier", "off_site", "no_gps"]),
     jobSiteId: z.string().uuid().nullable(),
+    field: z.enum(["in", "out"]).optional().default("in"),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     if ((data.status === "verified" || data.status === "supplier") && !data.jobSiteId) {
       throw new Response("Job site required for this status", { status: 400 });
     }
+    const statusCol = data.field === "out" ? "clock_out_geo_status" : "geo_status";
+    const jobCol = data.field === "out" ? "clock_out_job_site_id" : "job_site_id";
     const { data: prev } = await supabaseAdmin
-      .from("time_entries").select("geo_status, job_site_id, job_sites(label)").eq("id", data.entryId).maybeSingle();
+      .from("time_entries")
+      .select(`${statusCol}, ${jobCol}`)
+      .eq("id", data.entryId).maybeSingle();
     const newJobSiteId = data.status === "verified" || data.status === "supplier" ? data.jobSiteId : null;
     let newLabel: string | null = null;
     if (newJobSiteId) {
@@ -330,7 +335,7 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
       newLabel = s?.label ?? null;
     }
     const { error } = await supabaseAdmin.from("time_entries")
-      .update({ geo_status: data.status, job_site_id: newJobSiteId })
+      .update({ [statusCol]: data.status, [jobCol]: newJobSiteId })
       .eq("id", data.entryId);
     if (error) throw error;
     await logAudit({
@@ -338,11 +343,13 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
       action: "entry_geo_update",
       entityType: "time_entry",
       entityId: data.entryId,
-      before: { geo_status: prev?.geo_status ?? null, job_site_id: prev?.job_site_id ?? null, job_site_label: (prev as any)?.job_sites?.label ?? null },
-      after: { geo_status: data.status, job_site_id: newJobSiteId, job_site_label: newLabel },
+      before: { [statusCol]: (prev as any)?.[statusCol] ?? null, [jobCol]: (prev as any)?.[jobCol] ?? null },
+      after: { [statusCol]: data.status, [jobCol]: newJobSiteId, job_site_label: newLabel },
+      metadata: { field: data.field },
     });
     return refreshed;
   });
+
 
 export const adminFlaggedEntries = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
