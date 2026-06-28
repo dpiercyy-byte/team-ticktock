@@ -504,7 +504,9 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
   const createFn = useServerFn(createWorker);
   const delFn = useServerFn(deleteWorker);
   const rateFn = useServerFn(setWorkerRate);
+  const nameFn = useServerFn(setWorkerName);
   const pinFn = useServerFn(resetWorkerPin);
+
   const qc = useQueryClient();
 
   const wq = useQuery({
