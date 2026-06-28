@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "./db.server";
 
-export type GeoStatus = "verified" | "off_site" | "no_gps";
+export type GeoStatus = "verified" | "supplier" | "off_site" | "no_gps";
 
 export type GeoMatch = {
   status: GeoStatus;
@@ -28,17 +28,24 @@ export async function resolveSite(
   }
   const { data: sites } = await supabaseAdmin
     .from("job_sites")
-    .select("id, label, lat, lng, radius_m");
+    .select("id, label, lat, lng, radius_m, kind")
+    .is("archived_at", null);
   if (!sites || sites.length === 0) {
     return { status: "off_site", jobSiteId: null, siteLabel: null };
   }
-  let best: { id: string; label: string; dist: number; radius: number } | null = null;
+  let best: { id: string; label: string; kind: string; dist: number } | null = null;
   for (const s of sites) {
     const d = haversineMeters(lat, lng, Number(s.lat), Number(s.lng));
     if (d <= Number(s.radius_m) && (!best || d < best.dist)) {
-      best = { id: s.id, label: s.label, dist: d, radius: Number(s.radius_m) };
+      best = { id: s.id, label: s.label, kind: (s as any).kind ?? "client", dist: d };
     }
   }
-  if (best) return { status: "verified", jobSiteId: best.id, siteLabel: best.label };
+  if (best) {
+    return {
+      status: best.kind === "supplier" ? "supplier" : "verified",
+      jobSiteId: best.id,
+      siteLabel: best.label,
+    };
+  }
   return { status: "off_site", jobSiteId: null, siteLabel: null };
 }

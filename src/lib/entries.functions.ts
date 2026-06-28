@@ -91,7 +91,8 @@ export const clockIn = createServerFn({ method: "POST" })
       entityId: inserted?.id,
       after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null },
     });
-    return { ok: true, geo, entryId: inserted?.id, needsReason: geo.status !== "verified" };
+    const needsReason = geo.status === "off_site" || geo.status === "no_gps";
+    return { ok: true, geo, entryId: inserted?.id, needsReason };
   });
 
 export const clockOut = createServerFn({ method: "POST" })
@@ -125,7 +126,8 @@ export const clockOut = createServerFn({ method: "POST" })
       after: { clock_out: now.toISOString(), flagged_review: flagged },
       metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
     });
-    return { ok: true, geo, entryId: active.id, needsReason: geo.status !== "verified" };
+    const needsReason = geo.status === "off_site" || geo.status === "no_gps";
+    return { ok: true, geo, entryId: active.id, needsReason };
   });
 
 
@@ -177,7 +179,7 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_sites(label)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, job_sites(label, kind, archived_at)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
 
     if (data.from) q = q.gte("clock_in", data.from);
@@ -290,17 +292,17 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
 export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
     entryId: z.string().uuid(),
-    status: z.enum(["verified", "off_site", "no_gps"]),
+    status: z.enum(["verified", "supplier", "off_site", "no_gps"]),
     jobSiteId: z.string().uuid().nullable(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
-    if (data.status === "verified" && !data.jobSiteId) {
-      throw new Response("Job site required for verified status", { status: 400 });
+    if ((data.status === "verified" || data.status === "supplier") && !data.jobSiteId) {
+      throw new Response("Job site required for this status", { status: 400 });
     }
     const { data: prev } = await supabaseAdmin
       .from("time_entries").select("geo_status, job_site_id, job_sites(label)").eq("id", data.entryId).maybeSingle();
-    const newJobSiteId = data.status === "verified" ? data.jobSiteId : null;
+    const newJobSiteId = data.status === "verified" || data.status === "supplier" ? data.jobSiteId : null;
     let newLabel: string | null = null;
     if (newJobSiteId) {
       const { data: s } = await supabaseAdmin.from("job_sites").select("label").eq("id", newJobSiteId).maybeSingle();
