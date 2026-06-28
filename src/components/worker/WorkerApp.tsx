@@ -242,6 +242,9 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       toast.success("Clocked out");
+      if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+        setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+      }
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
