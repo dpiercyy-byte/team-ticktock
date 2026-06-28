@@ -51,6 +51,23 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+type GeoCoords = { lat: number; lng: number } | null;
+
+async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return null;
+  return new Promise<GeoCoords>((resolve) => {
+    let done = false;
+    const finish = (v: GeoCoords) => { if (!done) { done = true; resolve(v); } };
+    const t = setTimeout(() => finish(null), timeoutMs);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { clearTimeout(t); finish({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      () => { clearTimeout(t); finish(null); },
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 30_000 },
+    );
+  });
+}
+
+
 export function WorkerApp() {
   const [session, setSession] = useState<WorkerSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
