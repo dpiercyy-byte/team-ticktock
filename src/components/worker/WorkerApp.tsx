@@ -381,8 +381,16 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               </button>
             )}
 
-            <button onClick={() => refetch()} className="text-xs text-muted-foreground">
-              Tap to refresh
+            <button
+              onClick={() => {
+                refetch();
+                qc.invalidateQueries({ queryKey: ["worker-reimbursements", session.id] });
+                toast.success("Refreshed");
+              }}
+              disabled={isFetching}
+              className="text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-50"
+            >
+              {isFetching ? "Refreshing…" : "Tap to refresh"}
             </button>
 
 
