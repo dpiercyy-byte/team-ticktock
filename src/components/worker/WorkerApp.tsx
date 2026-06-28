@@ -33,7 +33,6 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getWorkerSession, setWorkerSession, clearWorkerSession, type WorkerSession,
 } from "@/lib/session";
-import { useOnline } from "@/hooks/use-online";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { enqueueClock } from "@/lib/offline-queue";
 import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
