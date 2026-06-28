@@ -187,7 +187,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
 }
 
 function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout: () => void }) {
-  void useOnline;
+  
   const stateFn = useServerFn(getWorkerState);
   const inFn = useServerFn(clockIn);
   const outFn = useServerFn(clockOut);
