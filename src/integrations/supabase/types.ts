@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      job_sites: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          label: string
+          lat: number
+          lng: number
+          radius_m: number
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          label: string
+          lat: number
+          lng: number
+          radius_m?: number
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          label?: string
+          lat?: number
+          lng?: number
+          radius_m?: number
+        }
+        Relationships: []
+      }
       reimbursements: {
         Row: {
           amount: number
@@ -79,35 +109,60 @@ export type Database = {
       time_entries: {
         Row: {
           clock_in: string
+          clock_in_lat: number | null
+          clock_in_lng: number | null
           clock_out: string | null
+          clock_out_lat: number | null
+          clock_out_lng: number | null
           created_at: string
           created_by: string
           flagged_review: boolean
+          geo_status: string | null
           id: string
+          job_site_id: string | null
           project: string | null
           worker_id: string
         }
         Insert: {
           clock_in: string
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
           created_at?: string
           created_by?: string
           flagged_review?: boolean
+          geo_status?: string | null
           id?: string
+          job_site_id?: string | null
           project?: string | null
           worker_id: string
         }
         Update: {
           clock_in?: string
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
           created_at?: string
           created_by?: string
           flagged_review?: boolean
+          geo_status?: string | null
           id?: string
+          job_site_id?: string | null
           project?: string | null
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "time_entries_job_site_id_fkey"
+            columns: ["job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "time_entries_worker_id_fkey"
             columns: ["worker_id"]

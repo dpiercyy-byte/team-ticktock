@@ -18,8 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
-  Paperclip, Upload, X, FileText,
+  Paperclip, Upload, X, FileText, MapPin, MapPinOff,
 } from "lucide-react";
+
 import {
   adminLogin, adminVerify, adminChangePassword,
 } from "@/lib/auth.functions";
@@ -34,6 +35,10 @@ import {
   listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
 } from "@/lib/reimbursements.functions";
 import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
+import {
+  adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite,
+} from "@/lib/jobsites.functions";
+
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
 import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -162,14 +167,17 @@ function AdminDashboard({ token, updateToken, onLogout }: {
               <TabsTrigger value="entries">Time Entries</TabsTrigger>
               <TabsTrigger value="payouts">Weekly Payouts</TabsTrigger>
               <TabsTrigger value="workers">Workers</TabsTrigger>
+              <TabsTrigger value="sites">Job Sites</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="entries"><EntriesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
+          <TabsContent value="sites"><JobSitesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="settings"><SettingsTab token={token} updateToken={updateToken} /></TabsContent>
         </Tabs>
+
       </div>
     </div>
   );
@@ -303,7 +311,23 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             <span className="truncate max-w-[160px]">{e.project ?? "General"}</span>
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
+                            {e.geo_status === "verified" && e.job_sites?.label && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-success text-success">
+                                <MapPin className="h-2.5 w-2.5 mr-0.5" />{e.job_sites.label}
+                              </Badge>
+                            )}
+                            {e.geo_status === "off_site" && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning">
+                                <MapPin className="h-2.5 w-2.5 mr-0.5" />Off-site
+                              </Badge>
+                            )}
+                            {e.geo_status === "no_gps" && (
+                              <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground">
+                                <MapPinOff className="h-2.5 w-2.5 mr-0.5" />No GPS
+                              </Badge>
+                            )}
                           </p>
+
                         </div>
                         <div className="flex gap-0.5 shrink-0">
                           <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
@@ -959,3 +983,158 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
     </div>
   );
 }
+
+// ===== Job Sites tab =====
+function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const listFn = useServerFn(adminListJobSites);
+  const addFn = useServerFn(adminAddJobSite);
+  const updFn = useServerFn(adminUpdateJobSite);
+  const delFn = useServerFn(adminDeleteJobSite);
+  const qc = useQueryClient();
+
+  const q = useQuery({
+    queryKey: ["job-sites"],
+    queryFn: () => listFn({ data: { token } }).then((r) => { updateToken(r.token); return r.sites; }),
+  });
+
+  const [open, setOpen] = useState(false);
+  const [address, setAddress] = useState("");
+  const [label, setLabel] = useState("");
+  const [radius, setRadius] = useState(100);
+
+  const reset = () => { setAddress(""); setLabel(""); setRadius(100); };
+
+  const add = useMutation({
+    mutationFn: () => addFn({ data: { token, address: address.trim(), label: label.trim() || undefined, radius_m: radius } }),
+    onSuccess: (r) => {
+      updateToken(r.token);
+      toast.success("Job site added");
+      reset();
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not geocode address"),
+  });
+
+  const del = useMutation({
+    mutationFn: (id: string) => delFn({ data: { token, id } }),
+    onSuccess: (r) => {
+      updateToken(r.token);
+      toast.success("Removed");
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed"),
+  });
+
+  const upd = useMutation({
+    mutationFn: (v: { id: string; label: string; radius_m: number }) =>
+      updFn({ data: { token, ...v } }),
+    onSuccess: (r) => {
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed"),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Job Sites</h2>
+          <p className="text-xs text-muted-foreground">
+            Add an address — clock-ins inside the radius are automatically verified.
+          </p>
+        </div>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
+          <DialogTrigger asChild>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Site</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Add job site</DialogTitle></DialogHeader>
+            <form onSubmit={(e) => { e.preventDefault(); if (address.trim()) add.mutate(); }} className="space-y-4">
+              <div>
+                <Label htmlFor="addr">Address</Label>
+                <Input id="addr" value={address} onChange={(e) => setAddress(e.target.value)}
+                       placeholder="123 Oak St, Springfield" autoFocus className="mt-1.5" />
+                <p className="text-xs text-muted-foreground mt-1">We'll look up the location automatically.</p>
+              </div>
+              <div>
+                <Label htmlFor="lbl">Friendly name (optional)</Label>
+                <Input id="lbl" value={label} onChange={(e) => setLabel(e.target.value)}
+                       placeholder="e.g. Smith Reno" maxLength={80} className="mt-1.5" />
+              </div>
+              <div>
+                <Label htmlFor="rad">Radius: {radius} m</Label>
+                <input id="rad" type="range" min={50} max={500} step={10}
+                       value={radius} onChange={(e) => setRadius(parseInt(e.target.value))}
+                       className="w-full mt-2" />
+                <p className="text-xs text-muted-foreground">Larger = more lenient. Default 100 m works for most sites.</p>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={add.isPending || !address.trim()}>
+                  {add.isPending ? "Looking up…" : "Add site"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {q.isLoading ? (
+            <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+          ) : !q.data?.length ? (
+            <p className="p-6 text-sm text-muted-foreground text-center">
+              No job sites yet. Add one to enable geo-verification.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {q.data.map((s) => (
+                <li key={s.id} className="p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-success shrink-0" />{s.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{s.address}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Label className="text-xs text-muted-foreground">Radius</Label>
+                      <input type="range" min={50} max={500} step={10} defaultValue={s.radius_m}
+                             onChange={(e) => {
+                               const v = parseInt(e.target.value);
+                               upd.mutate({ id: s.id, label: s.label, radius_m: v });
+                             }}
+                             className="flex-1 max-w-[200px]" />
+                      <span className="text-xs tabular-nums w-16">{s.radius_m} m</span>
+                    </div>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove this job site?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Existing time entries stay intact but lose the site label.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => del.mutate(s.id)}>Remove</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+

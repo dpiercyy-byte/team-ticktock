@@ -15,7 +15,9 @@ import {
 import { toast } from "sonner";
 import {
   Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip,
+  MapPin, MapPinOff,
 } from "lucide-react";
+
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -48,6 +50,23 @@ function fileToBase64(file: File): Promise<string> {
     r.readAsDataURL(file);
   });
 }
+
+type GeoCoords = { lat: number; lng: number } | null;
+
+async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return null;
+  return new Promise<GeoCoords>((resolve) => {
+    let done = false;
+    const finish = (v: GeoCoords) => { if (!done) { done = true; resolve(v); } };
+    const t = setTimeout(() => finish(null), timeoutMs);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { clearTimeout(t); finish({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      () => { clearTimeout(t); finish(null); },
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 30_000 },
+    );
+  });
+}
+
 
 export function WorkerApp() {
   const [session, setSession] = useState<WorkerSession | null>(null);
@@ -186,16 +205,43 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     return () => clearInterval(i);
   }, [data?.active]);
 
+  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
+
   const inMut = useMutation({
-    mutationFn: () => inFn({ data: { token: session.token, project: project || undefined } }),
-    onSuccess: () => { setProject(""); qc.invalidateQueries({ queryKey: ["worker-state", session.id] }); toast.success("Clocked in"); },
+    mutationFn: async () => {
+      const coords = await getGeo();
+      return inFn({ data: {
+        token: session.token,
+        project: project || undefined,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+      } });
+    },
+    onSuccess: (r) => {
+      setProject("");
+      setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+      qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+      toast.success("Clocked in");
+    },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
   const outMut = useMutation({
-    mutationFn: () => outFn({ data: { token: session.token } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["worker-state", session.id] }); toast.success("Clocked out"); },
+    mutationFn: async () => {
+      const coords = await getGeo();
+      return outFn({ data: {
+        token: session.token,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+      } });
+    },
+    onSuccess: (r) => {
+      setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+      qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+      toast.success("Clocked out");
+    },
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
+
 
   const active = data?.active;
   const settings = data?.settings;
@@ -277,8 +323,22 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               </Button>
             )}
 
+            {lastGeo && (
+              <p className={`text-xs inline-flex items-center gap-1.5 -mt-2 ${
+                lastGeo.status === "verified" ? "text-success" :
+                lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
+              }`}>
+                {lastGeo.status === "no_gps"
+                  ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
+                  : lastGeo.status === "verified"
+                  ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
+                  : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
+              </p>
+            )}
+
             <button onClick={() => refetch()} className="text-xs text-muted-foreground">
               Tap to refresh
+
             </button>
 
             <ReimbursementsSection token={session.token} workerId={session.id} />
