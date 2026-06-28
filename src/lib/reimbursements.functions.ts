@@ -43,17 +43,25 @@ export const addReimbursement = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
-    const { error } = await supabaseAdmin.from("reimbursements").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: data.workerId,
       week_start: data.weekStart,
       description: data.description,
       amount: data.amount,
       receipt_url: data.receiptUrl ?? null,
       receipt_mime: data.receiptMime ?? null,
-    });
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "reimbursement_create",
+      entityType: "reimbursement",
+      entityId: inserted?.id,
+      after: { worker_id: data.workerId, week_start: data.weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl },
+    });
     return refreshed;
   });
+
 
 export const deleteReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({ id: z.string().uuid() }).parse(d))
