@@ -193,8 +193,15 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const addE = useServerFn(adminAddEntry);
   const editE = useServerFn(adminEditEntry);
   const delE = useServerFn(adminDeleteEntry);
+  const updGeo = useServerFn(adminUpdateEntryGeo);
+  const listSites = useServerFn(adminListJobSites);
   const settingsFn = useServerFn(getPublicSettings);
   const qc = useQueryClient();
+
+  const sitesQ = useQuery({
+    queryKey: ["adm-jobsites"],
+    queryFn: () => listSites({ data: { token } }).then(r => { updateToken(r.token); return r.sites; }),
+  });
 
   const wq = useQuery({
     queryKey: ["adm-workers"],
