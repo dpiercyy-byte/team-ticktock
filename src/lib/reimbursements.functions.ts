@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin, requireWorker } from "./auth.server";
+import { logAudit } from "./audit.server";
 
 const adminBase = z.object({ token: z.string() });
 const workerBase = z.object({ token: z.string() });
@@ -42,25 +43,32 @@ export const addReimbursement = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
-    const { error } = await supabaseAdmin.from("reimbursements").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: data.workerId,
       week_start: data.weekStart,
       description: data.description,
       amount: data.amount,
       receipt_url: data.receiptUrl ?? null,
       receipt_mime: data.receiptMime ?? null,
-    });
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "reimbursement_create",
+      entityType: "reimbursement",
+      entityId: inserted?.id,
+      after: { worker_id: data.workerId, week_start: data.weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl },
+    });
     return refreshed;
   });
+
 
 export const deleteReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
-    // Best-effort delete the storage object too
     const { data: row } = await supabaseAdmin
-      .from("reimbursements").select("receipt_url").eq("id", data.id).maybeSingle();
+      .from("reimbursements").select("id, worker_id, week_start, description, amount, receipt_url").eq("id", data.id).maybeSingle();
     if (row?.receipt_url) {
       const marker = "/object/public/receipts/";
       const idx = row.receipt_url.indexOf(marker);
@@ -71,6 +79,13 @@ export const deleteReimbursement = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("reimbursements").delete().eq("id", data.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "reimbursement_delete",
+      entityType: "reimbursement",
+      entityId: data.id,
+      before: row ?? undefined,
+    });
     return refreshed;
   });
 
@@ -131,15 +146,22 @@ export const workerSubmitReimbursement = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
     const weekStart = currentWeekStartISO();
-    const { error } = await supabaseAdmin.from("reimbursements").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: wid,
       week_start: weekStart,
       description: data.description,
       amount: data.amount,
       receipt_url: data.receiptUrl ?? null,
       receipt_mime: data.receiptMime ?? null,
-    });
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "reimbursement_create",
+      entityType: "reimbursement",
+      entityId: inserted?.id,
+      after: { week_start: weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl },
+    });
     return { ok: true };
   });
 
@@ -176,5 +198,12 @@ export const workerDeleteReimbursement = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("reimbursements").delete().eq("id", data.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "reimbursement_delete",
+      entityType: "reimbursement",
+      entityId: data.id,
+      before: row,
+    });
     return { ok: true };
   });

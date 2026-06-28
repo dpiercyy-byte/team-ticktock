@@ -40,6 +40,7 @@ import { weeklyPayout, exportEntriesCsv } from "@/lib/payout.functions";
 import {
   adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite,
 } from "@/lib/jobsites.functions";
+import { adminListAuditLog } from "@/lib/audit.functions";
 
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
 import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours } from "@/lib/format";
@@ -170,6 +171,7 @@ function AdminDashboard({ token, updateToken, onLogout }: {
               <TabsTrigger value="payouts">Weekly Payouts</TabsTrigger>
               <TabsTrigger value="workers">Workers</TabsTrigger>
               <TabsTrigger value="sites">Job Sites</TabsTrigger>
+              <TabsTrigger value="audit">Audit Log</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
           </div>
@@ -177,6 +179,7 @@ function AdminDashboard({ token, updateToken, onLogout }: {
           <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="sites"><JobSitesTab token={token} updateToken={updateToken} /></TabsContent>
+          <TabsContent value="audit"><AuditTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="settings"><SettingsTab token={token} updateToken={updateToken} /></TabsContent>
         </Tabs>
 
@@ -1225,3 +1228,134 @@ function GeoTagEditor({
 }
 
 
+
+// ===== Audit Log tab =====
+function AuditTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const listFn = useServerFn(adminListAuditLog);
+  const [filterEntity, setFilterEntity] = useState<string>("all");
+  const [filterActor, setFilterActor] = useState<string>("all");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["audit-log", filterEntity, filterActor],
+    queryFn: async () => {
+      const res = await listFn({
+        data: {
+          token,
+          entityType: filterEntity === "all" ? undefined : filterEntity,
+          actorKind: filterActor === "all" ? undefined : (filterActor as "admin" | "worker" | "system"),
+          limit: 300,
+        },
+      });
+      if (res.token !== token) updateToken(res.token);
+      return res.entries;
+    },
+  });
+
+  const actionLabel = (a: string) => {
+    const map: Record<string, string> = {
+      clock_in: "Clocked in",
+      clock_out: "Clocked out",
+      entry_create: "Created time entry",
+      entry_edit: "Edited time entry",
+      entry_delete: "Deleted time entry",
+      entry_geo_update: "Updated geo tag",
+      reimbursement_create: "Added reimbursement",
+      reimbursement_delete: "Deleted reimbursement",
+    };
+    return map[a] ?? a;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Audit Log</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Append-only history of every change. Records cannot be edited or deleted.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Select value={filterEntity} onValueChange={setFilterEntity}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Entity" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All entities</SelectItem>
+              <SelectItem value="time_entry">Time entries</SelectItem>
+              <SelectItem value="reimbursement">Reimbursements</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterActor} onValueChange={setFilterActor}>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Actor" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All actors</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="worker">Worker</SelectItem>
+              <SelectItem value="system">System</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">Loading…</div>
+        ) : !data || data.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">No audit records yet.</div>
+        ) : (
+          <div className="space-y-2">
+            {data.map((row) => {
+              const isOpen = expanded === row.id;
+              const hasDetail = row.before || row.after || row.metadata;
+              return (
+                <div key={row.id} className="border rounded-md text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : row.id)}
+                    className="w-full text-left p-3 hover:bg-secondary/50 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3"
+                  >
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {fmtDate(row.created_at)} {fmtTime(row.created_at)}
+                    </span>
+                    <Badge variant={row.actor_kind === "admin" ? "default" : "secondary"} className="w-fit">
+                      {row.actor_label ?? row.actor_kind}
+                    </Badge>
+                    <span className="font-medium">{actionLabel(row.action)}</span>
+                    <span className="text-xs text-muted-foreground sm:ml-auto truncate">
+                      {row.entity_type}{row.entity_id ? ` · ${String(row.entity_id).slice(0, 8)}` : ""}
+                    </span>
+                  </button>
+                  {isOpen && hasDetail && (
+                    <div className="border-t p-3 bg-muted/30 grid sm:grid-cols-2 gap-3 text-xs">
+                      {row.before != null && (
+                        <div>
+                          <div className="font-semibold text-muted-foreground mb-1">Before</div>
+                          <pre className="whitespace-pre-wrap break-all bg-background p-2 rounded border">
+{JSON.stringify(row.before, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      {row.after != null && (
+                        <div>
+                          <div className="font-semibold text-muted-foreground mb-1">After</div>
+                          <pre className="whitespace-pre-wrap break-all bg-background p-2 rounded border">
+{JSON.stringify(row.after, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      {row.metadata != null && (
+                        <div className="sm:col-span-2">
+                          <div className="font-semibold text-muted-foreground mb-1">Metadata</div>
+                          <pre className="whitespace-pre-wrap break-all bg-background p-2 rounded border">
+{JSON.stringify(row.metadata, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

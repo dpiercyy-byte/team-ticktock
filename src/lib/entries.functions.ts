@@ -2,8 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireWorker, requireAdmin } from "./auth.server";
-
 import { resolveSite } from "./geo.server";
+import { logAudit } from "./audit.server";
+
 
 
 
@@ -71,17 +72,25 @@ export const clockIn = createServerFn({ method: "POST" })
       .from("time_entries").select("id").eq("worker_id", wid).is("clock_out", null).maybeSingle();
     if (existing) throw new Response("Already clocked in", { status: 400 });
     const geo = await resolveSite(data.lat, data.lng);
-    const { error } = await supabaseAdmin.from("time_entries").insert({
+    const nowISO = new Date().toISOString();
+    const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
-      clock_in: new Date().toISOString(),
+      clock_in: nowISO,
       project: data.project || geo.siteLabel || null,
       created_by: "worker",
       clock_in_lat: data.lat ?? null,
       clock_in_lng: data.lng ?? null,
       job_site_id: geo.jobSiteId,
       geo_status: geo.status,
-    });
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "clock_in",
+      entityType: "time_entry",
+      entityId: inserted?.id,
+      after: { clock_in: nowISO, job_site_id: geo.jobSiteId, geo_status: geo.status, project: data.project || geo.siteLabel || null },
+    });
     return { ok: true, geo };
   });
 
@@ -108,6 +117,14 @@ export const clockOut = createServerFn({ method: "POST" })
       })
       .eq("id", active.id);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "clock_out",
+      entityType: "time_entry",
+      entityId: active.id,
+      after: { clock_out: now.toISOString(), flagged_review: flagged },
+      metadata: { hours: (now.getTime() - new Date(active.clock_in).getTime()) / 3600_000 },
+    });
     return { ok: true, geo };
   });
 
@@ -164,15 +181,22 @@ export const adminAddEntry = createServerFn({ method: "POST" })
     if (await checkOverlap(data.workerId, data.clockIn, data.clockOut))
       throw new Response("Entry overlaps an existing one", { status: 400 });
     const flagged = new Date(data.clockOut).getTime() - new Date(data.clockIn).getTime() > FOURTEEN_HOURS_MS;
-    const { error } = await supabaseAdmin.from("time_entries").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: data.workerId,
       clock_in: data.clockIn,
       clock_out: data.clockOut,
       project: data.project || null,
       created_by: "admin",
       flagged_review: flagged,
-    });
+    }).select("id").single();
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "entry_create",
+      entityType: "time_entry",
+      entityId: inserted?.id,
+      after: { worker_id: data.workerId, clock_in: data.clockIn, clock_out: data.clockOut, project: data.project ?? null, flagged_review: flagged },
+    });
     return refreshed;
   });
 
@@ -186,7 +210,7 @@ export const adminEditEntry = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: row, error: e1 } = await supabaseAdmin
-      .from("time_entries").select("worker_id").eq("id", data.entryId).single();
+      .from("time_entries").select("worker_id, clock_in, clock_out, project, flagged_review").eq("id", data.entryId).single();
     if (e1) throw e1;
     if (data.clockOut && new Date(data.clockOut) <= new Date(data.clockIn))
       throw new Response("Clock out must be after clock in", { status: 400 });
@@ -199,6 +223,14 @@ export const adminEditEntry = createServerFn({ method: "POST" })
       .update({ clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged })
       .eq("id", data.entryId);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "entry_edit",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { clock_in: row.clock_in, clock_out: row.clock_out, project: row.project, flagged_review: row.flagged_review },
+      after: { clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged },
+    });
     return refreshed;
   });
 
@@ -206,8 +238,17 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({ entryId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
+    const { data: row } = await supabaseAdmin
+      .from("time_entries").select("worker_id, clock_in, clock_out, project, geo_status, job_site_id").eq("id", data.entryId).maybeSingle();
     const { error } = await supabaseAdmin.from("time_entries").delete().eq("id", data.entryId);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "entry_delete",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: row ?? undefined,
+    });
     return refreshed;
   });
 
@@ -222,13 +263,26 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
     if (data.status === "verified" && !data.jobSiteId) {
       throw new Response("Job site required for verified status", { status: 400 });
     }
+    const { data: prev } = await supabaseAdmin
+      .from("time_entries").select("geo_status, job_site_id, job_sites(label)").eq("id", data.entryId).maybeSingle();
+    const newJobSiteId = data.status === "verified" ? data.jobSiteId : null;
+    let newLabel: string | null = null;
+    if (newJobSiteId) {
+      const { data: s } = await supabaseAdmin.from("job_sites").select("label").eq("id", newJobSiteId).maybeSingle();
+      newLabel = s?.label ?? null;
+    }
     const { error } = await supabaseAdmin.from("time_entries")
-      .update({
-        geo_status: data.status,
-        job_site_id: data.status === "verified" ? data.jobSiteId : null,
-      })
+      .update({ geo_status: data.status, job_site_id: newJobSiteId })
       .eq("id", data.entryId);
     if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "entry_geo_update",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { geo_status: prev?.geo_status ?? null, job_site_id: prev?.job_site_id ?? null, job_site_label: (prev as any)?.job_sites?.label ?? null },
+      after: { geo_status: data.status, job_site_id: newJobSiteId, job_site_label: newLabel },
+    });
     return refreshed;
   });
 
