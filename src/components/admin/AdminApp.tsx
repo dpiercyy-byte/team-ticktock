@@ -465,6 +465,30 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!confirmForce} onOpenChange={() => setConfirmForce(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Force clock out now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The entry will be closed at the current time. The clock-out tag will match the clock-in tag (no GPS reading is taken).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              const id = confirmForce!;
+              setConfirmForce(null);
+              try {
+                const r = await forceOut({ data: { token, entryId: id } });
+                updateToken(r.token);
+                qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                toast.success("Clocked out");
+              } catch (e: any) { toast.error(e?.message || "Failed"); }
+            }}>Clock out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
