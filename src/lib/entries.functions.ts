@@ -187,8 +187,9 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, job_sites(label, kind, archived_at)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
+
 
     if (data.from) q = q.gte("clock_in", data.from);
     if (data.to) q = q.lte("clock_in", data.to);
