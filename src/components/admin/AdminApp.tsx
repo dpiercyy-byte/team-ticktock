@@ -32,8 +32,9 @@ import {
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
-  adminUpdateEntryGeo,
+  adminUpdateEntryGeo, adminUpdateEntryPlannedJob,
 } from "@/lib/entries.functions";
+
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
   listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
