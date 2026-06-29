@@ -1031,3 +1031,146 @@ function PendingBanner({ pending, failed, online, syncing, onSyncNow, onRetry }:
     </div>
   );
 }
+
+function PreviousWeekPill({ token, workerId }: { token: string; workerId: string }) {
+  const fn = useServerFn(workerWeekSummary);
+
+  // Previous week (Sunday) ISO
+  const prevWeekStart = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay() - 7);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["worker-prev-week", workerId, prevWeekStart],
+    queryFn: () => fn({ data: { token, weekStart: prevWeekStart } }),
+  });
+
+  const [open, setOpen] = useState(false);
+  const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
+
+  if (isLoading || !data) return null;
+
+  const statusStyle =
+    data.status === "paid"
+      ? "bg-success/10 text-success border-success/20"
+      : data.status === "overdue"
+      ? "bg-destructive/10 text-destructive border-destructive/20"
+      : "bg-warning/10 text-warning border-warning/20";
+
+  const fmtRange = (s: string, e: string) => {
+    const o: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+    return `${new Date(s).toLocaleDateString([], o)} – ${new Date(e).toLocaleDateString([], o)}`;
+  };
+
+  return (
+    <div className="w-full max-w-sm">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-full rounded-xl border border-border bg-card px-4 py-3 shadow-sm flex items-center justify-between gap-3 active:scale-[0.99] transition-transform touch-manipulation"
+      >
+        <div className="text-left min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Last week</p>
+          <p className="text-sm font-medium truncate">{fmtRange(data.weekStart, data.weekEnd)}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className="text-base font-bold tabular-nums">{fmtMoney(data.total)}</span>
+          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusStyle}`}>
+            {data.status}
+          </span>
+        </div>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Last week's pay</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{fmtRange(data.weekStart, data.weekEnd)}</p>
+
+            <div className="rounded-lg border border-border divide-y divide-border">
+              <Row label="Hours" value={fmtHours(data.hours)} />
+              <Row label="Wages" value={fmtMoney(data.wages)} />
+              <Row label="Reimbursements" value={fmtMoney(data.reimbTotal)} />
+              <Row label="Total" value={fmtMoney(data.total)} bold />
+              {data.status === "paid" && data.actualPaid != null && data.actualPaid !== data.total && (
+                <Row label="Actually paid" value={fmtMoney(data.actualPaid)} />
+              )}
+              {data.status === "paid" && data.tipAmount != null && data.tipAmount > 0 && (
+                <Row label="Tip" value={fmtMoney(data.tipAmount)} />
+              )}
+            </div>
+
+            <div className={`rounded-lg border px-3 py-2 text-sm flex items-center justify-between ${statusStyle}`}>
+              <span className="font-semibold uppercase tracking-wider text-xs">{data.status}</span>
+              {data.paidAt && (
+                <span className="text-xs opacity-80">
+                  {new Date(data.paidAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                </span>
+              )}
+            </div>
+
+            {data.reimbursements.length > 0 && (
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Receipts</p>
+                <ul className="space-y-1.5">
+                  {data.reimbursements.map((r: any) => (
+                    <li key={r.id} className="flex items-center gap-2 text-sm">
+                      {r.receipt_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewing({ url: r.receipt_url, mime: r.receipt_mime || "image/jpeg" })}
+                          className="block h-8 w-8 shrink-0 overflow-hidden rounded bg-secondary"
+                        >
+                          {(r.receipt_mime || "").startsWith("image/") ? (
+                            <img src={r.receipt_url} alt="Receipt" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="h-8 w-8 shrink-0 rounded bg-secondary" />
+                      )}
+                      <span className="truncate flex-1">{r.description}</span>
+                      <span className="tabular-nums shrink-0">{fmtMoney(Number(r.amount))}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewing} onOpenChange={(o) => { if (!o) setViewing(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Receipt</DialogTitle>
+          </DialogHeader>
+          {viewing && ((viewing.mime || "").startsWith("image/") ? (
+            <img src={viewing.url} alt="Receipt" className="max-h-[70vh] w-full object-contain rounded" />
+          ) : (
+            <a href={viewing.url} target="_blank" rel="noreferrer" className="text-primary underline">
+              Open receipt
+            </a>
+          ))}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between px-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`tabular-nums ${bold ? "font-bold" : ""}`}>{value}</span>
+    </div>
+  );
+}
