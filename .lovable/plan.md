@@ -1,33 +1,47 @@
-## Goal
-Record the actual cash amount paid in the Pending tab, separate from the calculated owed amount, and track the difference (tip/rounding).
+# Dedicated Receipts view
 
-## Schema
-Add to `public.weekly_payouts`:
-- `actual_paid numeric` — what was handed over (e.g. 650.00)
-- `tip_amount numeric` — computed delta `actual_paid - amount` (e.g. +4.69)
+Add a "Receipts" sub-tab inside the Payout section that lists every reimbursement with an attached receipt across all workers and weeks, with filters, thumbnails, and direct download.
 
-`amount` continues to store the calculated owed total (labor + reimb).
+## Where it lives
 
-## Server (`src/lib/payout.functions.ts`)
-- `markWeekPaid`: extend input with `actualPaid: number`. Validate `actualPaid >= 0`. Write `actual_paid`, `tip_amount = actualPaid - amount`. Audit log includes both.
-- `listPendingWeeks` / `weeklyPayout` / `lifetimePayout`: include `actualPaid` and `tipAmount` in returned rows.
-- Lifetime totals: add `lifetimeTips` aggregate.
+Add a new tab next to Weekly / Pending / Lifetime in the Payout tab → "Receipts". Keeps receipts logically grouped with payment workflows.
 
-## UI (Pending tab in `PayoutsTab`)
-- "Mark paid" opens a small dialog:
-  - Shows: "Owed: $645.31"
-  - Blank numeric input: "Amount paid in cash"
-  - Confirm button (disabled until a valid number entered)
-  - On submit → `markWeekPaid({ ..., actualPaid })`
-- Paid rows display: `$650.00 paid` with a subtle `+$4.69 tip` chip when delta > 0 (or `-$X short` chip in red when delta < 0).
+## UI
 
-## UI (Weekly cards)
-- Keep existing one-click toggle behavior (no prompt).
-- If a `tip_amount` exists, show the small tip chip next to the paid pill so the info is visible everywhere.
+- **Filter row** (top):
+  - Worker dropdown (All workers / specific worker)
+  - Week dropdown (All weeks / specific week, sorted newest first)
+  - Search box (matches description)
+  - "With receipt only" toggle (default ON, since this is the Receipts view)
+- **Grid of receipt cards** (responsive, 2–4 per row):
+  - Thumbnail preview (image inline; PDF shows a generic doc icon)
+  - Worker name + week range
+  - Description + amount
+  - Submitted date
+  - Actions: View (opens existing lightbox) · Download (forces file download) · Open in new tab
+- **Empty state** when filters produce no results.
+- **Summary strip** above the grid: total receipts shown, total amount.
 
-## CSV
-- Payout CSV / Lifetime CSV: add `Actual Paid` and `Tip` columns.
+## Download behavior
+
+Clicking Download triggers a real file download (not just opening the public URL in a new tab). Use an `<a download>` link with the existing `receipt_url`. Filename pattern: `{worker}-{week}-{description}.{ext}`.
+
+## Backend
+
+Add one new server function:
+
+- `listAllReceipts({ token, workerId?, weekStart?, withReceiptOnly? })` in `src/lib/reimbursements.functions.ts` — admin-only, returns receipts joined with worker name and week, ordered by created_at desc. Limits to ~500 most recent to keep payload reasonable; older results require filtering by week.
+
+No schema changes. No new storage logic — receipts already live in the public `receipts` bucket with public URLs.
+
+## Files touched
+
+- `src/lib/reimbursements.functions.ts` — add `listAllReceipts`
+- `src/components/admin/AdminApp.tsx` — add `<ReceiptsTab />` component, wire into Payout `<Tabs>`
+- Reuse the existing receipt lightbox/viewer state and `Paperclip`/`Image` styling already in `PayoutsTab`
 
 ## Out of scope
-- No change to clock-in/out, reimbursements, or worker UI.
-- No prompt on the Weekly card Mark-paid toggle (per your choice).
+
+- Bulk zip download (separate ask if you want it later)
+- Editing receipts from this view (delete/replace still happens via the per-worker "+ Reimb." dialog)
+- Mobile worker app changes
