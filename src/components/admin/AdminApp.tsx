@@ -906,7 +906,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                             ● Paid
                           </span>
                           {s.tipAmount != null && Math.abs(s.tipAmount) >= 0.005 && (
-                            <span className={`inline-flex items-center text-xs px-2 py-1 rounded-full ${
+                            <span className={`inline-flex items-center text-sm px-2.5 py-1 rounded-full ${
                               s.tipAmount > 0
                                 ? "bg-[color-mix(in_oklab,var(--success)_15%,transparent)] text-[var(--success)]"
                                 : "bg-[color-mix(in_oklab,var(--destructive)_15%,transparent)] text-[var(--destructive)]"
