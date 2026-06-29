@@ -1387,7 +1387,13 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                   <div className="flex flex-wrap gap-1">
                     {i.parsedCategory && <Badge variant="secondary" className="text-[10px]">{i.parsedCategory}</Badge>}
                     {i.parsedJobSiteLabel && <Badge variant="outline" className="text-[10px]">{i.parsedJobSiteLabel}</Badge>}
+                    {(i.materialType ?? "regular") === "client_billable" && (
+                      <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/15">
+                        Bill client{i.billableJobSiteLabel ? ` · ${i.billableJobSiteLabel}` : ""}
+                      </Badge>
+                    )}
                   </div>
+
                   {i.parsedVendor && i.description && i.parsedVendor !== i.description && (
                     <p className="text-xs text-muted-foreground truncate" title={i.description}>“{i.description}”</p>
                   )}
