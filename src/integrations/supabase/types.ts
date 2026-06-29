@@ -251,6 +251,7 @@ export type Database = {
       }
       weekly_payouts: {
         Row: {
+          actual_paid: number | null
           amount: number
           created_at: string
           hours: number
@@ -259,11 +260,13 @@ export type Database = {
           paid_at: string
           paid_by: string | null
           reimbursement_total: number
+          tip_amount: number | null
           wages: number
           week_start: string
           worker_id: string
         }
         Insert: {
+          actual_paid?: number | null
           amount?: number
           created_at?: string
           hours?: number
@@ -272,11 +275,13 @@ export type Database = {
           paid_at?: string
           paid_by?: string | null
           reimbursement_total?: number
+          tip_amount?: number | null
           wages?: number
           week_start: string
           worker_id: string
         }
         Update: {
+          actual_paid?: number | null
           amount?: number
           created_at?: string
           hours?: number
@@ -285,6 +290,7 @@ export type Database = {
           paid_at?: string
           paid_by?: string | null
           reimbursement_total?: number
+          tip_amount?: number | null
           wages?: number
           week_start?: string
           worker_id?: string
