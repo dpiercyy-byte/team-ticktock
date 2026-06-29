@@ -95,6 +95,10 @@ export const addReimbursement = createServerFn({ method: "POST" })
       receipt_mime: data.receiptMime ?? null,
     }).select("id").single();
     if (error) throw error;
+    if (inserted?.id && data.receiptUrl) {
+      const { runParseForReimbursement } = await import("./receipts.functions");
+      runParseForReimbursement(inserted.id).catch((e) => console.error("parse trigger", e));
+    }
     await logAudit({
       actor: { kind: "admin" },
       action: "reimbursement_create",
