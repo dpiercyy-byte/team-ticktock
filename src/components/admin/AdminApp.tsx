@@ -1122,12 +1122,22 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 }
 
 // ===== Receipts (all reimbursements with attachments) =====
+const RECEIPT_CATEGORIES = ["Materials", "Fuel", "Tools", "Subcontractor", "Permits", "Other"] as const;
+
 function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const listFn = useServerFn(listAllReceipts);
+  const parseFn = useServerFn(parseReceipt);
+  const updFn = useServerFn(updateParsedReceipt);
+  const parseAllFn = useServerFn(parseUnprocessed);
+  const sitesFn = useServerFn(adminListJobSites);
+  const qc = useQueryClient();
   const [workerId, setWorkerId] = useState<string>("all");
   const [weekStart, setWeekStart] = useState<string>("all");
+  const [category, setCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ["all-receipts"],
@@ -1135,7 +1145,13 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
       .then(r => { updateToken(r.token); return r.items; }),
   });
 
+  const sitesQ = useQuery({
+    queryKey: ["sites-for-receipts"],
+    queryFn: () => sitesFn({ data: { token, includeArchived: false } }).then(r => { updateToken(r.token); return r.items; }),
+  });
+
   const items = q.data ?? [];
+  const sites = sitesQ.data ?? [];
   const workers = useMemo(() => {
     const m = new Map<string, string>();
     items.forEach(i => m.set(i.workerId, i.workerName));
@@ -1146,11 +1162,16 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const filtered = items.filter(i => {
     if (workerId !== "all" && i.workerId !== workerId) return false;
     if (weekStart !== "all" && i.weekStart !== weekStart) return false;
-    if (search && !i.description.toLowerCase().includes(search.toLowerCase())) return false;
+    if (category !== "all" && i.parsedCategory !== category) return false;
+    if (search) {
+      const hay = `${i.description} ${i.parsedVendor || ""}`.toLowerCase();
+      if (!hay.includes(search.toLowerCase())) return false;
+    }
     return true;
   });
 
   const totalAmt = filtered.reduce((s, i) => s + i.amount, 0);
+  const unparsedCount = items.filter(i => !i.parseStatus).length;
 
   function downloadName(i: typeof items[number]) {
     const ext = (i.receiptMime === "application/pdf") ? "pdf"
@@ -1174,10 +1195,60 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
     }
   }
 
+  async function rerun(id: string) {
+    setBusyId(id);
+    try {
+      const r = await parseFn({ data: { token, id } });
+      updateToken(r.token);
+      toast.success("Receipt re-scanned");
+      qc.invalidateQueries({ queryKey: ["all-receipts"] });
+    } catch (e: any) { toast.error(e?.message || "Scan failed"); }
+    finally { setBusyId(null); }
+  }
+
+  async function parseAll() {
+    setBusyId("ALL");
+    try {
+      const r = await parseAllFn({ data: { token } });
+      updateToken(r.token);
+      toast.success(`Scanned ${r.processed} receipt${r.processed === 1 ? "" : "s"}`);
+      qc.invalidateQueries({ queryKey: ["all-receipts"] });
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setBusyId(null); }
+  }
+
+  function csvExport() {
+    const headers = ["Date","Worker","Vendor","Description","Category","Job Site","Subtotal","Tax","Total","Amount","Week","Receipt"];
+    const lines = [headers.join(",")];
+    filtered.forEach(i => {
+      const row = [
+        i.parsedDate || "",
+        i.workerName,
+        i.parsedVendor || "",
+        i.description,
+        i.parsedCategory || "",
+        i.parsedJobSiteLabel || "",
+        i.parsedSubtotal ?? "",
+        i.parsedTax ?? "",
+        i.parsedTotal ?? "",
+        i.amount,
+        i.weekStart,
+        i.receiptUrl || "",
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`);
+      lines.push(row.join(","));
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `receipts-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[160px]">
+        <div className="flex-1 min-w-[140px]">
           <Label className="text-xs">Worker</Label>
           <Select value={workerId} onValueChange={setWorkerId}>
             <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
@@ -1187,7 +1258,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             </SelectContent>
           </Select>
         </div>
-        <div className="flex-1 min-w-[160px]">
+        <div className="flex-1 min-w-[140px]">
           <Label className="text-xs">Week</Label>
           <Select value={weekStart} onValueChange={setWeekStart}>
             <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
@@ -1197,15 +1268,35 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             </SelectContent>
           </Select>
         </div>
+        <div className="flex-1 min-w-[140px]">
+          <Label className="text-xs">Category</Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {RECEIPT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex-1 min-w-[200px]">
-          <Label className="text-xs">Search description</Label>
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="paint, gas, …" className="mt-1.5" />
+          <Label className="text-xs">Search vendor / description</Label>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="home depot, paint…" className="mt-1.5" />
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
-        <span>{filtered.length} receipt{filtered.length === 1 ? "" : "s"}</span>
-        <span>Total: <span className="font-semibold text-foreground">{fmtMoney(totalAmt)}</span></span>
+      <div className="flex items-center justify-between text-sm text-muted-foreground px-1 flex-wrap gap-2">
+        <span>{filtered.length} receipt{filtered.length === 1 ? "" : "s"} · Total: <span className="font-semibold text-foreground">{fmtMoney(totalAmt)}</span></span>
+        <div className="flex gap-2">
+          {unparsedCount > 0 && (
+            <Button size="sm" variant="outline" onClick={parseAll} disabled={busyId === "ALL"}>
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+              {busyId === "ALL" ? "Scanning…" : `Scan ${unparsedCount} unparsed`}
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={csvExport}>
+            <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
+          </Button>
+        </div>
       </div>
 
       {q.isLoading ? (
@@ -1218,12 +1309,23 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map(i => {
             const isPdf = (i.receiptMime || "").includes("pdf");
+            const status = i.parseStatus;
+            const statusColor = status === "ok" ? "bg-green-500/15 text-green-700 dark:text-green-400"
+              : status === "manual" ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
+              : status === "pending" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+              : status === "failed" ? "bg-red-500/15 text-red-700 dark:text-red-400"
+              : "bg-muted text-muted-foreground";
+            const statusLabel = status === "ok" ? "AI parsed"
+              : status === "manual" ? "Edited"
+              : status === "pending" ? "Scanning…"
+              : status === "failed" ? "Scan failed"
+              : "Unparsed";
             return (
               <Card key={i.id} className="overflow-hidden flex flex-col">
                 <button
                   type="button"
                   onClick={() => i.receiptUrl && setViewing({ url: i.receiptUrl, mime: i.receiptMime || "image/jpeg" })}
-                  className="block aspect-[4/3] bg-muted overflow-hidden hover:opacity-90 transition"
+                  className="block aspect-[4/3] bg-muted overflow-hidden hover:opacity-90 transition relative"
                 >
                   {isPdf ? (
                     <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -1233,22 +1335,43 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                   ) : (
                     <img src={i.receiptUrl!} alt={i.description} className="h-full w-full object-cover" />
                   )}
+                  <span className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
                 </button>
                 <CardContent className="p-3 space-y-2 flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{i.workerName}</p>
-                      <p className="text-xs text-muted-foreground">Week of {fmtDate(i.weekStart)}</p>
+                      <p className="font-medium text-sm truncate">{i.parsedVendor || i.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {i.workerName} · {i.parsedDate ? fmtDate(i.parsedDate) : `wk ${fmtDate(i.weekStart)}`}
+                      </p>
                     </div>
-                    <p className="font-semibold text-sm whitespace-nowrap">{fmtMoney(i.amount)}</p>
+                    <p className="font-semibold text-sm whitespace-nowrap">{fmtMoney(i.parsedTotal ?? i.amount)}</p>
                   </div>
-                  <p className="text-sm truncate" title={i.description}>{i.description}</p>
-                  <div className="flex gap-2 mt-auto pt-1">
-                    <Button size="sm" variant="outline" className="flex-1"
-                      onClick={() => i.receiptUrl && setViewing({ url: i.receiptUrl, mime: i.receiptMime || "image/jpeg" })}>
-                      View
+                  {(i.parsedSubtotal != null || i.parsedTax != null) && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {i.parsedSubtotal != null && <>sub {fmtMoney(i.parsedSubtotal)} · </>}
+                      {i.parsedTax != null && <>tax {fmtMoney(i.parsedTax)}</>}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-1">
+                    {i.parsedCategory && <Badge variant="secondary" className="text-[10px]">{i.parsedCategory}</Badge>}
+                    {i.parsedJobSiteLabel && <Badge variant="outline" className="text-[10px]">{i.parsedJobSiteLabel}</Badge>}
+                  </div>
+                  {i.parsedVendor && i.description && i.parsedVendor !== i.description && (
+                    <p className="text-xs text-muted-foreground truncate" title={i.description}>“{i.description}”</p>
+                  )}
+                  <div className="flex gap-1.5 mt-auto pt-1">
+                    <Button size="sm" variant="outline" className="flex-1 px-2" onClick={() => setEditing(i)} title="Edit fields">
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleDownload(i)} title="Download">
+                    <Button size="sm" variant="outline" className="px-2" onClick={() => rerun(i.id)} disabled={busyId === i.id} title="Re-run AI">
+                      <RefreshCw className={`h-3.5 w-3.5 ${busyId === i.id ? "animate-spin" : ""}`} />
+                    </Button>
+                    <Button size="sm" variant="outline" className="px-2"
+                      onClick={() => i.receiptUrl && setViewing({ url: i.receiptUrl, mime: i.receiptMime || "image/jpeg" })} title="View">
+                      <FileText className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="sm" variant="outline" className="px-2" onClick={() => handleDownload(i)} title="Download">
                       <Download className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -1276,9 +1399,125 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           )}
         </DialogContent>
       </Dialog>
+
+      <EditParsedDialog
+        item={editing}
+        sites={sites}
+        token={token}
+        updateToken={updateToken}
+        onClose={() => setEditing(null)}
+        updateFn={updFn}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
+      />
     </div>
   );
 }
+
+function EditParsedDialog({
+  item, sites, token, updateToken, onClose, updateFn, onSaved,
+}: {
+  item: any | null;
+  sites: Array<{ id: string; label: string }>;
+  token: string;
+  updateToken: (t: string) => void;
+  onClose: () => void;
+  updateFn: (args: { data: any }) => Promise<any>;
+  onSaved: () => void;
+}) {
+  const [vendor, setVendor] = useState("");
+  const [date, setDate] = useState("");
+  const [subtotal, setSubtotal] = useState("");
+  const [tax, setTax] = useState("");
+  const [total, setTotal] = useState("");
+  const [category, setCategory] = useState<string>("");
+  const [jobSite, setJobSite] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!item) return;
+    setVendor(item.parsedVendor || "");
+    setDate(item.parsedDate || "");
+    setSubtotal(item.parsedSubtotal != null ? String(item.parsedSubtotal) : "");
+    setTax(item.parsedTax != null ? String(item.parsedTax) : "");
+    setTotal(item.parsedTotal != null ? String(item.parsedTotal) : "");
+    setCategory(item.parsedCategory || "");
+    setJobSite(item.parsedJobSiteId || "");
+  }, [item]);
+
+  const save = async () => {
+    if (!item) return;
+    setSaving(true);
+    try {
+      const num = (s: string) => s.trim() === "" ? null : Number(s);
+      const r = await updateFn({ data: {
+        token, id: item.id,
+        vendor: vendor.trim() || null,
+        date: date || null,
+        subtotal: num(subtotal),
+        tax: num(tax),
+        total: num(total),
+        category: category || null,
+        jobSiteId: jobSite || null,
+      } });
+      updateToken(r.token);
+      toast.success("Saved");
+      onSaved();
+      onClose();
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={!!item} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Edit receipt details</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Vendor</Label>
+            <Input value={vendor} onChange={(e) => setVendor(e.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">Date</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div><Label className="text-xs">Subtotal</Label>
+              <Input type="number" step="0.01" value={subtotal} onChange={(e) => setSubtotal(e.target.value)} className="mt-1" /></div>
+            <div><Label className="text-xs">Tax</Label>
+              <Input type="number" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} className="mt-1" /></div>
+            <div><Label className="text-xs">Total</Label>
+              <Input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} className="mt-1" /></div>
+          </div>
+          <div>
+            <Label className="text-xs">Category</Label>
+            <Select value={category || "none"} onValueChange={(v) => setCategory(v === "none" ? "" : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— None —</SelectItem>
+                {RECEIPT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Job site</Label>
+            <Select value={jobSite || "none"} onValueChange={(v) => setJobSite(v === "none" ? "" : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— None —</SelectItem>
+                {sites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 // ===== Pending payouts =====
 
