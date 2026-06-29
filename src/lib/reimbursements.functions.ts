@@ -32,6 +32,39 @@ export const listReimbursements = createServerFn({ method: "POST" })
     return { ...refreshed, items: rows ?? [] };
   });
 
+export const listAllReceipts = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({
+    workerId: z.string().uuid().optional(),
+    weekStart: z.string().optional(),
+    withReceiptOnly: z.boolean().optional(),
+    limit: z.number().int().positive().max(1000).optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    let q = supabaseAdmin
+      .from("reimbursements")
+      .select("id, worker_id, description, amount, week_start, created_at, receipt_url, receipt_mime, workers(name)")
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 500);
+    if (data.workerId) q = q.eq("worker_id", data.workerId);
+    if (data.weekStart) q = q.eq("week_start", data.weekStart);
+    if (data.withReceiptOnly !== false) q = q.not("receipt_url", "is", null);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    const items = (rows ?? []).map((r: any) => ({
+      id: r.id,
+      workerId: r.worker_id,
+      workerName: r.workers?.name ?? "Unknown",
+      description: r.description,
+      amount: Number(r.amount),
+      weekStart: r.week_start as string,
+      createdAt: r.created_at as string,
+      receiptUrl: r.receipt_url as string | null,
+      receiptMime: r.receipt_mime as string | null,
+    }));
+    return { ...refreshed, items };
+  });
+
 export const addReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
     workerId: z.string().uuid(),
