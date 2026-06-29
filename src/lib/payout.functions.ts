@@ -297,3 +297,56 @@ export const unmarkWeekPaid = createServerFn({ method: "POST" })
 
     return { ...refreshed, ok: true };
   });
+
+// Worker-facing: summary of a specific week for the calling worker.
+export const workerWeekSummary = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    weekStart: z.string(), // YYYY-MM-DD (Sunday)
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const workerId = requireWorker(data.token);
+    const start = new Date(data.weekStart);
+    const end = endOfWeek(data.weekStart);
+
+    const [{ data: w }, { data: entries }, { data: reimbs }, { data: paid }] = await Promise.all([
+      supabaseAdmin.from("workers").select("hourly_rate").eq("id", workerId).maybeSingle(),
+      supabaseAdmin.from("time_entries").select("clock_in, clock_out")
+        .eq("worker_id", workerId)
+        .gte("clock_in", start.toISOString()).lt("clock_in", end.toISOString())
+        .not("clock_out", "is", null),
+      supabaseAdmin.from("reimbursements").select("id, description, amount, receipt_url, receipt_mime")
+        .eq("worker_id", workerId).eq("week_start", data.weekStart),
+      supabaseAdmin.from("weekly_payouts").select("paid_at, paid_by, amount, actual_paid, tip_amount")
+        .eq("worker_id", workerId).eq("week_start", data.weekStart).maybeSingle(),
+    ]);
+
+    const hours = (entries ?? []).reduce((s, e) =>
+      s + (new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) / 3600_000, 0);
+    const rate = Number(w?.hourly_rate ?? 0);
+    const wages = hours * rate;
+    const reimbTotal = (reimbs ?? []).reduce((s, r) => s + Number(r.amount), 0);
+    const total = wages + reimbTotal;
+
+    const weekEnd = new Date(data.weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const endTs = new Date(weekEnd.toISOString().slice(0, 10) + "T23:59:59").getTime();
+    const ageDays = Math.floor((Date.now() - endTs) / 86_400_000);
+    let status: "paid" | "overdue" | "unpaid";
+    if (paid) status = "paid";
+    else if (ageDays >= 14) status = "overdue";
+    else status = "unpaid";
+
+    return {
+      weekStart: data.weekStart,
+      weekEnd: weekEnd.toISOString().slice(0, 10),
+      hours, hourlyRate: rate, wages, reimbTotal, total,
+      reimbursements: reimbs ?? [],
+      status,
+      paidAt: paid?.paid_at ?? null,
+      paidBy: paid?.paid_by ?? null,
+      actualPaid: paid?.actual_paid != null ? Number(paid.actual_paid) : null,
+      tipAmount: paid?.tip_amount != null ? Number(paid.tip_amount) : null,
+    };
+  });
+
