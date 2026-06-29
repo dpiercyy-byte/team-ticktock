@@ -17,20 +17,29 @@ export type Database = {
       app_settings: {
         Row: {
           admin_password_hash: string
+          google_sheet_id: string | null
+          google_sheet_tab: string | null
           id: number
           project_tracking_enabled: boolean
+          sheet_sync_enabled: boolean
           show_pay_estimates: boolean
         }
         Insert: {
           admin_password_hash: string
+          google_sheet_id?: string | null
+          google_sheet_tab?: string | null
           id?: number
           project_tracking_enabled?: boolean
+          sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
         }
         Update: {
           admin_password_hash?: string
+          google_sheet_id?: string | null
+          google_sheet_tab?: string | null
           id?: number
           project_tracking_enabled?: boolean
+          sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
         }
         Relationships: []
@@ -119,8 +128,20 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          parse_confidence: number | null
+          parse_raw: Json | null
+          parse_status: string | null
+          parsed_at: string | null
+          parsed_category: string | null
+          parsed_date: string | null
+          parsed_job_site_id: string | null
+          parsed_subtotal: number | null
+          parsed_tax: number | null
+          parsed_total: number | null
+          parsed_vendor: string | null
           receipt_mime: string | null
           receipt_url: string | null
+          sheet_row_id: string | null
           week_start: string
           worker_id: string
         }
@@ -129,8 +150,20 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          parse_confidence?: number | null
+          parse_raw?: Json | null
+          parse_status?: string | null
+          parsed_at?: string | null
+          parsed_category?: string | null
+          parsed_date?: string | null
+          parsed_job_site_id?: string | null
+          parsed_subtotal?: number | null
+          parsed_tax?: number | null
+          parsed_total?: number | null
+          parsed_vendor?: string | null
           receipt_mime?: string | null
           receipt_url?: string | null
+          sheet_row_id?: string | null
           week_start: string
           worker_id: string
         }
@@ -139,12 +172,31 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          parse_confidence?: number | null
+          parse_raw?: Json | null
+          parse_status?: string | null
+          parsed_at?: string | null
+          parsed_category?: string | null
+          parsed_date?: string | null
+          parsed_job_site_id?: string | null
+          parsed_subtotal?: number | null
+          parsed_tax?: number | null
+          parsed_total?: number | null
+          parsed_vendor?: string | null
           receipt_mime?: string | null
           receipt_url?: string | null
+          sheet_row_id?: string | null
           week_start?: string
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reimbursements_parsed_job_site_id_fkey"
+            columns: ["parsed_job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reimbursements_worker_id_fkey"
             columns: ["worker_id"]
