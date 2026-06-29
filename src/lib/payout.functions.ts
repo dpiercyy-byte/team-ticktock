@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
-import { requireAdmin } from "./auth.server";
+import { requireAdmin, requireWorker } from "./auth.server";
 import { logAudit } from "./audit.server";
 
 function startOfWeekISO(d: Date): string {
