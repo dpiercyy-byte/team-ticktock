@@ -1919,7 +1919,7 @@ function PendingPayoutsView({ token, updateToken }: { token: string; updateToken
             const weekLabel = `${fmtDate(row.weekStart)} – ${fmtDate(row.weekEnd)}`;
             const tip = row.tipAmount;
             const tipChip = row.status === "paid" && tip != null && Math.abs(tip) >= 0.005 ? (
-              <span className={`inline-flex items-center text-xs px-2 py-1 rounded-full ${
+              <span className={`inline-flex items-center text-sm px-2.5 py-1 rounded-full ${
                 tip > 0
                   ? "bg-[color-mix(in_oklab,var(--success)_15%,transparent)] text-[var(--success)]"
                   : "bg-[color-mix(in_oklab,var(--destructive)_15%,transparent)] text-[var(--destructive)]"
@@ -1933,7 +1933,7 @@ function PendingPayoutsView({ token, updateToken }: { token: string; updateToken
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold truncate">{row.workerName}</p>
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${s.pillBg} ${s.pillText}`}>
+                      <span className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${s.pillBg} ${s.pillText}`}>
                         <span className={`h-2 w-2 rounded-full ${s.dotBg}`} />
                         {row.status === "overdue" ? "Overdue" : row.status === "paid" ? "Paid" : "Unpaid"}
                       </span>
