@@ -14,9 +14,10 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip, Banknote,
+  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, X, FileText, Trash2, Paperclip, Banknote,
   MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2,
 } from "lucide-react";
+import { CameraFilePicker } from "@/components/CameraFilePicker";
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -721,24 +722,11 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
                     </Button>
                   </div>
                 ) : (
-                  <label className="block">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,application/pdf"
-                      capture="environment"
-                      className="hidden"
-                      disabled={uploading}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.currentTarget.value = "";
-                        if (f) handleFile(f);
-                      }}
-                    />
-                    <span className={`flex items-center justify-center gap-2 text-sm px-3 py-2.5 rounded-md border border-dashed border-border cursor-pointer hover:bg-secondary ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
-                      <Upload className="h-4 w-4" />
-                      {uploading ? "Uploading…" : "Attach receipt"}
-                    </span>
-                  </label>
+                  <CameraFilePicker
+                    onFile={handleFile}
+                    uploading={uploading}
+                    label="Attach receipt"
+                  />
                 )}
               </div>
             </div>

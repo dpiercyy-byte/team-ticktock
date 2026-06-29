@@ -1,28 +1,27 @@
-## Root cause
+Replace the single file-picker inputs in both the worker reimbursement flow and the admin receipt upload flows with a two-choice picker that lets users either (1) snap a photo directly from the device camera or (2) pick an existing file from their gallery.
 
-Your Google Sheet only has a `Sheet1` tab, but the sync code is configured to write to a tab named `Receipts` (the default). Every Sheets API call (`ensureSheetHeader`, `PUT`, `append`) returns an HTTP error because that tab doesn't exist — but the code uses `fetch` without checking `res.ok`, so nothing throws. `backfillSheet` then counts each row as "synced" and the UI happily reports success while zero rows actually land in the sheet.
+### What to build
 
-A confirming probe: `GET /spreadsheets/.../` lists only `['Sheet1']` for your spreadsheet, while `app_settings.google_sheet_tab = 'Receipts'`.
+**1. Reusable CameraFilePicker component** (`src/components/CameraFilePicker.tsx`)
+- A small modal/dialog triggered by a button.
+- Two actions:
+  - **Take Photo** — triggers a hidden `<input type="file" accept="image/*" capture="environment">` to open the device camera.
+  - **Choose from Gallery** — triggers a hidden `<input type="file" accept="image/*">` to open the native file picker.
+- On file selection, read the file via `FileReader` (base64) and call an `onFile` callback so the parent can upload it through the existing server function.
+- Re-use the existing `ALLOWED_RECEIPT_MIMES` validation and reject oversized files (>10 MB) before reading.
 
-## Fix plan (all in `src/lib/receipts.functions.ts`)
+**2. Wire into WorkerApp** (`src/components/worker/WorkerApp.tsx`)
+- In the reimbursement section, replace the current `<input type="file">` element with the new `CameraFilePicker`.
+- Keep the existing `workerUploadReceipt` + `fileToBase64` upload pipeline intact; only the trigger UI changes.
 
-1. **Auto-create the target tab if it doesn't exist.**
-   In `ensureSheetHeader`, first call `GET /spreadsheets/{id}?fields=sheets.properties.title`. If the configured `tab` is not in the list, send a `POST /spreadsheets/{id}:batchUpdate` with an `addSheet` request to create it, then proceed to write the header row.
+**3. Wire into AdminApp** (`src/components/admin/AdminApp.tsx`)
+- In the admin "Add receipts" bulk-upload dialog and the standalone receipt upload areas, replace the raw file inputs with `CameraFilePicker`.
+- Preserve existing upload flows (`uploadReceipt`, `adminAddStandaloneReceipt`).
 
-2. **Make every gateway call throw on non-OK.**
-   Add a small `gw(url, init)` helper that does `fetch` + `if (!res.ok) throw new Error(...)` and use it in `ensureSheetHeader`, the find/update/append calls, and `batchUpdate`. This ensures real failures bubble up instead of being silently swallowed.
+### What stays the same
+- No server-side changes.
+- No changes to base64 encoding, MIME validation, upload limits, or existing server functions.
+- No changes to the Google Sheets sync / AI parsing pipeline.
 
-3. **Treat "skipped" distinctly in backfill.**
-   `syncRow` already returns `{ skipped: true }` when sync is disabled or no sheet ID; have `backfillSheet` count `skipped`, `synced`, and `failed` separately and return all three so the toast can show the truth.
-
-4. **Surface errors in the Settings UI.**
-   Update the backfill button handler in `AdminApp.tsx` to display `synced / failed / skipped` (and the first failure message) in the toast so a misconfiguration is visible immediately.
-
-## What you'll see after the fix
-
-- Clicking "Backfill all receipts" will create the `Receipts` tab if missing, write the header, and append your 2 receipts.
-- If anything still fails (bad sheet ID, revoked Google connector, etc.), the toast will say `failed: N` with the underlying message instead of a false success.
-
-## Optional follow-up (not in this change)
-
-Add a tab picker in Settings that lists existing tabs from the spreadsheet so you can choose `Sheet1` instead of auto-creating `Receipts`. Say the word and I'll add it.
+### Result
+Workers and admins can tap "Add receipt" and immediately choose between snapping a new photo or selecting an existing image, instead of only seeing the generic file picker.
