@@ -1287,6 +1287,18 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             </SelectContent>
           </Select>
         </div>
+        <div className="flex-1 min-w-[140px]">
+          <Label className="text-xs">Material</Label>
+          <Select value={materialType} onValueChange={(v) => setMaterialType(v as any)}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="regular">Regular</SelectItem>
+              <SelectItem value="client_billable">Client-billable</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex-1 min-w-[200px]">
           <Label className="text-xs">Search vendor / description</Label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="home depot, paint…" className="mt-1.5" />
