@@ -1,91 +1,42 @@
+## Admin standalone receipts (bulk upload → AI parse → Google Sheet)
 
-## Goal
+Add a way for admin to drop receipts into the system that aren't tied to a worker reimbursement — purely for record-keeping and Google Sheets sync. Supports bulk upload of multiple files at once.
 
-Replace Sheetify by parsing every receipt in-app and (optionally) mirroring the parsed rows into one Google Sheet you own.
+### Data model
+Reuse the existing `reimbursements` table to keep one source of truth for the Receipts tab + Sheet sync. Add two columns:
+- `is_admin_receipt boolean not null default false` — flags rows that should never appear on worker payout cards.
+- `payee_label text` — custom payee name entered at upload time (used in the "Worker" column of the sheet for these rows).
 
-## What changes for you
+Backfill is none — new flag defaults to false.
 
-- Workers (and you) upload receipts the same way they do today.
-- Each receipt is **auto-parsed on upload** using Lovable AI vision. Extracted fields: vendor, date, subtotal, tax, total, suggested category, suggested job site.
-- In the admin **Receipts** sub-tab, each card gains the parsed fields inline + an **Edit** dialog to correct anything the AI got wrong and a **Re-run AI** button.
-- A new **Spreadsheet view** toggle on the Receipts tab shows everything as an editable table (sortable/filterable by worker, week, vendor, category, job site) with a single **Export CSV** action — this is the Sheetify replacement.
-- A **Settings → Google Sheets sync** section lets you connect your Google account once and pick (or auto-create) a destination Sheet. From then on, every new/edited parsed receipt is appended/updated as a row in that Sheet automatically. A **Backfill to Sheet** button pushes historical rows.
+### Server (`src/lib/reimbursements.functions.ts` + `receipts.functions.ts`)
+- New `adminAddStandaloneReceipt({ token, payeeLabel, description?, amount?, weekStart?, file })` — uploads file to the `receipts` bucket, inserts a row with `worker_id = null`-equivalent (sentinel admin worker OR make `worker_id` nullable; see Technical), `is_admin_receipt = true`, `payee_label`. Fires the same background AI parse + Sheet sync used today.
+- `listAllReceipts` already returns parsed fields — extend to include `is_admin_receipt` and `payee_label`, and add an `includeAdmin` / `kind` filter ('all' | 'worker' | 'admin').
+- Sheet `syncRow` updated: when `is_admin_receipt`, the "Worker" column writes `payee_label` instead of the worker name. Everything else (vendor/date/total/category/job-site) is identical so all receipts live in one tab.
 
-## Data model
+### Payout exclusion
+- `weeklyPayout` / `lifetimePayout` / pending-week queries filter `is_admin_receipt = false` so admin receipts never affect what's owed to a worker.
 
-Add columns to `public.reimbursements`:
-- `parsed_vendor text`
-- `parsed_date date`
-- `parsed_subtotal numeric`
-- `parsed_tax numeric`
-- `parsed_total numeric`
-- `parsed_category text`
-- `parsed_job_site_id uuid` (nullable, references job_sites)
-- `parse_status text` (`pending` | `ok` | `failed` | `manual`)
-- `parse_confidence numeric`
-- `parse_raw jsonb` (full AI response for audit/debug)
-- `parsed_at timestamptz`
-- `sheet_row_id text` (Google Sheets row identifier for upserts)
+### Admin UI (`ReceiptsTab` in `src/components/admin/AdminApp.tsx`)
+- Toolbar gets a primary **Add receipts** button next to "Scan unparsed" / "Export CSV".
+- Dialog:
+  - Single **Payee** text input (applied to every file in this batch; required).
+  - Optional shared **Description** and **Week** (defaults to current week).
+  - **Multi-file dropzone** (drag-and-drop or click; accepts images + PDF, up to 10 at a time, 10MB each).
+  - List of staged files with thumbnail/filename + remove button; per-file optional description override.
+  - **Upload all** button → sequential POST per file with a progress counter; toast on completion ("Uploaded 7, parsing in background").
+- Existing filter row gets a **Kind** dropdown: All / Worker / Admin (defaults to All). Each card shows a small "Admin" chip on standalone receipts, and the Worker column shows the `payee_label` for them.
+- The existing Edit dialog works for both kinds; for admin receipts the worker field is replaced by an editable payee text input.
 
-Add `public.app_settings` columns:
-- `google_sheet_id text`
-- `google_sheet_tab text`
-- `google_refresh_token text` (encrypted server-side use only)
-- `sheet_sync_enabled boolean default false`
+### Sheet behavior
+- Same sheet, same tab, same column layout. Admin rows are visually identical to worker rows except the Worker column shows the payee name. Backfill button already exists and will pick them up.
 
-All writes go through existing append-only audit log.
+### Out of scope
+- No new tab — admin receipts live in the existing Receipts tab with a filter.
+- No worker-side surface; workers never see admin receipts.
+- No editing of `is_admin_receipt` after creation (rare; not worth the UI).
 
-## AI extraction
-
-- Model: `google/gemini-3-flash-preview` (vision, cheap, fast) via Lovable AI Gateway. Structured-output JSON schema for the 7 fields + confidence.
-- Server fn `parseReceipt(reimbursementId)` in `src/lib/receipts.functions.ts`:
-  - Fetches receipt URL, sends image (or first PDF page) to model.
-  - Writes parsed fields + `parse_status`, logs to audit, triggers sheet sync if enabled.
-- Triggered automatically by `workerUploadReceipt` and admin upload paths after the row is inserted (fire-and-forget; UI shows `pending` then updates).
-- Manual **Re-run AI** button calls the same fn.
-- Category suggestion uses a short fixed list (Materials, Fuel, Tools, Subcontractor, Permits, Other) — editable.
-- Job site suggestion: AI gets the list of active job site labels and picks the closest match by vendor address proximity / explicit mention; falls back to null.
-
-## Google Sheets sync (optional, your account only)
-
-- New "Google Sheets" connector linked via existing connector flow — you authorize once in Settings.
-- Server fn `syncReceiptToSheet(reimbursementId)`:
-  - Uses connector gateway (`/google_sheets/v4`) to append or update the row keyed by `sheet_row_id`.
-  - Row columns: Date, Worker, Vendor, Description, Category, Job Site, Subtotal, Tax, Total, Receipt URL, Week Start.
-- Called automatically after successful parse / manual edit.
-- Settings panel:
-  - Connect Google button
-  - Sheet picker (existing sheet by ID/URL, or "Create new")
-  - Tab name field
-  - Enable/disable sync toggle
-  - **Backfill** button (queues sync for every existing receipt)
-- If sync fails, row stays in DB with `sheet_row_id = null`; a "Retry sync" button surfaces in the receipt card.
-
-## Admin UI
-
-`ReceiptsTab` updates:
-- Each card shows badge: `Parsing…` / `Parsed` / `Failed` / `Edited`.
-- Card body shows vendor, date, total, tax, category chip, job-site chip.
-- Buttons: **Edit fields**, **Re-run AI**, existing View/Download/Open.
-- Top toolbar: filter by category + job site (new), view toggle **Cards | Table**.
-- Table view: dense spreadsheet UI with inline edit; CSV export uses the current filter set.
-
-New `ReceiptSyncSettings` panel under Settings tab.
-
-## Worker UI
-
-No visible change beyond a subtle "Receipt being scanned…" line on a freshly added reimbursement (optional polish).
-
-## Technical notes
-
-- Parsing runs server-side in a `createServerFn`; uses `requireSupabaseAuth` for admin manual triggers and a token-scoped variant for worker upload trigger (already how other worker fns auth).
-- PDF receipts: convert first page to image server-side before sending to model (pdf-lib + canvas not Worker-safe → use the model's PDF input support: send as `file` block with `application/pdf` MIME — Gemini supports PDF input directly, so no conversion needed).
-- Google Sheets: prefer the App connector + `standard_connectors--connect` for `google_sheets`. Single workspace-wide connection matches your "just my account" choice. If user prefers per-account OAuth later, swap to per-user OAuth.
-- Failures (429/402) surface as toast + retry; never block clock-in/out flow.
-- All new tables/columns get GRANTs + RLS deny-all (admin-only via server fns).
-
-## Out of scope (for this round)
-
-- Line-item extraction (you didn't pick it).
-- Multi-admin Google connections.
-- Auto-categorization training/feedback loop.
+### Technical notes
+- `reimbursements.worker_id` is currently `not null`. Migration alters it to nullable so admin receipts can omit it cleanly (alternative — a synthetic "Admin" worker row — pollutes the worker dropdowns everywhere; not preferred). All existing payout queries already join on `worker_id`, so null rows drop out naturally; the added `is_admin_receipt = false` filter is belt-and-suspenders.
+- Upload uses the existing `receipts` storage bucket and the same signed-URL flow used by worker receipts so the AI vision parse path is unchanged.
+- Bulk upload runs file-by-file client-side (not a single multipart server call) to keep within edge-function payload limits and to surface per-file progress/errors.
