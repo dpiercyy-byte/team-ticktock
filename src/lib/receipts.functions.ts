@@ -71,23 +71,50 @@ const SHEET_COLUMNS = [
   "Subtotal", "Tax", "Total", "Reimbursement Amount", "Week Start", "Receipt URL",
 ];
 
-async function ensureSheetHeader(sheetId: string, tab: string) {
+async function gw(url: string, init?: RequestInit) {
   const lovKey = process.env.LOVABLE_API_KEY!;
   const connKey = process.env.GOOGLE_SHEETS_API_KEY!;
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      ...(init?.headers || {}),
+      Authorization: `Bearer ${lovKey}`,
+      "X-Connection-Api-Key": connKey,
+    },
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Sheets ${res.status}: ${t.slice(0, 300)}`);
+  }
+  return res;
+}
+
+async function ensureTabExists(sheetId: string, tab: string) {
+  const metaUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`;
+  const meta: any = await (await gw(metaUrl)).json();
+  const titles: string[] = (meta?.sheets || []).map((s: any) => s?.properties?.title).filter(Boolean);
+  if (titles.includes(tab)) return;
+  await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: tab } } }] }),
+  });
+}
+
+async function ensureSheetHeader(sheetId: string, tab: string) {
+  await ensureTabExists(sheetId, tab);
   const range = `${tab}!A1:M1`;
   const url = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}/values/${range}`;
-  const get = await fetch(url, {
-    headers: { Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
-  });
-  const body: any = await get.json().catch(() => ({}));
-  const have = body?.values?.[0] || [];
+  const get: any = await (await gw(url)).json();
+  const have = get?.values?.[0] || [];
   if (have.length >= SHEET_COLUMNS.length) return;
-  await fetch(url + "?valueInputOption=USER_ENTERED", {
+  await gw(url + "?valueInputOption=USER_ENTERED", {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ values: [SHEET_COLUMNS] }),
   });
 }
+
 
 export async function syncRowExternal(reimbursementId: string) {
   return syncRow(reimbursementId);
