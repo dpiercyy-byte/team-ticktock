@@ -802,9 +802,9 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const downloadPayoutCsv = () => {
     if (!pq.data) return;
-    const header = "Worker,Hours,Rate,Wages,Reimbursements,Total\n";
+    const header = "Worker,Hours,Rate,Wages,Reimbursements,Total,Actual Paid,Tip\n";
     const rows = pq.data.map((s: any) =>
-      `"${s.name}",${s.hours.toFixed(2)},${s.hourlyRate.toFixed(2)},${s.wages.toFixed(2)},${s.reimbTotal.toFixed(2)},${s.total.toFixed(2)}`
+      `"${s.name}",${s.hours.toFixed(2)},${s.hourlyRate.toFixed(2)},${s.wages.toFixed(2)},${s.reimbTotal.toFixed(2)},${s.total.toFixed(2)},${s.actualPaid != null ? s.actualPaid.toFixed(2) : ""},${s.tipAmount != null ? s.tipAmount.toFixed(2) : ""}`
     ).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
