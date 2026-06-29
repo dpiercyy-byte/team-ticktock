@@ -1159,12 +1159,14 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
     if (workerId !== "all" && i.workerId !== workerId) return false;
     if (weekStart !== "all" && i.weekStart !== weekStart) return false;
     if (category !== "all" && i.parsedCategory !== category) return false;
+    if (materialType !== "all" && (i.materialType ?? "regular") !== materialType) return false;
     if (search) {
       const hay = `${i.description} ${i.parsedVendor || ""} ${i.payeeLabel || ""}`.toLowerCase();
       if (!hay.includes(search.toLowerCase())) return false;
     }
     return true;
   });
+
 
   const totalAmt = filtered.reduce((s, i) => s + i.amount, 0);
   const unparsedCount = items.filter(i => !i.parseStatus).length;
