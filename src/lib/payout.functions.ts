@@ -41,7 +41,7 @@ export const weeklyPayout = createServerFn({ method: "POST" })
         .not("clock_out", "is", null),
       supabaseAdmin.from("reimbursements").select("worker_id, amount, description")
         .eq("week_start", data.weekStart),
-      supabaseAdmin.from("weekly_payouts").select("worker_id, paid_at, paid_by, amount")
+      supabaseAdmin.from("weekly_payouts").select("worker_id, paid_at, paid_by, amount, actual_paid, tip_amount")
         .eq("week_start", data.weekStart),
     ]);
 
@@ -64,6 +64,8 @@ export const weeklyPayout = createServerFn({ method: "POST" })
         total: wages + reimbTotal,
         paidAt: paid?.paid_at ?? null,
         paidBy: paid?.paid_by ?? null,
+        actualPaid: paid?.actual_paid != null ? Number(paid.actual_paid) : null,
+        tipAmount: paid?.tip_amount != null ? Number(paid.tip_amount) : null,
       };
     });
 
@@ -148,7 +150,7 @@ export const listPendingWeeks = createServerFn({ method: "POST" })
       supabaseAdmin.from("time_entries").select("worker_id, clock_in, clock_out")
         .not("clock_out", "is", null),
       supabaseAdmin.from("reimbursements").select("worker_id, week_start, amount"),
-      supabaseAdmin.from("weekly_payouts").select("worker_id, week_start, paid_at, paid_by, amount"),
+      supabaseAdmin.from("weekly_payouts").select("worker_id, week_start, paid_at, paid_by, amount, actual_paid, tip_amount"),
     ]);
 
     const workerMap = new Map((workers ?? []).map((w) => [w.id, w]));
@@ -202,6 +204,8 @@ export const listPendingWeeks = createServerFn({ method: "POST" })
           paidAt: paid?.paid_at ?? null,
           paidBy: paid?.paid_by ?? null,
           paidAmount: paid ? Number(paid.amount) : null,
+          actualPaid: paid?.actual_paid != null ? Number(paid.actual_paid) : null,
+          tipAmount: paid?.tip_amount != null ? Number(paid.tip_amount) : null,
         };
       })
       .filter((x) => x.total > 0 || x.status === "paid")
@@ -217,6 +221,7 @@ export const markWeekPaid = createServerFn({ method: "POST" })
     workerId: z.string().uuid(),
     weekStart: z.string(),
     notes: z.string().optional(),
+    actualPaid: z.number().nonnegative().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
@@ -240,11 +245,15 @@ export const markWeekPaid = createServerFn({ method: "POST" })
     const reimbTotal = (reimbs ?? []).reduce((s, r) => s + Number(r.amount), 0);
     const wages = hours * Number(w.hourly_rate);
     const amount = wages + reimbTotal;
+    const actualPaid = data.actualPaid != null ? data.actualPaid : amount;
+    const tipAmount = Number((actualPaid - amount).toFixed(2));
 
     const { error } = await supabaseAdmin.from("weekly_payouts").upsert({
       worker_id: data.workerId,
       week_start: data.weekStart,
       hours, wages, reimbursement_total: reimbTotal, amount,
+      actual_paid: actualPaid,
+      tip_amount: tipAmount,
       paid_at: new Date().toISOString(),
       paid_by: "Admin",
       notes: data.notes ?? null,
@@ -256,7 +265,7 @@ export const markWeekPaid = createServerFn({ method: "POST" })
       action: "mark_week_paid",
       entityType: "weekly_payout",
       entityId: `${data.workerId}:${data.weekStart}`,
-      after: { workerId: data.workerId, weekStart: data.weekStart, amount, hours, wages, reimbTotal },
+      after: { workerId: data.workerId, weekStart: data.weekStart, amount, actualPaid, tipAmount, hours, wages, reimbTotal },
       metadata: { workerName: w.name },
     });
 
