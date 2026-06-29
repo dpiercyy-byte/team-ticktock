@@ -845,9 +845,12 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         <div className="flex-1 min-w-[160px]">
           <Label className="text-xs">Week starting (Sunday)</Label>
           <Input type="date" value={week} onChange={(e) => {
-            const d = new Date(e.target.value);
+            const [y, m, day] = e.target.value.split("-").map(Number);
+            if (!y || !m || !day) return;
+            const d = new Date(y, m - 1, day);
             d.setDate(d.getDate() - d.getDay());
-            setWeek(d.toISOString().slice(0, 10));
+            const pad = (n: number) => String(n).padStart(2, "0");
+            setWeek(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
           }} className="mt-1.5 w-full sm:w-[200px]" />
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
