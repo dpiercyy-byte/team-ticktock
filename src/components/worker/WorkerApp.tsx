@@ -36,6 +36,7 @@ import {
 } from "@/lib/session";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { enqueueClock } from "@/lib/offline-queue";
+import { workerWeekSummary } from "@/lib/payout.functions";
 import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
 
 const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
