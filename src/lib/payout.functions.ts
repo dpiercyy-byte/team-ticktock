@@ -34,12 +34,14 @@ export const weeklyPayout = createServerFn({ method: "POST" })
     const start = new Date(data.weekStart);
     const end = endOfWeek(data.weekStart);
 
-    const [{ data: workers }, { data: entries }, { data: reimbs }] = await Promise.all([
+    const [{ data: workers }, { data: entries }, { data: reimbs }, { data: paidRows }] = await Promise.all([
       supabaseAdmin.from("workers").select("id, name, hourly_rate").order("name"),
       supabaseAdmin.from("time_entries").select("worker_id, clock_in, clock_out")
         .gte("clock_in", start.toISOString()).lt("clock_in", end.toISOString())
         .not("clock_out", "is", null),
       supabaseAdmin.from("reimbursements").select("worker_id, amount, description")
+        .eq("week_start", data.weekStart),
+      supabaseAdmin.from("weekly_payouts").select("worker_id, paid_at, paid_by, amount")
         .eq("week_start", data.weekStart),
     ]);
 
@@ -50,6 +52,7 @@ export const weeklyPayout = createServerFn({ method: "POST" })
       const myReimbs = (reimbs ?? []).filter((r) => r.worker_id === w.id);
       const reimbTotal = myReimbs.reduce((s, r) => s + Number(r.amount), 0);
       const wages = hours * Number(w.hourly_rate);
+      const paid = (paidRows ?? []).find((p) => p.worker_id === w.id) ?? null;
       return {
         workerId: w.id,
         name: w.name,
@@ -59,8 +62,11 @@ export const weeklyPayout = createServerFn({ method: "POST" })
         reimbursements: myReimbs,
         reimbTotal,
         total: wages + reimbTotal,
+        paidAt: paid?.paid_at ?? null,
+        paidBy: paid?.paid_by ?? null,
       };
     });
+
 
     return { ...refreshed, summary, weekStart: data.weekStart };
   });
