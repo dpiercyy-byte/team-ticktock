@@ -1147,7 +1147,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
 
   const sitesQ = useQuery({
     queryKey: ["sites-for-receipts"],
-    queryFn: () => sitesFn({ data: { token, includeArchived: false } }).then(r => { updateToken(r.token); return r.items; }),
+    queryFn: () => sitesFn({ data: { token, includeArchived: false } }).then(r => { updateToken(r.token); return r.sites; }),
   });
 
   const items = q.data ?? [];
