@@ -37,24 +37,31 @@ export const listAllReceipts = createServerFn({ method: "POST" })
     workerId: z.string().uuid().optional(),
     weekStart: z.string().optional(),
     withReceiptOnly: z.boolean().optional(),
+    kind: z.enum(["all", "worker", "admin"]).optional(),
     limit: z.number().int().positive().max(1000).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin
       .from("reimbursements")
-      .select("id, worker_id, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, workers(name), job_sites!reimbursements_parsed_job_site_id_fkey(label)")
+      .select("id, worker_id, is_admin_receipt, payee_label, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, workers(name), job_sites!reimbursements_parsed_job_site_id_fkey(label)")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 500);
     if (data.workerId) q = q.eq("worker_id", data.workerId);
     if (data.weekStart) q = q.eq("week_start", data.weekStart);
     if (data.withReceiptOnly !== false) q = q.not("receipt_url", "is", null);
+    if (data.kind === "worker") q = q.eq("is_admin_receipt", false);
+    if (data.kind === "admin") q = q.eq("is_admin_receipt", true);
     const { data: rows, error } = await q;
     if (error) throw error;
     const items = (rows ?? []).map((r: any) => ({
       id: r.id,
       workerId: r.worker_id,
-      workerName: r.workers?.name ?? "Unknown",
+      workerName: r.is_admin_receipt
+        ? (r.payee_label || "Admin")
+        : (r.workers?.name ?? "Unknown"),
+      isAdminReceipt: !!r.is_admin_receipt,
+      payeeLabel: r.payee_label as string | null,
       description: r.description,
       amount: Number(r.amount),
       weekStart: r.week_start as string,
@@ -73,6 +80,72 @@ export const listAllReceipts = createServerFn({ method: "POST" })
       parseConfidence: r.parse_confidence == null ? null : Number(r.parse_confidence),
     }));
     return { ...refreshed, items };
+  });
+
+function currentWeekStartFromAdmin(): string {
+  return currentWeekStartISO();
+}
+
+export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({
+    payeeLabel: z.string().trim().min(1).max(100),
+    description: z.string().trim().max(200).optional(),
+    amount: z.number().min(0).max(100000).optional(),
+    weekStart: z.string().optional(),
+    receiptUrl: z.string().url(),
+    receiptMime: z.string().max(100),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const weekStart = data.weekStart || currentWeekStartFromAdmin();
+    const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
+      worker_id: null,
+      is_admin_receipt: true,
+      payee_label: data.payeeLabel,
+      week_start: weekStart,
+      description: data.description || data.payeeLabel,
+      amount: data.amount ?? 0,
+      receipt_url: data.receiptUrl,
+      receipt_mime: data.receiptMime,
+    }).select("id").single();
+    if (error) throw error;
+    if (inserted?.id) {
+      const { runParseForReimbursement } = await import("./receipts.functions");
+      runParseForReimbursement(inserted.id).catch((e) => console.error("parse trigger", e));
+    }
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "admin_receipt_create",
+      entityType: "reimbursement",
+      entityId: inserted?.id,
+      after: { payee: data.payeeLabel, week_start: weekStart, amount: data.amount ?? 0 },
+    });
+    return { ...refreshed, id: inserted?.id };
+  });
+
+export const updateStandaloneReceipt = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({
+    id: z.string().uuid(),
+    payeeLabel: z.string().trim().min(1).max(100).optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const patch: any = {};
+    if (data.payeeLabel !== undefined) patch.payee_label = data.payeeLabel;
+    if (Object.keys(patch).length === 0) return refreshed;
+    const { error } = await supabaseAdmin.from("reimbursements").update(patch).eq("id", data.id).eq("is_admin_receipt", true);
+    if (error) throw error;
+    const { runParseForReimbursement: _ } = await import("./receipts.functions");
+    // re-sync sheet row with new payee label
+    try {
+      const { syncRowExternal } = await import("./receipts.functions");
+      await syncRowExternal(data.id);
+    } catch (e) { console.error("sheet sync failed", e); }
+    await logAudit({
+      actor: { kind: "admin" }, action: "admin_receipt_update",
+      entityType: "reimbursement", entityId: data.id, after: patch,
+    });
+    return refreshed;
   });
 
 export const addReimbursement = createServerFn({ method: "POST" })
