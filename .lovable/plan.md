@@ -1,47 +1,91 @@
-# Dedicated Receipts view
 
-Add a "Receipts" sub-tab inside the Payout section that lists every reimbursement with an attached receipt across all workers and weeks, with filters, thumbnails, and direct download.
+## Goal
 
-## Where it lives
+Replace Sheetify by parsing every receipt in-app and (optionally) mirroring the parsed rows into one Google Sheet you own.
 
-Add a new tab next to Weekly / Pending / Lifetime in the Payout tab → "Receipts". Keeps receipts logically grouped with payment workflows.
+## What changes for you
 
-## UI
+- Workers (and you) upload receipts the same way they do today.
+- Each receipt is **auto-parsed on upload** using Lovable AI vision. Extracted fields: vendor, date, subtotal, tax, total, suggested category, suggested job site.
+- In the admin **Receipts** sub-tab, each card gains the parsed fields inline + an **Edit** dialog to correct anything the AI got wrong and a **Re-run AI** button.
+- A new **Spreadsheet view** toggle on the Receipts tab shows everything as an editable table (sortable/filterable by worker, week, vendor, category, job site) with a single **Export CSV** action — this is the Sheetify replacement.
+- A **Settings → Google Sheets sync** section lets you connect your Google account once and pick (or auto-create) a destination Sheet. From then on, every new/edited parsed receipt is appended/updated as a row in that Sheet automatically. A **Backfill to Sheet** button pushes historical rows.
 
-- **Filter row** (top):
-  - Worker dropdown (All workers / specific worker)
-  - Week dropdown (All weeks / specific week, sorted newest first)
-  - Search box (matches description)
-  - "With receipt only" toggle (default ON, since this is the Receipts view)
-- **Grid of receipt cards** (responsive, 2–4 per row):
-  - Thumbnail preview (image inline; PDF shows a generic doc icon)
-  - Worker name + week range
-  - Description + amount
-  - Submitted date
-  - Actions: View (opens existing lightbox) · Download (forces file download) · Open in new tab
-- **Empty state** when filters produce no results.
-- **Summary strip** above the grid: total receipts shown, total amount.
+## Data model
 
-## Download behavior
+Add columns to `public.reimbursements`:
+- `parsed_vendor text`
+- `parsed_date date`
+- `parsed_subtotal numeric`
+- `parsed_tax numeric`
+- `parsed_total numeric`
+- `parsed_category text`
+- `parsed_job_site_id uuid` (nullable, references job_sites)
+- `parse_status text` (`pending` | `ok` | `failed` | `manual`)
+- `parse_confidence numeric`
+- `parse_raw jsonb` (full AI response for audit/debug)
+- `parsed_at timestamptz`
+- `sheet_row_id text` (Google Sheets row identifier for upserts)
 
-Clicking Download triggers a real file download (not just opening the public URL in a new tab). Use an `<a download>` link with the existing `receipt_url`. Filename pattern: `{worker}-{week}-{description}.{ext}`.
+Add `public.app_settings` columns:
+- `google_sheet_id text`
+- `google_sheet_tab text`
+- `google_refresh_token text` (encrypted server-side use only)
+- `sheet_sync_enabled boolean default false`
 
-## Backend
+All writes go through existing append-only audit log.
 
-Add one new server function:
+## AI extraction
 
-- `listAllReceipts({ token, workerId?, weekStart?, withReceiptOnly? })` in `src/lib/reimbursements.functions.ts` — admin-only, returns receipts joined with worker name and week, ordered by created_at desc. Limits to ~500 most recent to keep payload reasonable; older results require filtering by week.
+- Model: `google/gemini-3-flash-preview` (vision, cheap, fast) via Lovable AI Gateway. Structured-output JSON schema for the 7 fields + confidence.
+- Server fn `parseReceipt(reimbursementId)` in `src/lib/receipts.functions.ts`:
+  - Fetches receipt URL, sends image (or first PDF page) to model.
+  - Writes parsed fields + `parse_status`, logs to audit, triggers sheet sync if enabled.
+- Triggered automatically by `workerUploadReceipt` and admin upload paths after the row is inserted (fire-and-forget; UI shows `pending` then updates).
+- Manual **Re-run AI** button calls the same fn.
+- Category suggestion uses a short fixed list (Materials, Fuel, Tools, Subcontractor, Permits, Other) — editable.
+- Job site suggestion: AI gets the list of active job site labels and picks the closest match by vendor address proximity / explicit mention; falls back to null.
 
-No schema changes. No new storage logic — receipts already live in the public `receipts` bucket with public URLs.
+## Google Sheets sync (optional, your account only)
 
-## Files touched
+- New "Google Sheets" connector linked via existing connector flow — you authorize once in Settings.
+- Server fn `syncReceiptToSheet(reimbursementId)`:
+  - Uses connector gateway (`/google_sheets/v4`) to append or update the row keyed by `sheet_row_id`.
+  - Row columns: Date, Worker, Vendor, Description, Category, Job Site, Subtotal, Tax, Total, Receipt URL, Week Start.
+- Called automatically after successful parse / manual edit.
+- Settings panel:
+  - Connect Google button
+  - Sheet picker (existing sheet by ID/URL, or "Create new")
+  - Tab name field
+  - Enable/disable sync toggle
+  - **Backfill** button (queues sync for every existing receipt)
+- If sync fails, row stays in DB with `sheet_row_id = null`; a "Retry sync" button surfaces in the receipt card.
 
-- `src/lib/reimbursements.functions.ts` — add `listAllReceipts`
-- `src/components/admin/AdminApp.tsx` — add `<ReceiptsTab />` component, wire into Payout `<Tabs>`
-- Reuse the existing receipt lightbox/viewer state and `Paperclip`/`Image` styling already in `PayoutsTab`
+## Admin UI
 
-## Out of scope
+`ReceiptsTab` updates:
+- Each card shows badge: `Parsing…` / `Parsed` / `Failed` / `Edited`.
+- Card body shows vendor, date, total, tax, category chip, job-site chip.
+- Buttons: **Edit fields**, **Re-run AI**, existing View/Download/Open.
+- Top toolbar: filter by category + job site (new), view toggle **Cards | Table**.
+- Table view: dense spreadsheet UI with inline edit; CSV export uses the current filter set.
 
-- Bulk zip download (separate ask if you want it later)
-- Editing receipts from this view (delete/replace still happens via the per-worker "+ Reimb." dialog)
-- Mobile worker app changes
+New `ReceiptSyncSettings` panel under Settings tab.
+
+## Worker UI
+
+No visible change beyond a subtle "Receipt being scanned…" line on a freshly added reimbursement (optional polish).
+
+## Technical notes
+
+- Parsing runs server-side in a `createServerFn`; uses `requireSupabaseAuth` for admin manual triggers and a token-scoped variant for worker upload trigger (already how other worker fns auth).
+- PDF receipts: convert first page to image server-side before sending to model (pdf-lib + canvas not Worker-safe → use the model's PDF input support: send as `file` block with `application/pdf` MIME — Gemini supports PDF input directly, so no conversion needed).
+- Google Sheets: prefer the App connector + `standard_connectors--connect` for `google_sheets`. Single workspace-wide connection matches your "just my account" choice. If user prefers per-account OAuth later, swap to per-user OAuth.
+- Failures (429/402) surface as toast + retry; never block clock-in/out flow.
+- All new tables/columns get GRANTs + RLS deny-all (admin-only via server fns).
+
+## Out of scope (for this round)
+
+- Line-item extraction (you didn't pick it).
+- Multi-admin Google connections.
+- Auto-categorization training/feedback loop.
