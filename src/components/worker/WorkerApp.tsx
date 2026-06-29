@@ -1078,7 +1078,7 @@ function PreviousWeekPill({ token, workerId }: { token: string; workerId: string
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <span className="text-base font-bold tabular-nums">{fmtMoney(data.total)}</span>
-          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusStyle}`}>
+          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wider ${statusStyle}`}>
             {data.status}
           </span>
         </div>
