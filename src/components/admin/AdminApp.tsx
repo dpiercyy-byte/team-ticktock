@@ -1356,6 +1356,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     <img src={i.receiptUrl!} alt={i.description} className="h-full w-full object-cover" />
                   )}
                   <span className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
+                  {i.isAdminReceipt && (
+                    <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-400">Admin</span>
+                  )}
                 </button>
                 <CardContent className="p-3 space-y-2 flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-2">
