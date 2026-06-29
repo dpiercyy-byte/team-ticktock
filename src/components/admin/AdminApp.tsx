@@ -1106,22 +1106,39 @@ function PendingPayoutsView({ token, updateToken }: { token: string; updateToken
   const unmarkFn = useServerFn(unmarkWeekPaid);
   const qc = useQueryClient();
   const [includePaid, setIncludePaid] = useState(false);
+  const [payDialog, setPayDialog] = useState<{ workerId: string; workerName: string; weekStart: string; owed: number } | null>(null);
+  const [payAmt, setPayAmt] = useState("");
+  const [paySubmitting, setPaySubmitting] = useState(false);
 
   const q = useQuery({
     queryKey: ["pending-payouts", includePaid],
     queryFn: () => listFn({ data: { token, includePaid } }).then(r => { updateToken(r.token); return r.items; }),
   });
 
-  const toggle = async (workerId: string, weekStart: string, paid: boolean) => {
+  const unmark = async (workerId: string, weekStart: string) => {
     try {
-      const r = paid
-        ? await unmarkFn({ data: { token, workerId, weekStart } })
-        : await markFn({ data: { token, workerId, weekStart } });
+      const r = await unmarkFn({ data: { token, workerId, weekStart } });
       updateToken(r.token);
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
       qc.invalidateQueries({ queryKey: ["payout"] });
-      toast.success(paid ? "Marked unpaid" : "Marked paid");
+      toast.success("Marked unpaid");
     } catch (e: any) { toast.error(e?.message || "Failed"); }
+  };
+
+  const submitPay = async () => {
+    if (!payDialog) return;
+    const n = parseFloat(payAmt);
+    if (!isFinite(n) || n < 0) { toast.error("Enter a valid amount"); return; }
+    setPaySubmitting(true);
+    try {
+      const r = await markFn({ data: { token, workerId: payDialog.workerId, weekStart: payDialog.weekStart, actualPaid: n } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["pending-payouts"] });
+      qc.invalidateQueries({ queryKey: ["payout"] });
+      toast.success("Marked paid");
+      setPayDialog(null); setPayAmt("");
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setPaySubmitting(false); }
   };
 
   const items = q.data ?? [];
@@ -1180,6 +1197,16 @@ function PendingPayoutsView({ token, updateToken }: { token: string; updateToken
           {items.map((row: any) => {
             const s = statusStyles[row.status];
             const weekLabel = `${fmtDate(row.weekStart)} – ${fmtDate(row.weekEnd)}`;
+            const tip = row.tipAmount;
+            const tipChip = row.status === "paid" && tip != null && Math.abs(tip) >= 0.005 ? (
+              <span className={`inline-flex items-center text-[11px] px-1.5 py-0.5 rounded-full ${
+                tip > 0
+                  ? "bg-[color-mix(in_oklab,var(--success)_15%,transparent)] text-[var(--success)]"
+                  : "bg-[color-mix(in_oklab,var(--destructive)_15%,transparent)] text-[var(--destructive)]"
+              }`}>
+                {tip > 0 ? `+${fmtMoney(tip)} tip` : `${fmtMoney(tip)} short`}
+              </span>
+            ) : null;
             return (
               <Card key={`${row.workerId}-${row.weekStart}`} className={`border-l-4 ${s.border}`}>
                 <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-3">
@@ -1190,19 +1217,29 @@ function PendingPayoutsView({ token, updateToken }: { token: string; updateToken
                         <span className={`h-1.5 w-1.5 rounded-full ${s.dotBg}`} />
                         {row.status === "overdue" ? "Overdue" : row.status === "paid" ? "Paid" : "Unpaid"}
                       </span>
+                      {tipChip}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {weekLabel} · {row.hours.toFixed(2)} hrs · reimb {fmtMoney(row.reimbursements)}
                       {row.paidAt ? ` · paid ${new Date(row.paidAt).toLocaleDateString()}` : ""}
+                      {row.status === "paid" && row.actualPaid != null ? ` · cash ${fmtMoney(row.actualPaid)}` : ""}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="tabular-nums font-bold">{fmtMoney(row.total)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Owed</p>
                   </div>
                   <Button
                     size="sm"
                     variant={row.status === "paid" ? "outline" : "default"}
-                    onClick={() => toggle(row.workerId, row.weekStart, row.status === "paid")}
+                    onClick={() => {
+                      if (row.status === "paid") {
+                        unmark(row.workerId, row.weekStart);
+                      } else {
+                        setPayDialog({ workerId: row.workerId, workerName: row.workerName, weekStart: row.weekStart, owed: row.total });
+                        setPayAmt("");
+                      }
+                    }}
                   >
                     {row.status === "paid" ? "Undo" : "Mark paid"}
                   </Button>
@@ -1212,6 +1249,57 @@ function PendingPayoutsView({ token, updateToken }: { token: string; updateToken
           })}
         </div>
       )}
+
+      <Dialog open={!!payDialog} onOpenChange={(o) => { if (!o && !paySubmitting) { setPayDialog(null); setPayAmt(""); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mark week paid</DialogTitle>
+          </DialogHeader>
+          {payDialog && (
+            <div className="space-y-3">
+              <div className="rounded-md bg-muted/50 p-3 text-sm">
+                <p className="font-medium">{payDialog.workerName}</p>
+                <p className="text-xs text-muted-foreground">Week of {fmtDate(payDialog.weekStart)}</p>
+                <p className="mt-2 flex items-baseline justify-between">
+                  <span className="text-xs text-muted-foreground">Owed</span>
+                  <span className="font-semibold tabular-nums">{fmtMoney(payDialog.owed)}</span>
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cash-paid" className="text-xs">Amount paid in cash</Label>
+                <Input
+                  id="cash-paid"
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="e.g. 650.00"
+                  value={payAmt}
+                  onChange={(e) => setPayAmt(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") submitPay(); }}
+                />
+                {(() => {
+                  const n = parseFloat(payAmt);
+                  if (!isFinite(n)) return null;
+                  const diff = Number((n - payDialog.owed).toFixed(2));
+                  if (Math.abs(diff) < 0.005) return <p className="text-xs text-muted-foreground">Exact amount.</p>;
+                  return (
+                    <p className={`text-xs ${diff > 0 ? "text-[var(--success)]" : "text-[var(--destructive)]"}`}>
+                      {diff > 0 ? `+${fmtMoney(diff)} tip / rounding` : `${fmtMoney(diff)} short`}
+                    </p>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={paySubmitting} onClick={() => { setPayDialog(null); setPayAmt(""); }}>Cancel</Button>
+            <Button onClick={submitPay} disabled={paySubmitting || !payAmt || !isFinite(parseFloat(payAmt)) || parseFloat(payAmt) < 0}>
+              {paySubmitting ? "Saving…" : "Confirm paid"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
