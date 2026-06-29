@@ -69,7 +69,10 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
 const SHEET_COLUMNS = [
   "ID", "Date", "Worker", "Vendor", "Description", "Category", "Job Site",
   "Subtotal", "Tax", "Total", "Reimbursement Amount", "Week Start", "Receipt URL",
+  "Material Type", "Billable Client",
 ];
+const SHEET_LAST_COL = "O"; // 15 columns
+
 
 async function gw(url: string, init?: RequestInit) {
   const lovKey = process.env.LOVABLE_API_KEY!;
@@ -103,7 +106,7 @@ async function ensureTabExists(sheetId: string, tab: string) {
 
 async function ensureSheetHeader(sheetId: string, tab: string) {
   await ensureTabExists(sheetId, tab);
-  const range = `${tab}!A1:M1`;
+  const range = `${tab}!A1:${SHEET_LAST_COL}1`;
   const url = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}/values/${range}`;
   const get: any = await (await gw(url)).json();
   const have = get?.values?.[0] || [];
@@ -114,6 +117,7 @@ async function ensureSheetHeader(sheetId: string, tab: string) {
     body: JSON.stringify({ values: [SHEET_COLUMNS] }),
   });
 }
+
 
 
 export async function syncRowExternal(reimbursementId: string) {
@@ -127,7 +131,7 @@ async function syncRow(reimbursementId: string) {
   const tab = s.google_sheet_tab || "Receipts";
 
   const { data: r } = await supabaseAdmin.from("reimbursements")
-    .select("id, is_admin_receipt, payee_label, description, amount, week_start, receipt_url, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, workers(name), job_sites!reimbursements_parsed_job_site_id_fkey(label)")
+    .select("id, is_admin_receipt, payee_label, description, amount, week_start, receipt_url, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
     .eq("id", reimbursementId).maybeSingle();
   if (!r) return { skipped: true };
 
@@ -137,6 +141,9 @@ async function syncRow(reimbursementId: string) {
     ? (r.payee_label || "Admin")
     : ((r as any).workers?.name || "");
 
+  const materialType = (r as any).material_type === "client_billable" ? "Client Billable" : "Regular";
+  const billableClient = (r as any).billable_site?.label || "";
+
   const row = [
     r.id,
     r.parsed_date || "",
@@ -144,16 +151,16 @@ async function syncRow(reimbursementId: string) {
     r.parsed_vendor || "",
     r.description || "",
     r.parsed_category || "",
-    (r as any).job_sites?.label || "",
+    (r as any).parsed_site?.label || "",
     r.parsed_subtotal ?? "",
     r.parsed_tax ?? "",
     r.parsed_total ?? "",
     r.amount ?? "",
     r.week_start || "",
     r.receipt_url || "",
+    materialType,
+    billableClient,
   ];
-
-  // Find existing row by ID in column A
 
   const findUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:A`;
   const findBody: any = await (await gw(findUrl)).json();
@@ -164,24 +171,24 @@ async function syncRow(reimbursementId: string) {
   }
 
   if (rowIdx > 0) {
-    const range = `${tab}!A${rowIdx}:M${rowIdx}`;
+    const range = `${tab}!A${rowIdx}:${SHEET_LAST_COL}${rowIdx}`;
     await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${range}?valueInputOption=USER_ENTERED`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ values: [row] }),
     });
   } else {
-    await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:M:append?valueInputOption=USER_ENTERED`, {
+    await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:${SHEET_LAST_COL}:append?valueInputOption=USER_ENTERED`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ values: [row] }),
     });
   }
 
-
   await supabaseAdmin.from("reimbursements").update({ sheet_row_id: reimbursementId }).eq("id", reimbursementId);
   return { ok: true };
 }
+
 
 // ---------- Public: parse one receipt (server-internal, called by workers too) ----------
 
@@ -249,6 +256,8 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     total: z.number().nullable().optional(),
     category: z.enum(CATEGORIES).nullable().optional(),
     jobSiteId: z.string().uuid().nullable().optional(),
+    materialType: z.enum(["regular", "client_billable"]).optional(),
+    billableJobSiteId: z.string().uuid().nullable().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
@@ -260,6 +269,28 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     if (data.total !== undefined) patch.parsed_total = data.total;
     if (data.category !== undefined) patch.parsed_category = data.category;
     if (data.jobSiteId !== undefined) patch.parsed_job_site_id = data.jobSiteId;
+    if (data.materialType !== undefined) patch.material_type = data.materialType;
+    if (data.billableJobSiteId !== undefined) patch.billable_job_site_id = data.billableJobSiteId;
+
+    // Validate: client-billable must reference a real, active client job site
+    const willBeBillable = data.materialType === "client_billable"
+      || (data.materialType === undefined && data.billableJobSiteId);
+    if (willBeBillable) {
+      const targetId = data.billableJobSiteId;
+      if (!targetId) {
+        // allow clearing material_type back to regular by passing materialType: 'regular'
+        // but if marking billable, require a site
+        if (data.materialType === "client_billable") throw new Error("Pick a client job site to bill");
+      } else {
+        const { data: site } = await supabaseAdmin.from("job_sites")
+          .select("id, kind, archived_at").eq("id", targetId).maybeSingle();
+        if (!site || site.kind !== "client" || site.archived_at) {
+          throw new Error("Billable job site must be an active client site");
+        }
+      }
+    }
+    // If switching back to regular, clear billable link
+    if (data.materialType === "regular") patch.billable_job_site_id = null;
 
     const { error } = await supabaseAdmin.from("reimbursements").update(patch).eq("id", data.id);
     if (error) throw error;
@@ -272,6 +303,7 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     try { await syncRow(data.id); } catch (e) { console.error("sheet sync failed", e); }
     return refreshed;
   });
+
 
 // ---------- Sheets settings ----------
 

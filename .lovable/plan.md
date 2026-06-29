@@ -1,27 +1,31 @@
-Replace the single file-picker inputs in both the worker reimbursement flow and the admin receipt upload flows with a two-choice picker that lets users either (1) snap a photo directly from the device camera or (2) pick an existing file from their gallery.
+## Material type on receipts (Regular vs Client-billable)
 
-### What to build
+Add a way to tag each receipt as **Regular materials** or **Client-billable** (finished materials to invoice a client), with an optional linked client job site, surfaced in the admin Receipts tab and the Google Sheet.
 
-**1. Reusable CameraFilePicker component** (`src/components/CameraFilePicker.tsx`)
-- A small modal/dialog triggered by a button.
-- Two actions:
-  - **Take Photo** — triggers a hidden `<input type="file" accept="image/*" capture="environment">` to open the device camera.
-  - **Choose from Gallery** — triggers a hidden `<input type="file" accept="image/*">` to open the native file picker.
-- On file selection, read the file via `FileReader` (base64) and call an `onFile` callback so the parent can upload it through the existing server function.
-- Re-use the existing `ALLOWED_RECEIPT_MIMES` validation and reject oversized files (>10 MB) before reading.
+### Schema
+Migration on `public.reimbursements`:
+- `material_type text not null default 'regular'` with check (`'regular' | 'client_billable'`)
+- `billable_job_site_id uuid references public.job_sites(id)` (nullable; only meaningful when `material_type = 'client_billable'`)
 
-**2. Wire into WorkerApp** (`src/components/worker/WorkerApp.tsx`)
-- In the reimbursement section, replace the current `<input type="file">` element with the new `CameraFilePicker`.
-- Keep the existing `workerUploadReceipt` + `fileToBase64` upload pipeline intact; only the trigger UI changes.
+### Backend (`src/lib/receipts.functions.ts` / `reimbursements.functions.ts`)
+- Extend `updateStandaloneReceipt` and the worker-receipt edit fn to accept `material_type` and `billable_job_site_id`.
+- Validation: if `material_type = 'client_billable'`, `billable_job_site_id` must reference a non-archived `kind = 'client'` job site (regular receipts ignore the field).
+- Audit log entry on changes.
 
-**3. Wire into AdminApp** (`src/components/admin/AdminApp.tsx`)
-- In the admin "Add receipts" bulk-upload dialog and the standalone receipt upload areas, replace the raw file inputs with `CameraFilePicker`.
-- Preserve existing upload flows (`uploadReceipt`, `adminAddStandaloneReceipt`).
+### Google Sheets sync (`receipts.functions.ts`)
+- Add two header columns: **Material Type** (`Regular` / `Client Billable`) and **Billable Client** (job site label, blank when regular).
+- `ensureSheetHeader` appends the new columns if missing (idempotent), `syncRow` writes them, and the next **Backfill all receipts** run fills history.
 
-### What stays the same
-- No server-side changes.
-- No changes to base64 encoding, MIME validation, upload limits, or existing server functions.
-- No changes to the Google Sheets sync / AI parsing pipeline.
+### Admin UI (`src/components/admin/AdminApp.tsx` — Receipts tab)
+- **Edit fields dialog**: add a segmented control `Regular | Client-billable`. When Client-billable is selected, reveal a "Bill to client" job-site picker (client sites only).
+- **Row display**: small badge — neutral "Regular" or accent "Client-billable · {client label}".
+- **Filters**: add a "Material" filter (All / Regular / Client-billable) alongside the existing Kind filter.
+- Default on new admin receipts = Regular; picker required only when switching to Client-billable.
 
-### Result
-Workers and admins can tap "Add receipt" and immediately choose between snapping a new photo or selecting an existing image, instead of only seeing the generic file picker.
+### Out of scope
+- No worker-side UI changes (admin-only per your choice).
+- No new payout math; client-billable receipts still flow through existing admin-receipt logic (excluded from worker payouts).
+
+### Technical notes
+- Migration includes `GRANT`s already in place via prior reimbursements policies; only column adds + check constraint.
+- Sheet column insertion is append-only to preserve existing row references (`sheet_row_id`).

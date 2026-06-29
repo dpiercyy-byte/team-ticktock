@@ -1125,7 +1125,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [weekStart, setWeekStart] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
   const [kind, setKind] = useState<"all" | "worker" | "admin">("all");
+  const [materialType, setMaterialType] = useState<"all" | "regular" | "client_billable">("all");
   const [search, setSearch] = useState("");
+
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -1157,12 +1159,14 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
     if (workerId !== "all" && i.workerId !== workerId) return false;
     if (weekStart !== "all" && i.weekStart !== weekStart) return false;
     if (category !== "all" && i.parsedCategory !== category) return false;
+    if (materialType !== "all" && (i.materialType ?? "regular") !== materialType) return false;
     if (search) {
       const hay = `${i.description} ${i.parsedVendor || ""} ${i.payeeLabel || ""}`.toLowerCase();
       if (!hay.includes(search.toLowerCase())) return false;
     }
     return true;
   });
+
 
   const totalAmt = filtered.reduce((s, i) => s + i.amount, 0);
   const unparsedCount = items.filter(i => !i.parseStatus).length;
@@ -1212,7 +1216,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   }
 
   function csvExport() {
-    const headers = ["Date","Worker","Vendor","Description","Category","Job Site","Subtotal","Tax","Total","Amount","Week","Receipt"];
+    const headers = ["Date","Worker","Vendor","Description","Category","Job Site","Subtotal","Tax","Total","Amount","Week","Material Type","Billable Client","Receipt"];
     const lines = [headers.join(",")];
     filtered.forEach(i => {
       const row = [
@@ -1227,10 +1231,13 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         i.parsedTotal ?? "",
         i.amount,
         i.weekStart,
+        (i.materialType ?? "regular") === "client_billable" ? "Client Billable" : "Regular",
+        i.billableJobSiteLabel || "",
         i.receiptUrl || "",
       ].map(v => `"${String(v).replace(/"/g, '""')}"`);
       lines.push(row.join(","));
     });
+
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1283,6 +1290,18 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             </SelectContent>
           </Select>
         </div>
+        <div className="flex-1 min-w-[140px]">
+          <Label className="text-xs">Material</Label>
+          <Select value={materialType} onValueChange={(v) => setMaterialType(v as any)}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="regular">Regular</SelectItem>
+              <SelectItem value="client_billable">Client-billable</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex-1 min-w-[200px]">
           <Label className="text-xs">Search vendor / description</Label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="home depot, paint…" className="mt-1.5" />
@@ -1368,7 +1387,13 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                   <div className="flex flex-wrap gap-1">
                     {i.parsedCategory && <Badge variant="secondary" className="text-[10px]">{i.parsedCategory}</Badge>}
                     {i.parsedJobSiteLabel && <Badge variant="outline" className="text-[10px]">{i.parsedJobSiteLabel}</Badge>}
+                    {(i.materialType ?? "regular") === "client_billable" && (
+                      <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/15">
+                        Bill client{i.billableJobSiteLabel ? ` · ${i.billableJobSiteLabel}` : ""}
+                      </Badge>
+                    )}
                   </div>
+
                   {i.parsedVendor && i.description && i.parsedVendor !== i.description && (
                     <p className="text-xs text-muted-foreground truncate" title={i.description}>“{i.description}”</p>
                   )}
@@ -1437,7 +1462,7 @@ function EditParsedDialog({
   item, sites, token, updateToken, onClose, updateFn, onSaved,
 }: {
   item: any | null;
-  sites: Array<{ id: string; label: string }>;
+  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   token: string;
   updateToken: (t: string) => void;
   onClose: () => void;
@@ -1451,7 +1476,14 @@ function EditParsedDialog({
   const [total, setTotal] = useState("");
   const [category, setCategory] = useState<string>("");
   const [jobSite, setJobSite] = useState<string>("");
+  const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
+  const [billableSite, setBillableSite] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  const clientSites = useMemo(
+    () => sites.filter(s => (s.kind ?? "client") === "client" && !s.archived_at),
+    [sites]
+  );
 
   useEffect(() => {
     if (!item) return;
@@ -1462,10 +1494,16 @@ function EditParsedDialog({
     setTotal(item.parsedTotal != null ? String(item.parsedTotal) : "");
     setCategory(item.parsedCategory || "");
     setJobSite(item.parsedJobSiteId || "");
+    setMaterialType((item.materialType as any) || "regular");
+    setBillableSite(item.billableJobSiteId || "");
   }, [item]);
 
   const save = async () => {
     if (!item) return;
+    if (materialType === "client_billable" && !billableSite) {
+      toast.error("Pick a client to bill");
+      return;
+    }
     setSaving(true);
     try {
       const num = (s: string) => s.trim() === "" ? null : Number(s);
@@ -1478,6 +1516,8 @@ function EditParsedDialog({
         total: num(total),
         category: category || null,
         jobSiteId: jobSite || null,
+        materialType,
+        billableJobSiteId: materialType === "client_billable" ? (billableSite || null) : null,
       } });
       updateToken(r.token);
       toast.success("Saved");
@@ -1528,11 +1568,45 @@ function EditParsedDialog({
               </SelectContent>
             </Select>
           </div>
+          <div className="rounded-md border border-border p-3 space-y-2">
+            <Label className="text-xs">Material type</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={materialType === "regular" ? "default" : "outline"}
+                onClick={() => setMaterialType("regular")}
+              >Regular</Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={materialType === "client_billable" ? "default" : "outline"}
+                className={materialType === "client_billable" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                onClick={() => setMaterialType("client_billable")}
+              >Client-billable</Button>
+            </div>
+            {materialType === "client_billable" && (
+              <div>
+                <Label className="text-xs">Bill to client</Label>
+                <Select value={billableSite || "none"} onValueChange={(v) => setBillableSite(v === "none" ? "" : v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Pick a client job site" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Pick a client —</SelectItem>
+                    {clientSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {clientSites.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1">No active client job sites. Add one in Job Sites.</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );

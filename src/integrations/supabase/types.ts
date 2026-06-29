@@ -125,10 +125,12 @@ export type Database = {
       reimbursements: {
         Row: {
           amount: number
+          billable_job_site_id: string | null
           created_at: string
           description: string
           id: string
           is_admin_receipt: boolean
+          material_type: string
           parse_confidence: number | null
           parse_raw: Json | null
           parse_status: string | null
@@ -149,10 +151,12 @@ export type Database = {
         }
         Insert: {
           amount: number
+          billable_job_site_id?: string | null
           created_at?: string
           description: string
           id?: string
           is_admin_receipt?: boolean
+          material_type?: string
           parse_confidence?: number | null
           parse_raw?: Json | null
           parse_status?: string | null
@@ -173,10 +177,12 @@ export type Database = {
         }
         Update: {
           amount?: number
+          billable_job_site_id?: string | null
           created_at?: string
           description?: string
           id?: string
           is_admin_receipt?: boolean
+          material_type?: string
           parse_confidence?: number | null
           parse_raw?: Json | null
           parse_status?: string | null
@@ -196,6 +202,13 @@ export type Database = {
           worker_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reimbursements_billable_job_site_id_fkey"
+            columns: ["billable_job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reimbursements_parsed_job_site_id_fkey"
             columns: ["parsed_job_site_id"]
