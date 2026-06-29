@@ -17,6 +17,7 @@ import {
   Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip, Banknote,
   MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2,
 } from "lucide-react";
+import { CameraFilePicker } from "@/components/CameraFilePicker";
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
