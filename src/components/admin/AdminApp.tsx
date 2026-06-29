@@ -1008,23 +1008,11 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                     </Button>
                   </div>
                 ) : (
-                  <label className="inline-flex">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,application/pdf"
-                      className="hidden"
-                      disabled={uploading}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.currentTarget.value = "";
-                        if (f) handleFile(f);
-                      }}
-                    />
-                    <span className={`inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border border-border cursor-pointer hover:bg-secondary ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
-                      <Upload className="h-3.5 w-3.5" />
-                      {uploading ? "Uploading…" : "Attach receipt (optional)"}
-                    </span>
-                  </label>
+                  <CameraFilePicker
+                    onFile={handleFile}
+                    uploading={uploading}
+                    label="Attach receipt (optional)"
+                  />
                 )}
                 <Button className="ml-auto" onClick={async () => {
                   try {
