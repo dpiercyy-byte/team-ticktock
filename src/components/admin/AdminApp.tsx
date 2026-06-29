@@ -1099,7 +1099,125 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   );
 }
 
+// ===== Pending payouts =====
+function PendingPayoutsView({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const listFn = useServerFn(listPendingWeeks);
+  const markFn = useServerFn(markWeekPaid);
+  const unmarkFn = useServerFn(unmarkWeekPaid);
+  const qc = useQueryClient();
+  const [includePaid, setIncludePaid] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["pending-payouts", includePaid],
+    queryFn: () => listFn({ data: { token, includePaid } }).then(r => { updateToken(r.token); return r.items; }),
+  });
+
+  const toggle = async (workerId: string, weekStart: string, paid: boolean) => {
+    try {
+      const r = paid
+        ? await unmarkFn({ data: { token, workerId, weekStart } })
+        : await markFn({ data: { token, workerId, weekStart } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["pending-payouts"] });
+      qc.invalidateQueries({ queryKey: ["payout"] });
+      toast.success(paid ? "Marked unpaid" : "Marked paid");
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+  };
+
+  const items = q.data ?? [];
+  const outstanding = items.filter((i: any) => i.status !== "paid")
+    .reduce((s: number, i: any) => s + i.total, 0);
+
+  const statusStyles: Record<string, { dotBg: string; pillBg: string; pillText: string; border: string }> = {
+    overdue: {
+      dotBg: "bg-[var(--destructive)]",
+      pillBg: "bg-[color-mix(in_oklab,var(--destructive)_18%,transparent)]",
+      pillText: "text-[var(--destructive)]",
+      border: "border-l-[var(--destructive)]",
+    },
+    unpaid: {
+      dotBg: "bg-[var(--warning)]",
+      pillBg: "bg-[color-mix(in_oklab,var(--warning)_22%,transparent)]",
+      pillText: "text-[var(--warning-foreground)]",
+      border: "border-l-[var(--warning)]",
+    },
+    paid: {
+      dotBg: "bg-[var(--success)]",
+      pillBg: "bg-[color-mix(in_oklab,var(--success)_18%,transparent)]",
+      pillText: "text-[var(--success)]",
+      border: "border-l-[var(--success)]",
+    },
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">Outstanding across all unpaid weeks</p>
+          <p className="text-2xl font-bold tabular-nums">{fmtMoney(outstanding)}</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includePaid}
+            onChange={(e) => setIncludePaid(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Show paid weeks
+        </label>
+      </div>
+
+      {q.isLoading ? (
+        <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
+      ) : items.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-sm text-muted-foreground text-center">
+            {includePaid ? "No payouts on record yet." : "All caught up — no unpaid weeks."}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {items.map((row: any) => {
+            const s = statusStyles[row.status];
+            const weekLabel = `${fmtDate(row.weekStart)} – ${fmtDate(row.weekEnd)}`;
+            return (
+              <Card key={`${row.workerId}-${row.weekStart}`} className={`border-l-4 ${s.border}`}>
+                <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold truncate">{row.workerName}</p>
+                      <span className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full ${s.pillBg} ${s.pillText}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${s.dotBg}`} />
+                        {row.status === "overdue" ? "Overdue" : row.status === "paid" ? "Paid" : "Unpaid"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {weekLabel} · {row.hours.toFixed(2)} hrs · reimb {fmtMoney(row.reimbursements)}
+                      {row.paidAt ? ` · paid ${new Date(row.paidAt).toLocaleDateString()}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="tabular-nums font-bold">{fmtMoney(row.total)}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={row.status === "paid" ? "outline" : "default"}
+                    onClick={() => toggle(row.workerId, row.weekStart, row.status === "paid")}
+                  >
+                    {row.status === "paid" ? "Undo" : "Mark paid"}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== Lifetime payout =====
+
 function LifetimePayoutView({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const payFn = useServerFn(lifetimePayout);
   const pq = useQuery({
