@@ -1283,6 +1283,17 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             </SelectContent>
           </Select>
         </div>
+        <div className="flex-1 min-w-[120px]">
+          <Label className="text-xs">Kind</Label>
+          <Select value={kind} onValueChange={(v) => setKind(v as any)}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="worker">Worker</SelectItem>
+              <SelectItem value="admin">Admin only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex-1 min-w-[200px]">
           <Label className="text-xs">Search vendor / description</Label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="home depot, paint…" className="mt-1.5" />
@@ -1292,6 +1303,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
       <div className="flex items-center justify-between text-sm text-muted-foreground px-1 flex-wrap gap-2">
         <span>{filtered.length} receipt{filtered.length === 1 ? "" : "s"} · Total: <span className="font-semibold text-foreground">{fmtMoney(totalAmt)}</span></span>
         <div className="flex gap-2">
+          <Button size="sm" onClick={() => setAdminAddOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> Add receipts
+          </Button>
           {unparsedCount > 0 && (
             <Button size="sm" variant="outline" onClick={parseAll} disabled={busyId === "ALL"}>
               <Sparkles className="h-3.5 w-3.5 mr-1.5" />
@@ -1303,6 +1317,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           </Button>
         </div>
       </div>
+
 
       {q.isLoading ? (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
