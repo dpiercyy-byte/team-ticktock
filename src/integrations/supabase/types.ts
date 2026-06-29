@@ -249,6 +249,56 @@ export type Database = {
           },
         ]
       }
+      weekly_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          hours: number
+          id: string
+          notes: string | null
+          paid_at: string
+          paid_by: string | null
+          reimbursement_total: number
+          wages: number
+          week_start: string
+          worker_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          hours?: number
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          reimbursement_total?: number
+          wages?: number
+          week_start: string
+          worker_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          hours?: number
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          reimbursement_total?: number
+          wages?: number
+          week_start?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_payouts_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workers: {
         Row: {
           created_at: string

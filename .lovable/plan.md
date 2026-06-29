@@ -1,58 +1,58 @@
-## Offline-safe Clock In/Out
+## Goal
 
-Goal: if a worker taps Clock In or Clock Out without internet (or the request fails mid-flight), the action is queued locally, the UI immediately reflects the pending state, and it auto-syncs the moment connectivity returns — with clear status the whole time.
+Make it easy to see which weeks are unpaid for each worker, mark a week paid in one tap, and color-code status across the Payout views.
 
-### UX
+## What you'll see
 
-- **Status pill** (top of clock-in screen) becomes the single source of truth:
-  - `Online` (green wifi)
-  - `Offline — will sync when back online` (amber wifi-off)
-  - `Syncing 1 pending action…` (spinner) while flushing
-  - `Sync failed — tap to retry` (red, tappable) if the server rejects
-- **Big clock button** stays usable offline. When tapped offline:
-  - Captures GPS (works offline) + timestamp now
-  - Optimistically flips to "Clocked in (pending sync)" / "Clocked out (pending sync)"
-  - Shows a subtle "Pending sync" chip under the timer/last tag
-- **Queued banner** above the button when ≥1 action is queued: "1 action waiting to sync" with a "Sync now" button (disabled while offline).
-- **Guards**: if an action is queued, disable the opposite action until it syncs (prevents queuing Clock Out before the pending Clock In lands). Reimbursements stay online-only for this pass (they involve file uploads) — we'll show a clear "Connect to submit" message if offline.
-- **Post-sync prompts** (off-site reason, planned job): if the synced response asks for a reason/planned job, the dialog opens automatically once the user is back in the app and the sync completes. If the app is closed at sync time, prompts surface on next open.
+**1. New "Pending" sub-tab** (Payout → Weekly | Pending | Lifetime)
+- Aggregates every unpaid week across all workers, oldest first.
+- Each row: worker name, week range, hours, total owed, status pill, "Mark paid" button.
+- Color coding:
+  - Red = overdue (week ended 14+ days ago)
+  - Amber = current/recent unpaid (week ended <14 days ago)
+  - Green = paid (hidden by default; toggle "show paid" to reveal)
+- "All time until paid" scope — every unpaid week since the worker's first entry.
 
-### Technical Implementation
+**2. Inline status on Weekly view worker cards**
+- Each card gets a colored status pill in the header: Unpaid (amber), Overdue (red), or Paid (green).
+- Card footer gets a "Mark paid" / "Mark unpaid" toggle button next to "Total owed".
+- The week selector in Weekly view (existing) lets you scroll back; older weeks show their paid state.
 
-1. **Queue store** — `src/lib/offline-queue.ts`
-   - `localStorage` key `clockwise.offlineQueue.v1`: array of `{ id, kind: "in"|"out", token, payload: { project?, lat, lng, clientTimestamp }, attempts, lastError? }`.
-   - Helpers: `enqueue`, `peek`, `remove`, `subscribe` (pub/sub for React).
-   - `clientTimestamp` is sent so the server can backdate; server change below.
+**3. Lifetime view**
+- Adds a small "Unpaid balance" stat under each worker card showing the sum of unpaid weeks.
 
-2. **Server changes** — `src/lib/entries.functions.ts`
-   - `clockIn` / `clockOut` accept optional `clientTimestamp` (ISO). When present and within a sane window (e.g. ≤24h old, not in future >2 min), use it for `clock_in` / `clock_out`; otherwise fall back to `now()`. Add `created_offline: true` flag into `metadata` of the audit log entry when used.
-   - No schema migration needed (uses existing `clock_in` / `clock_out` columns). Optional: add `audit_log` action `entry_offline_sync` with the delay in metadata.
+## Paid scope
 
-3. **Sync engine hook** — `src/hooks/use-offline-sync.ts`
-   - Subscribes to queue + `useOnline()`.
-   - On `online === true` and queue non-empty: flush head-of-line, one at a time (sequential to preserve in→out order), via the existing `clockIn`/`clockOut` server fns.
-   - On success: remove from queue, invalidate `worker-state`, surface server response (so reason/planned-job dialogs fire via callback).
-   - On failure: increment `attempts`, exponential backoff (5s/30s/2m, cap at 5m), keep item; after 5 attempts mark `status: "failed"` and require manual retry.
-   - Exposes `{ pending, syncing, lastError, retry, flush }`.
+One toggle per worker per week marks labor + reimbursements paid together (per your answer). Marking paid records who/when in the audit log.
 
-4. **Worker UI wiring** — `src/components/worker/WorkerApp.tsx`
-   - Replace direct `inMut.mutate()` / `outMut.mutate()` with a `submitClock(kind)` helper that:
-     - If online + no queue: call server fn directly (current behavior).
-     - Else: capture GPS, enqueue, optimistically update local `active` state via `queryClient.setQueryData(["worker-state", id], …)`.
-   - Render new `SyncStatusBar` component (replaces the current wifi indicator) using `use-offline-sync` state.
-   - Hook the sync engine's `onSyncComplete(serverResponse)` to the existing `reasonPrompt` / `plannedPrompt` setters so post-sync prompts still fire.
+## Technical section
 
-5. **Cross-tab safety**
-   - Listen to `storage` events so a second tab doesn't double-flush. Use a simple `localStorage` lock key (`clockwise.syncLock` with timestamp, 30s TTL).
+**New table** `public.weekly_payouts`
+- `worker_id uuid` (FK workers)
+- `week_start date` (Monday)
+- `paid_at timestamptz`
+- `paid_by text` (admin label)
+- `amount numeric` (snapshot of total owed at time of marking)
+- `hours numeric`, `reimbursement_total numeric` (snapshots)
+- `notes text nullable`
+- Unique `(worker_id, week_start)`
+- RLS deny-all (matches existing pattern); access via server functions using `supabaseAdmin` after admin token verification — same pattern as other admin functions.
+- GRANT to `service_role`; no anon/authenticated grants.
 
-### Out of scope
+**New server functions** in `src/lib/payout.functions.ts`:
+- `listPendingWeeks({ token })` → returns `[{ workerId, workerName, weekStart, weekEnd, hours, wages, reimbursements, total, status: 'overdue'|'unpaid'|'paid', paidAt? }]`, oldest unpaid first, all time.
+- `markWeekPaid({ token, workerId, weekStart })` → inserts into `weekly_payouts` with snapshot, writes audit log entry.
+- `unmarkWeekPaid({ token, workerId, weekStart })` → deletes row, writes audit log entry.
+- `weeklyPayout` extended to include `paidAt` per worker for the selected week.
 
-- Offline reimbursement submission (files + base64 in localStorage = quota risk).
-- Service worker / true PWA offline shell — only the clock action queue.
-- Conflict resolution beyond timestamp clamping (extreme clock skew still falls back to server time).
+**UI changes** in `src/components/admin/AdminApp.tsx`:
+- `PayoutsTab` gets a third tab: Weekly | Pending | Lifetime.
+- New `PendingPayoutsView` component: table/card list with status pill, color-coded left border, "Mark paid" button (mutation invalidates `pending-payouts`, `weekly-payout`, `lifetime-payout`).
+- Weekly worker cards updated with status pill in header and Mark paid/unpaid toggle in footer.
+- Status color tokens added to `src/styles.css` (`--status-overdue`, `--status-unpaid`, `--status-paid`) so no hardcoded colors.
 
-### Verification
+**Status thresholds**: overdue if `today - weekEnd >= 14 days` and not paid; otherwise unpaid; paid if a `weekly_payouts` row exists.
 
-- Manual: DevTools → Network → Offline → tap Clock In → see "Pending sync" → go back online → entry appears in admin with the offline-capture timestamp.
-- Refresh the page while offline with a queued action → state restores from localStorage and resumes on reconnect.
-- Build + tsgo clean.
+**Audit**: `mark_week_paid` / `unmark_week_paid` actions logged with worker, week, amount snapshot.
+
+No worker-side changes. No edits to existing clock or geo logic.

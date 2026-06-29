@@ -39,7 +39,7 @@ import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
   listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt,
 } from "@/lib/reimbursements.functions";
-import { weeklyPayout, exportEntriesCsv, lifetimePayout } from "@/lib/payout.functions";
+import { weeklyPayout, exportEntriesCsv, lifetimePayout, listPendingWeeks, markWeekPaid, unmarkWeekPaid } from "@/lib/payout.functions";
 import {
   adminListJobSites, adminAddJobSite, adminUpdateJobSite, adminDeleteJobSite, adminArchiveJobSite,
   adminSearchPlaces, adminBulkAddJobSites,
@@ -812,15 +812,34 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
     a.href = url; a.download = `payout-${week}.csv`; a.click(); URL.revokeObjectURL(url);
   };
 
+  const markFn = useServerFn(markWeekPaid);
+  const unmarkFn = useServerFn(unmarkWeekPaid);
+  const togglePaid = async (workerId: string, currentlyPaid: boolean) => {
+    try {
+      const r = currentlyPaid
+        ? await unmarkFn({ data: { token, workerId, weekStart: week } })
+        : await markFn({ data: { token, workerId, weekStart: week } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["payout", week] });
+      qc.invalidateQueries({ queryKey: ["pending-payouts"] });
+      toast.success(currentlyPaid ? "Marked unpaid" : "Marked paid");
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+  };
+
   return (
     <Tabs defaultValue="weekly" className="space-y-4">
       <TabsList>
         <TabsTrigger value="weekly">Weekly</TabsTrigger>
+        <TabsTrigger value="pending">Pending</TabsTrigger>
         <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
       </TabsList>
+      <TabsContent value="pending" className="mt-0">
+        <PendingPayoutsView token={token} updateToken={updateToken} />
+      </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
         <LifetimePayoutView token={token} updateToken={updateToken} />
       </TabsContent>
+
       <TabsContent value="weekly" className="mt-0 space-y-4">
       <div className="flex flex-wrap gap-3 items-end justify-between">
         <div className="flex-1 min-w-[160px]">
@@ -853,14 +872,31 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
           {pq.data?.map((s: any) => {
             const initials = s.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+            const isPaid = !!s.paidAt;
+            const accent = isPaid
+              ? "border-l-4 border-l-[var(--success)]"
+              : s.total > 0
+                ? "border-l-4 border-l-[var(--warning)]"
+                : "";
             return (
-              <Card key={s.workerId} className="overflow-hidden flex flex-col">
+              <Card key={s.workerId} className={`overflow-hidden flex flex-col ${accent}`}>
                 <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 py-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
                       {initials || "?"}
                     </span>
-                    <p className="font-semibold text-base truncate">{s.name}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-base truncate">{s.name}</p>
+                      {isPaid ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] mt-0.5 px-1.5 py-0.5 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
+                          ● Paid
+                        </span>
+                      ) : s.total > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] mt-0.5 px-1.5 py-0.5 rounded-full bg-[color-mix(in_oklab,var(--warning)_22%,transparent)] text-[var(--warning-foreground)]">
+                          ● Unpaid
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                   <Button size="sm" variant="outline"
                           onClick={() => { setReimbFor({ id: s.workerId, name: s.name }); setDesc(""); setAmt(""); }}>
@@ -897,14 +933,26 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                     </ul>
                   )}
                 </CardContent>
-                <div className="flex items-baseline justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
-                  <span className="text-sm font-semibold">Total owed</span>
-                  <span className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</span>
+                <div className="flex items-center justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Total owed</p>
+                    <p className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</p>
+                  </div>
+                  {s.total > 0 || isPaid ? (
+                    <Button
+                      size="sm"
+                      variant={isPaid ? "outline" : "default"}
+                      onClick={() => togglePaid(s.workerId, isPaid)}
+                    >
+                      {isPaid ? "Mark unpaid" : "Mark paid"}
+                    </Button>
+                  ) : null}
                 </div>
               </Card>
             );
           })}
         </div>
+
       )}
 
       <Dialog open={!!reimbFor} onOpenChange={(o) => { if (!o) { setReimbFor(null); setReceipt(null); setDesc(""); setAmt(""); } }}>
@@ -1051,7 +1099,125 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   );
 }
 
+// ===== Pending payouts =====
+function PendingPayoutsView({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const listFn = useServerFn(listPendingWeeks);
+  const markFn = useServerFn(markWeekPaid);
+  const unmarkFn = useServerFn(unmarkWeekPaid);
+  const qc = useQueryClient();
+  const [includePaid, setIncludePaid] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["pending-payouts", includePaid],
+    queryFn: () => listFn({ data: { token, includePaid } }).then(r => { updateToken(r.token); return r.items; }),
+  });
+
+  const toggle = async (workerId: string, weekStart: string, paid: boolean) => {
+    try {
+      const r = paid
+        ? await unmarkFn({ data: { token, workerId, weekStart } })
+        : await markFn({ data: { token, workerId, weekStart } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["pending-payouts"] });
+      qc.invalidateQueries({ queryKey: ["payout"] });
+      toast.success(paid ? "Marked unpaid" : "Marked paid");
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+  };
+
+  const items = q.data ?? [];
+  const outstanding = items.filter((i: any) => i.status !== "paid")
+    .reduce((s: number, i: any) => s + i.total, 0);
+
+  const statusStyles: Record<string, { dotBg: string; pillBg: string; pillText: string; border: string }> = {
+    overdue: {
+      dotBg: "bg-[var(--destructive)]",
+      pillBg: "bg-[color-mix(in_oklab,var(--destructive)_18%,transparent)]",
+      pillText: "text-[var(--destructive)]",
+      border: "border-l-[var(--destructive)]",
+    },
+    unpaid: {
+      dotBg: "bg-[var(--warning)]",
+      pillBg: "bg-[color-mix(in_oklab,var(--warning)_22%,transparent)]",
+      pillText: "text-[var(--warning-foreground)]",
+      border: "border-l-[var(--warning)]",
+    },
+    paid: {
+      dotBg: "bg-[var(--success)]",
+      pillBg: "bg-[color-mix(in_oklab,var(--success)_18%,transparent)]",
+      pillText: "text-[var(--success)]",
+      border: "border-l-[var(--success)]",
+    },
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">Outstanding across all unpaid weeks</p>
+          <p className="text-2xl font-bold tabular-nums">{fmtMoney(outstanding)}</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includePaid}
+            onChange={(e) => setIncludePaid(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Show paid weeks
+        </label>
+      </div>
+
+      {q.isLoading ? (
+        <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
+      ) : items.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-sm text-muted-foreground text-center">
+            {includePaid ? "No payouts on record yet." : "All caught up — no unpaid weeks."}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {items.map((row: any) => {
+            const s = statusStyles[row.status];
+            const weekLabel = `${fmtDate(row.weekStart)} – ${fmtDate(row.weekEnd)}`;
+            return (
+              <Card key={`${row.workerId}-${row.weekStart}`} className={`border-l-4 ${s.border}`}>
+                <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold truncate">{row.workerName}</p>
+                      <span className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full ${s.pillBg} ${s.pillText}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${s.dotBg}`} />
+                        {row.status === "overdue" ? "Overdue" : row.status === "paid" ? "Paid" : "Unpaid"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {weekLabel} · {row.hours.toFixed(2)} hrs · reimb {fmtMoney(row.reimbursements)}
+                      {row.paidAt ? ` · paid ${new Date(row.paidAt).toLocaleDateString()}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="tabular-nums font-bold">{fmtMoney(row.total)}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={row.status === "paid" ? "outline" : "default"}
+                    onClick={() => toggle(row.workerId, row.weekStart, row.status === "paid")}
+                  >
+                    {row.status === "paid" ? "Undo" : "Mark paid"}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== Lifetime payout =====
+
 function LifetimePayoutView({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const payFn = useServerFn(lifetimePayout);
   const pq = useQuery({
