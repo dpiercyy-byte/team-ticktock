@@ -1462,7 +1462,7 @@ function EditParsedDialog({
   item, sites, token, updateToken, onClose, updateFn, onSaved,
 }: {
   item: any | null;
-  sites: Array<{ id: string; label: string }>;
+  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   token: string;
   updateToken: (t: string) => void;
   onClose: () => void;
@@ -1476,7 +1476,14 @@ function EditParsedDialog({
   const [total, setTotal] = useState("");
   const [category, setCategory] = useState<string>("");
   const [jobSite, setJobSite] = useState<string>("");
+  const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
+  const [billableSite, setBillableSite] = useState<string>("");
   const [saving, setSaving] = useState(false);
+
+  const clientSites = useMemo(
+    () => sites.filter(s => (s.kind ?? "client") === "client" && !s.archived_at),
+    [sites]
+  );
 
   useEffect(() => {
     if (!item) return;
@@ -1487,10 +1494,16 @@ function EditParsedDialog({
     setTotal(item.parsedTotal != null ? String(item.parsedTotal) : "");
     setCategory(item.parsedCategory || "");
     setJobSite(item.parsedJobSiteId || "");
+    setMaterialType((item.materialType as any) || "regular");
+    setBillableSite(item.billableJobSiteId || "");
   }, [item]);
 
   const save = async () => {
     if (!item) return;
+    if (materialType === "client_billable" && !billableSite) {
+      toast.error("Pick a client to bill");
+      return;
+    }
     setSaving(true);
     try {
       const num = (s: string) => s.trim() === "" ? null : Number(s);
@@ -1503,6 +1516,8 @@ function EditParsedDialog({
         total: num(total),
         category: category || null,
         jobSiteId: jobSite || null,
+        materialType,
+        billableJobSiteId: materialType === "client_billable" ? (billableSite || null) : null,
       } });
       updateToken(r.token);
       toast.success("Saved");
@@ -1553,11 +1568,45 @@ function EditParsedDialog({
               </SelectContent>
             </Select>
           </div>
+          <div className="rounded-md border border-border p-3 space-y-2">
+            <Label className="text-xs">Material type</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={materialType === "regular" ? "default" : "outline"}
+                onClick={() => setMaterialType("regular")}
+              >Regular</Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={materialType === "client_billable" ? "default" : "outline"}
+                className={materialType === "client_billable" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                onClick={() => setMaterialType("client_billable")}
+              >Client-billable</Button>
+            </div>
+            {materialType === "client_billable" && (
+              <div>
+                <Label className="text-xs">Bill to client</Label>
+                <Select value={billableSite || "none"} onValueChange={(v) => setBillableSite(v === "none" ? "" : v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Pick a client job site" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Pick a client —</SelectItem>
+                    {clientSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {clientSites.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1">No active client job sites. Add one in Job Sites.</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
