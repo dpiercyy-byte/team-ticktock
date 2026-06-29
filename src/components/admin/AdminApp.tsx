@@ -741,6 +741,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   const qc = useQueryClient();
 
   const [week, setWeek] = useState(startOfWeekISO());
+  const [calOpen, setCalOpen] = useState(false);
 
   const pq = useQuery({
     queryKey: ["payout", week],
