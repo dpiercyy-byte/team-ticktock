@@ -916,7 +916,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                           )}
                         </div>
                       ) : s.total > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-xs mt-0.5 px-2 py-1 rounded-full bg-[color-mix(in_oklab,var(--warning)_22%,transparent)] text-[var(--warning-foreground)]">
+                        <span className="inline-flex items-center gap-1 text-sm mt-0.5 px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--warning)_22%,transparent)] text-[var(--warning-foreground)]">
                           ● Unpaid
                         </span>
                       ) : null}
