@@ -1870,7 +1870,106 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
           }}>Update</Button>
         </CardContent>
       </Card>
+
+      <GoogleSheetsSettingsCard token={token} updateToken={updateToken} />
     </div>
+  );
+}
+
+function GoogleSheetsSettingsCard({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const getFn = useServerFn(getSheetSettings);
+  const updFn = useServerFn(updateSheetSettings);
+  const backFn = useServerFn(backfillSheet);
+  const qc = useQueryClient();
+  const [sheetId, setSheetId] = useState("");
+  const [tab, setTab] = useState("Receipts");
+  const [enabled, setEnabled] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["sheet-settings"],
+    queryFn: () => getFn({ data: { token } }).then(r => { updateToken(r.token); return r; }),
+  });
+
+  useEffect(() => {
+    if (q.data?.settings) {
+      setSheetId(q.data.settings.google_sheet_id || "");
+      setTab(q.data.settings.google_sheet_tab || "Receipts");
+      setEnabled(!!q.data.settings.sheet_sync_enabled);
+    }
+  }, [q.data]);
+
+  const save = async (patch: { sheetId?: string; tab?: string; enabled?: boolean }) => {
+    setSaving(true);
+    try {
+      const r = await updFn({ data: { token, ...patch } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["sheet-settings"] });
+      toast.success("Saved");
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const backfill = async () => {
+    setBackfilling(true);
+    try {
+      const r = await backFn({ data: { token } });
+      updateToken(r.token);
+      toast.success(`Synced ${r.synced} rows${r.failed ? ` (${r.failed} failed)` : ""}`);
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setBackfilling(false); }
+  };
+
+  const connectorReady = q.data?.connectorReady;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Sheet className="h-4 w-4" /> Google Sheets sync</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!connectorReady ? (
+          <p className="text-sm text-muted-foreground">
+            Google Sheets connection missing. Reconnect via the workspace connectors panel.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Each parsed receipt is appended (or updated) as a row in your Google Sheet. Paste a Sheet URL or its ID below.
+            </p>
+            <div>
+              <Label className="text-xs">Sheet URL or ID</Label>
+              <div className="flex gap-2 mt-1">
+                <Input value={sheetId} onChange={(e) => setSheetId(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/…" />
+                <Button onClick={() => save({ sheetId })} disabled={saving} variant="outline">Save</Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Tab name</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input value={tab} onChange={(e) => setTab(e.target.value)} />
+                  <Button onClick={() => save({ tab })} disabled={saving} variant="outline">Save</Button>
+                </div>
+              </div>
+              <div className="flex items-end">
+                <div className="flex items-center justify-between w-full p-2 rounded-md border border-border">
+                  <span className="text-sm">Auto-sync</span>
+                  <Switch checked={enabled} onCheckedChange={(v) => { setEnabled(v); save({ enabled: v }); }} />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end pt-1">
+              <Button variant="outline" size="sm" onClick={backfill} disabled={backfilling || !sheetId}>
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                {backfilling ? "Syncing…" : "Backfill all receipts"}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
