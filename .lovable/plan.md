@@ -1,21 +1,34 @@
-## Increase Paid / Unpaid Tag Visibility
+## Problem
+The current week selector in the Payout tab uses a bare `<input type="date">` labeled "Week starting (Sunday)". It provides no context about the selected week range, how it relates to today, or a fast way to step between weeks.
 
-### Goal
-Bump the text size and padding on all "Paid", "Unpaid", and "Overdue" status tags across the app so they are easier to read at a glance.
+## Proposed Change
+Replace the current date input with a **combined week header bar** that includes:
 
-### Locations to update
-1. **Admin — Payout worker cards** (`AdminApp.tsx` lines 903–921)
-   - Paid badge: `text-[11px] px-1.5 py-0.5` → `text-xs px-2 py-1`
-   - Unpaid badge: `text-[11px] px-1.5 py-0.5` → `text-xs px-2 py-1`
-   - Tip/short chip: same bump
+1. **Prev / Next arrows** (`<` `>`) to step backward/forward by one week instantly.
+2. **Week range label** displayed prominently in the center, e.g.  
+   `June 22 – June 28, 2025` instead of only showing the Sunday date.
+3. **Relative context badge** next to the range:  
+   "This week", "Last week", or "2 weeks ago" when applicable.
+4. **Quick-jump chips** for instant navigation to common weeks:  
+   `This week` · `Last week` · `2 weeks ago` (horizontally scrollable on small screens).
+5. **Calendar popover trigger** (small calendar icon) that opens a Shadcn `Calendar` in a `Popover` for rare jumps to older weeks, replacing the raw date input.
 
-2. **Admin — Pending / Lifetime payout list rows** (`AdminApp.tsx` lines 1936–1939)
-   - Status pill: `text-[11px] px-1.5 py-0.5` → `text-xs px-2 py-1`
-   - Dot inside pill: `h-1.5 w-1.5` → `h-2 w-2`
-   - Tip/short chip: same bump
+## Layout Sketch
 
-3. **Worker — "Last week" pill** (`WorkerApp.tsx` line 1081)
-   - Status badge: `text-[10px] px-2 py-0.5` → `text-xs px-2.5 py-1`
+```text
+┌────────────────────────────────────────────────────┐
+│  <   June 22 – June 28, 2025   This week   >   🗓  │
+├────────────────────────────────────────────────────┤
+│  [This week] [Last week] [2 weeks ago]             │
+└────────────────────────────────────────────────────┘
+```
 
-### Expected result
-All status tags render with `text-xs` (12 px) and slightly more padding, making the paid/unpaid state readable without squinting. No functional changes.
+- Top row: stepper arrows + centered range label + relative badge + calendar trigger.
+- Second row (optional, collapsible on mobile): quick-jump chips.
+
+## Technical Details
+- Update `PayoutsTab` in `src/components/admin/AdminApp.tsx` (~lines 853–874).
+- Use existing `startOfWeekISO` / `fmtDate` utilities to compute ranges.
+- Re-use Shadcn `Popover`, `Calendar`, and `Button` components.
+- No backend changes required — this is purely a frontend UX refactor.
+- Ensure the calendar popover still snaps the selected date to the preceding Sunday.
