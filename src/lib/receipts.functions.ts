@@ -89,6 +89,10 @@ async function ensureSheetHeader(sheetId: string, tab: string) {
   });
 }
 
+export async function syncRowExternal(reimbursementId: string) {
+  return syncRow(reimbursementId);
+}
+
 async function syncRow(reimbursementId: string) {
   const { data: s } = await supabaseAdmin.from("app_settings")
     .select("google_sheet_id, google_sheet_tab, sheet_sync_enabled").eq("id", 1).single();
@@ -96,16 +100,20 @@ async function syncRow(reimbursementId: string) {
   const tab = s.google_sheet_tab || "Receipts";
 
   const { data: r } = await supabaseAdmin.from("reimbursements")
-    .select("id, description, amount, week_start, receipt_url, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, workers(name), job_sites!reimbursements_parsed_job_site_id_fkey(label)")
+    .select("id, is_admin_receipt, payee_label, description, amount, week_start, receipt_url, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, workers(name), job_sites!reimbursements_parsed_job_site_id_fkey(label)")
     .eq("id", reimbursementId).maybeSingle();
   if (!r) return { skipped: true };
 
   await ensureSheetHeader(s.google_sheet_id, tab);
 
+  const workerCell = r.is_admin_receipt
+    ? (r.payee_label || "Admin")
+    : ((r as any).workers?.name || "");
+
   const row = [
     r.id,
     r.parsed_date || "",
-    (r as any).workers?.name || "",
+    workerCell,
     r.parsed_vendor || "",
     r.description || "",
     r.parsed_category || "",
