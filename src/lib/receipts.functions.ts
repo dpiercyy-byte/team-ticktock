@@ -317,13 +317,21 @@ export const backfillSheet = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: rows } = await supabaseAdmin.from("reimbursements")
       .select("id").not("receipt_url", "is", null).order("created_at", { ascending: true }).limit(500);
-    let synced = 0; let failed = 0;
+    let synced = 0; let failed = 0; let skipped = 0;
+    let firstError: string | null = null;
     for (const r of rows ?? []) {
-      try { await syncRow(r.id); synced++; }
-      catch (e) { failed++; console.error("backfill row failed", e); }
+      try {
+        const res: any = await syncRow(r.id);
+        if (res?.skipped) skipped++; else synced++;
+      } catch (e: any) {
+        failed++;
+        if (!firstError) firstError = String(e?.message || e);
+        console.error("backfill row failed", e);
+      }
     }
-    return { ...refreshed, synced, failed };
+    return { ...refreshed, synced, failed, skipped, firstError };
   });
+
 
 export const parseUnprocessed = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
