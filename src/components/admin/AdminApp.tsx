@@ -1163,11 +1163,13 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const weeks = useMemo(() => Array.from(new Set(items.map(i => i.weekStart))).sort().reverse(), [items]);
 
   const filtered = items.filter(i => {
+    if (kind === "worker" && i.isAdminReceipt) return false;
+    if (kind === "admin" && !i.isAdminReceipt) return false;
     if (workerId !== "all" && i.workerId !== workerId) return false;
     if (weekStart !== "all" && i.weekStart !== weekStart) return false;
     if (category !== "all" && i.parsedCategory !== category) return false;
     if (search) {
-      const hay = `${i.description} ${i.parsedVendor || ""}`.toLowerCase();
+      const hay = `${i.description} ${i.parsedVendor || ""} ${i.payeeLabel || ""}`.toLowerCase();
       if (!hay.includes(search.toLowerCase())) return false;
     }
     return true;
