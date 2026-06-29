@@ -812,15 +812,34 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
     a.href = url; a.download = `payout-${week}.csv`; a.click(); URL.revokeObjectURL(url);
   };
 
+  const markFn = useServerFn(markWeekPaid);
+  const unmarkFn = useServerFn(unmarkWeekPaid);
+  const togglePaid = async (workerId: string, currentlyPaid: boolean) => {
+    try {
+      const r = currentlyPaid
+        ? await unmarkFn({ data: { token, workerId, weekStart: week } })
+        : await markFn({ data: { token, workerId, weekStart: week } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["payout", week] });
+      qc.invalidateQueries({ queryKey: ["pending-payouts"] });
+      toast.success(currentlyPaid ? "Marked unpaid" : "Marked paid");
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+  };
+
   return (
     <Tabs defaultValue="weekly" className="space-y-4">
       <TabsList>
         <TabsTrigger value="weekly">Weekly</TabsTrigger>
+        <TabsTrigger value="pending">Pending</TabsTrigger>
         <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
       </TabsList>
+      <TabsContent value="pending" className="mt-0">
+        <PendingPayoutsView token={token} updateToken={updateToken} />
+      </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
         <LifetimePayoutView token={token} updateToken={updateToken} />
       </TabsContent>
+
       <TabsContent value="weekly" className="mt-0 space-y-4">
       <div className="flex flex-wrap gap-3 items-end justify-between">
         <div className="flex-1 min-w-[160px]">
