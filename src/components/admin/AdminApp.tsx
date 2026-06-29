@@ -1432,6 +1432,14 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         updateFn={updFn}
         onSaved={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
       />
+
+      <AdminAddReceiptsDialog
+        open={adminAddOpen}
+        onClose={() => setAdminAddOpen(false)}
+        token={token}
+        updateToken={updateToken}
+        onDone={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
+      />
     </div>
   );
 }
