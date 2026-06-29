@@ -153,10 +153,8 @@ async function syncRow(reimbursementId: string) {
     r.receipt_url || "",
   ];
 
-  const lovKey = process.env.LOVABLE_API_KEY!;
-  const connKey = process.env.GOOGLE_SHEETS_API_KEY!;
-
   // Find existing row by ID in column A
+
   const findUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:A`;
   const findBody: any = await (await gw(findUrl)).json();
   const col: string[][] = findBody?.values || [];
