@@ -141,8 +141,6 @@ export const updateStandaloneReceipt = createServerFn({ method: "POST" })
     if (Object.keys(patch).length === 0) return refreshed;
     const { error } = await supabaseAdmin.from("reimbursements").update(patch).eq("id", data.id).eq("is_admin_receipt", true);
     if (error) throw error;
-    const { runParseForReimbursement: _ } = await import("./receipts.functions");
-    // re-sync sheet row with new payee label
     try {
       const { syncRowExternal } = await import("./receipts.functions");
       await syncRowExternal(data.id);
@@ -153,6 +151,7 @@ export const updateStandaloneReceipt = createServerFn({ method: "POST" })
     });
     return refreshed;
   });
+
 
 export const addReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
