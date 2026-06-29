@@ -69,7 +69,10 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
 const SHEET_COLUMNS = [
   "ID", "Date", "Worker", "Vendor", "Description", "Category", "Job Site",
   "Subtotal", "Tax", "Total", "Reimbursement Amount", "Week Start", "Receipt URL",
+  "Material Type", "Billable Client",
 ];
+const SHEET_LAST_COL = "O"; // 15 columns
+
 
 async function gw(url: string, init?: RequestInit) {
   const lovKey = process.env.LOVABLE_API_KEY!;
