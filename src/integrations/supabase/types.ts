@@ -128,6 +128,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          is_admin_receipt: boolean
           parse_confidence: number | null
           parse_raw: Json | null
           parse_status: string | null
@@ -139,17 +140,19 @@ export type Database = {
           parsed_tax: number | null
           parsed_total: number | null
           parsed_vendor: string | null
+          payee_label: string | null
           receipt_mime: string | null
           receipt_url: string | null
           sheet_row_id: string | null
           week_start: string
-          worker_id: string
+          worker_id: string | null
         }
         Insert: {
           amount: number
           created_at?: string
           description: string
           id?: string
+          is_admin_receipt?: boolean
           parse_confidence?: number | null
           parse_raw?: Json | null
           parse_status?: string | null
@@ -161,17 +164,19 @@ export type Database = {
           parsed_tax?: number | null
           parsed_total?: number | null
           parsed_vendor?: string | null
+          payee_label?: string | null
           receipt_mime?: string | null
           receipt_url?: string | null
           sheet_row_id?: string | null
           week_start: string
-          worker_id: string
+          worker_id?: string | null
         }
         Update: {
           amount?: number
           created_at?: string
           description?: string
           id?: string
+          is_admin_receipt?: boolean
           parse_confidence?: number | null
           parse_raw?: Json | null
           parse_status?: string | null
@@ -183,11 +188,12 @@ export type Database = {
           parsed_tax?: number | null
           parsed_total?: number | null
           parsed_vendor?: string | null
+          payee_label?: string | null
           receipt_mime?: string | null
           receipt_url?: string | null
           sheet_row_id?: string | null
           week_start?: string
-          worker_id?: string
+          worker_id?: string | null
         }
         Relationships: [
           {
