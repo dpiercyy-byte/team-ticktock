@@ -1699,6 +1699,13 @@ function AdminAddReceiptsDialog({
               onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
             />
           </div>
+          <div className="flex justify-center">
+            <CameraFilePicker
+              onFile={(file) => addFiles([file])}
+              disabled={busy}
+              label="Take photo or choose file"
+            />
+          </div>
 
           {files.length > 0 && (
             <div className="space-y-1 max-h-40 overflow-auto">
