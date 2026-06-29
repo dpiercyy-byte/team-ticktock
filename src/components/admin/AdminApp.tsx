@@ -22,7 +22,11 @@ import { toast } from "sonner";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
+  Sparkles, RefreshCw, Sheet,
 } from "lucide-react";
+import {
+  parseReceipt, updateParsedReceipt, getSheetSettings, updateSheetSettings, backfillSheet, parseUnprocessed,
+} from "@/lib/receipts.functions";
 
 import {
   adminLogin, adminVerify, adminChangePassword,
