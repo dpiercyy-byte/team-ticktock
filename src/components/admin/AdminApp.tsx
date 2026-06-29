@@ -1157,7 +1157,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const sites = sitesQ.data ?? [];
   const workers = useMemo(() => {
     const m = new Map<string, string>();
-    items.forEach(i => m.set(i.workerId, i.workerName));
+    items.forEach(i => { if (i.workerId) m.set(i.workerId, i.workerName); });
     return Array.from(m, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [items]);
   const weeks = useMemo(() => Array.from(new Set(items.map(i => i.weekStart))).sort().reverse(), [items]);
