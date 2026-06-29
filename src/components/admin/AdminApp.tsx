@@ -2145,7 +2145,13 @@ function GoogleSheetsSettingsCard({ token, updateToken }: { token: string; updat
     try {
       const r = await backFn({ data: { token } });
       updateToken(r.token);
-      toast.success(`Synced ${r.synced} rows${r.failed ? ` (${r.failed} failed)` : ""}`);
+      const parts = [`Synced ${r.synced}`];
+      if (r.skipped) parts.push(`${r.skipped} skipped`);
+      if (r.failed) parts.push(`${r.failed} failed`);
+      const msg = parts.join(" · ");
+      if (r.failed) toast.error(`${msg}${r.firstError ? ` — ${r.firstError}` : ""}`);
+      else toast.success(msg);
+
     } catch (e: any) { toast.error(e?.message || "Failed"); }
     finally { setBackfilling(false); }
   };

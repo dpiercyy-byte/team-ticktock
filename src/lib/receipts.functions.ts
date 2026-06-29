@@ -71,23 +71,50 @@ const SHEET_COLUMNS = [
   "Subtotal", "Tax", "Total", "Reimbursement Amount", "Week Start", "Receipt URL",
 ];
 
-async function ensureSheetHeader(sheetId: string, tab: string) {
+async function gw(url: string, init?: RequestInit) {
   const lovKey = process.env.LOVABLE_API_KEY!;
   const connKey = process.env.GOOGLE_SHEETS_API_KEY!;
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      ...(init?.headers || {}),
+      Authorization: `Bearer ${lovKey}`,
+      "X-Connection-Api-Key": connKey,
+    },
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Sheets ${res.status}: ${t.slice(0, 300)}`);
+  }
+  return res;
+}
+
+async function ensureTabExists(sheetId: string, tab: string) {
+  const metaUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`;
+  const meta: any = await (await gw(metaUrl)).json();
+  const titles: string[] = (meta?.sheets || []).map((s: any) => s?.properties?.title).filter(Boolean);
+  if (titles.includes(tab)) return;
+  await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: tab } } }] }),
+  });
+}
+
+async function ensureSheetHeader(sheetId: string, tab: string) {
+  await ensureTabExists(sheetId, tab);
   const range = `${tab}!A1:M1`;
   const url = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}/values/${range}`;
-  const get = await fetch(url, {
-    headers: { Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
-  });
-  const body: any = await get.json().catch(() => ({}));
-  const have = body?.values?.[0] || [];
+  const get: any = await (await gw(url)).json();
+  const have = get?.values?.[0] || [];
   if (have.length >= SHEET_COLUMNS.length) return;
-  await fetch(url + "?valueInputOption=USER_ENTERED", {
+  await gw(url + "?valueInputOption=USER_ENTERED", {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ values: [SHEET_COLUMNS] }),
   });
 }
+
 
 export async function syncRowExternal(reimbursementId: string) {
   return syncRow(reimbursementId);
@@ -126,15 +153,10 @@ async function syncRow(reimbursementId: string) {
     r.receipt_url || "",
   ];
 
-  const lovKey = process.env.LOVABLE_API_KEY!;
-  const connKey = process.env.GOOGLE_SHEETS_API_KEY!;
-
   // Find existing row by ID in column A
+
   const findUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:A`;
-  const findRes = await fetch(findUrl, {
-    headers: { Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
-  });
-  const findBody: any = await findRes.json().catch(() => ({}));
+  const findBody: any = await (await gw(findUrl)).json();
   const col: string[][] = findBody?.values || [];
   let rowIdx = -1;
   for (let i = 1; i < col.length; i++) {
@@ -143,18 +165,19 @@ async function syncRow(reimbursementId: string) {
 
   if (rowIdx > 0) {
     const range = `${tab}!A${rowIdx}:M${rowIdx}`;
-    await fetch(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${range}?valueInputOption=USER_ENTERED`, {
+    await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${range}?valueInputOption=USER_ENTERED`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ values: [row] }),
     });
   } else {
-    await fetch(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:M:append?valueInputOption=USER_ENTERED`, {
+    await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:M:append?valueInputOption=USER_ENTERED`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ values: [row] }),
     });
   }
+
 
   await supabaseAdmin.from("reimbursements").update({ sheet_row_id: reimbursementId }).eq("id", reimbursementId);
   return { ok: true };
@@ -294,13 +317,21 @@ export const backfillSheet = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: rows } = await supabaseAdmin.from("reimbursements")
       .select("id").not("receipt_url", "is", null).order("created_at", { ascending: true }).limit(500);
-    let synced = 0; let failed = 0;
+    let synced = 0; let failed = 0; let skipped = 0;
+    let firstError: string | null = null;
     for (const r of rows ?? []) {
-      try { await syncRow(r.id); synced++; }
-      catch (e) { failed++; console.error("backfill row failed", e); }
+      try {
+        const res: any = await syncRow(r.id);
+        if (res?.skipped) skipped++; else synced++;
+      } catch (e: any) {
+        failed++;
+        if (!firstError) firstError = String(e?.message || e);
+        console.error("backfill row failed", e);
+      }
     }
-    return { ...refreshed, synced, failed };
+    return { ...refreshed, synced, failed, skipped, firstError };
   });
+
 
 export const parseUnprocessed = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
