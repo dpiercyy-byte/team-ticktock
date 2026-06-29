@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, Upload, X, FileText, Trash2, Paperclip, Banknote,
+  Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, X, FileText, Trash2, Paperclip, Banknote,
   MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2,
 } from "lucide-react";
 import { CameraFilePicker } from "@/components/CameraFilePicker";
