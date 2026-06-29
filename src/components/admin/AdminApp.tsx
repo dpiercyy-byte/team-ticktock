@@ -1125,7 +1125,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [weekStart, setWeekStart] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
   const [kind, setKind] = useState<"all" | "worker" | "admin">("all");
+  const [materialType, setMaterialType] = useState<"all" | "regular" | "client_billable">("all");
   const [search, setSearch] = useState("");
+
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
