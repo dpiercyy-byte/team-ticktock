@@ -1216,7 +1216,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   }
 
   function csvExport() {
-    const headers = ["Date","Worker","Vendor","Description","Category","Job Site","Subtotal","Tax","Total","Amount","Week","Receipt"];
+    const headers = ["Date","Worker","Vendor","Description","Category","Job Site","Subtotal","Tax","Total","Amount","Week","Material Type","Billable Client","Receipt"];
     const lines = [headers.join(",")];
     filtered.forEach(i => {
       const row = [
@@ -1231,10 +1231,13 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         i.parsedTotal ?? "",
         i.amount,
         i.weekStart,
+        (i.materialType ?? "regular") === "client_billable" ? "Client Billable" : "Regular",
+        i.billableJobSiteLabel || "",
         i.receiptUrl || "",
       ].map(v => `"${String(v).replace(/"/g, '""')}"`);
       lines.push(row.join(","));
     });
+
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
