@@ -1117,7 +1117,167 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   );
 }
 
+// ===== Receipts (all reimbursements with attachments) =====
+function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const listFn = useServerFn(listAllReceipts);
+  const [workerId, setWorkerId] = useState<string>("all");
+  const [weekStart, setWeekStart] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
+
+  const q = useQuery({
+    queryKey: ["all-receipts"],
+    queryFn: () => listFn({ data: { token, withReceiptOnly: true, limit: 500 } })
+      .then(r => { updateToken(r.token); return r.items; }),
+  });
+
+  const items = q.data ?? [];
+  const workers = useMemo(() => {
+    const m = new Map<string, string>();
+    items.forEach(i => m.set(i.workerId, i.workerName));
+    return Array.from(m, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
+  const weeks = useMemo(() => Array.from(new Set(items.map(i => i.weekStart))).sort().reverse(), [items]);
+
+  const filtered = items.filter(i => {
+    if (workerId !== "all" && i.workerId !== workerId) return false;
+    if (weekStart !== "all" && i.weekStart !== weekStart) return false;
+    if (search && !i.description.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const totalAmt = filtered.reduce((s, i) => s + i.amount, 0);
+
+  function downloadName(i: typeof items[number]) {
+    const ext = (i.receiptMime === "application/pdf") ? "pdf"
+              : (i.receiptMime === "image/png") ? "png" : "jpg";
+    const safe = (s: string) => s.replace(/[^a-z0-9-]+/gi, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+    return `${safe(i.workerName)}-${i.weekStart}-${safe(i.description)}.${ext}`;
+  }
+
+  async function handleDownload(i: typeof items[number]) {
+    if (!i.receiptUrl) return;
+    try {
+      const res = await fetch(i.receiptUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = downloadName(i);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      window.open(i.receiptUrl, "_blank");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-[160px]">
+          <Label className="text-xs">Worker</Label>
+          <Select value={workerId} onValueChange={setWorkerId}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All workers</SelectItem>
+              {workers.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-1 min-w-[160px]">
+          <Label className="text-xs">Week</Label>
+          <Select value={weekStart} onValueChange={setWeekStart}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All weeks</SelectItem>
+              {weeks.map(w => <SelectItem key={w} value={w}>{fmtDate(w)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <Label className="text-xs">Search description</Label>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="paint, gas, …" className="mt-1.5" />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+        <span>{filtered.length} receipt{filtered.length === 1 ? "" : "s"}</span>
+        <span>Total: <span className="font-semibold text-foreground">{fmtMoney(totalAmt)}</span></span>
+      </div>
+
+      {q.isLoading ? (
+        <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
+      ) : filtered.length === 0 ? (
+        <Card className="border-dashed"><CardContent className="p-10 text-sm text-muted-foreground text-center">
+          No receipts match these filters.
+        </CardContent></Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filtered.map(i => {
+            const isPdf = (i.receiptMime || "").includes("pdf");
+            return (
+              <Card key={i.id} className="overflow-hidden flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => i.receiptUrl && setViewing({ url: i.receiptUrl, mime: i.receiptMime || "image/jpeg" })}
+                  className="block aspect-[4/3] bg-muted overflow-hidden hover:opacity-90 transition"
+                >
+                  {isPdf ? (
+                    <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+                      <Paperclip className="h-8 w-8" />
+                      <span className="text-xs">PDF receipt</span>
+                    </div>
+                  ) : (
+                    <img src={i.receiptUrl!} alt={i.description} className="h-full w-full object-cover" />
+                  )}
+                </button>
+                <CardContent className="p-3 space-y-2 flex-1 flex flex-col">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{i.workerName}</p>
+                      <p className="text-xs text-muted-foreground">Week of {fmtDate(i.weekStart)}</p>
+                    </div>
+                    <p className="font-semibold text-sm whitespace-nowrap">{fmtMoney(i.amount)}</p>
+                  </div>
+                  <p className="text-sm truncate" title={i.description}>{i.description}</p>
+                  <div className="flex gap-2 mt-auto pt-1">
+                    <Button size="sm" variant="outline" className="flex-1"
+                      onClick={() => i.receiptUrl && setViewing({ url: i.receiptUrl, mime: i.receiptMime || "image/jpeg" })}>
+                      View
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleDownload(i)} title="Download">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>Receipt</DialogTitle></DialogHeader>
+          {viewing && (viewing.mime === "application/pdf" ? (
+            <iframe src={viewing.url} title="Receipt" className="w-full h-[70vh] rounded-md border border-border" />
+          ) : (
+            <img src={viewing.url} alt="Receipt" className="w-full max-h-[70vh] object-contain rounded-md" />
+          ))}
+          {viewing && (
+            <DialogFooter>
+              <a href={viewing.url} target="_blank" rel="noreferrer">
+                <Button variant="outline">Open in new tab</Button>
+              </a>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ===== Pending payouts =====
+
 function PendingPayoutsView({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const listFn = useServerFn(listPendingWeeks);
   const markFn = useServerFn(markWeekPaid);
