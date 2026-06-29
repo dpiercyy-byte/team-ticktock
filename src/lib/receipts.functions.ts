@@ -106,7 +106,7 @@ async function ensureTabExists(sheetId: string, tab: string) {
 
 async function ensureSheetHeader(sheetId: string, tab: string) {
   await ensureTabExists(sheetId, tab);
-  const range = `${tab}!A1:M1`;
+  const range = `${tab}!A1:${SHEET_LAST_COL}1`;
   const url = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${sheetId}/values/${range}`;
   const get: any = await (await gw(url)).json();
   const have = get?.values?.[0] || [];
@@ -117,6 +117,7 @@ async function ensureSheetHeader(sheetId: string, tab: string) {
     body: JSON.stringify({ values: [SHEET_COLUMNS] }),
   });
 }
+
 
 
 export async function syncRowExternal(reimbursementId: string) {
