@@ -54,7 +54,7 @@ import {
 import { adminListAuditLog } from "@/lib/audit.functions";
 
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/session";
-import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours } from "@/lib/format";
+import { fmtHours, fmtMoney, fmtTime, fmtDate, startOfWeekISO, diffHours, addDaysISO, weekRangeLabel, relativeWeekLabel } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
