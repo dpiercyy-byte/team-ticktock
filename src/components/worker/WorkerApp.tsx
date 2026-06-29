@@ -486,6 +486,8 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
             </div>
 
             <ReimbursementsSection token={session.token} workerId={session.id} />
+            <PreviousWeekPill token={session.token} workerId={session.id} />
+
           </>
         )}
       </main>
