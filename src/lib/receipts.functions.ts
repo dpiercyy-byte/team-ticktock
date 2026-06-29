@@ -158,10 +158,7 @@ async function syncRow(reimbursementId: string) {
 
   // Find existing row by ID in column A
   const findUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:A`;
-  const findRes = await fetch(findUrl, {
-    headers: { Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
-  });
-  const findBody: any = await findRes.json().catch(() => ({}));
+  const findBody: any = await (await gw(findUrl)).json();
   const col: string[][] = findBody?.values || [];
   let rowIdx = -1;
   for (let i = 1; i < col.length; i++) {
@@ -170,18 +167,19 @@ async function syncRow(reimbursementId: string) {
 
   if (rowIdx > 0) {
     const range = `${tab}!A${rowIdx}:M${rowIdx}`;
-    await fetch(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${range}?valueInputOption=USER_ENTERED`, {
+    await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${range}?valueInputOption=USER_ENTERED`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ values: [row] }),
     });
   } else {
-    await fetch(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:M:append?valueInputOption=USER_ENTERED`, {
+    await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:M:append?valueInputOption=USER_ENTERED`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovKey}`, "X-Connection-Api-Key": connKey },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ values: [row] }),
     });
   }
+
 
   await supabaseAdmin.from("reimbursements").update({ sheet_row_id: reimbursementId }).eq("id", reimbursementId);
   return { ok: true };
