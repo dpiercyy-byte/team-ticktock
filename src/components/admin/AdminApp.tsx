@@ -41,7 +41,8 @@ import {
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
-  listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt, listAllReceipts,
+ listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt, listAllReceipts,
+ adminAddStandaloneReceipt, updateStandaloneReceipt,
 } from "@/lib/reimbursements.functions";
 import { weeklyPayout, exportEntriesCsv, lifetimePayout, listPendingWeeks, markWeekPaid, unmarkWeekPaid } from "@/lib/payout.functions";
 import {
