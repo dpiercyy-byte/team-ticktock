@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +41,8 @@ import {
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
-  listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt, listAllReceipts,
+ listReimbursements, addReimbursement, deleteReimbursement, uploadReceipt, listAllReceipts,
+ adminAddStandaloneReceipt, updateStandaloneReceipt,
 } from "@/lib/reimbursements.functions";
 import { weeklyPayout, exportEntriesCsv, lifetimePayout, listPendingWeeks, markWeekPaid, unmarkWeekPaid } from "@/lib/payout.functions";
 import {
@@ -1134,10 +1135,12 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [workerId, setWorkerId] = useState<string>("all");
   const [weekStart, setWeekStart] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
+  const [kind, setKind] = useState<"all" | "worker" | "admin">("all");
   const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [adminAddOpen, setAdminAddOpen] = useState(false);
 
   const q = useQuery({
     queryKey: ["all-receipts"],
@@ -1154,17 +1157,19 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const sites = sitesQ.data ?? [];
   const workers = useMemo(() => {
     const m = new Map<string, string>();
-    items.forEach(i => m.set(i.workerId, i.workerName));
+    items.forEach(i => { if (i.workerId) m.set(i.workerId, i.workerName); });
     return Array.from(m, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [items]);
   const weeks = useMemo(() => Array.from(new Set(items.map(i => i.weekStart))).sort().reverse(), [items]);
 
   const filtered = items.filter(i => {
+    if (kind === "worker" && i.isAdminReceipt) return false;
+    if (kind === "admin" && !i.isAdminReceipt) return false;
     if (workerId !== "all" && i.workerId !== workerId) return false;
     if (weekStart !== "all" && i.weekStart !== weekStart) return false;
     if (category !== "all" && i.parsedCategory !== category) return false;
     if (search) {
-      const hay = `${i.description} ${i.parsedVendor || ""}`.toLowerCase();
+      const hay = `${i.description} ${i.parsedVendor || ""} ${i.payeeLabel || ""}`.toLowerCase();
       if (!hay.includes(search.toLowerCase())) return false;
     }
     return true;
@@ -1278,6 +1283,17 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             </SelectContent>
           </Select>
         </div>
+        <div className="flex-1 min-w-[120px]">
+          <Label className="text-xs">Kind</Label>
+          <Select value={kind} onValueChange={(v) => setKind(v as any)}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="worker">Worker</SelectItem>
+              <SelectItem value="admin">Admin only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex-1 min-w-[200px]">
           <Label className="text-xs">Search vendor / description</Label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="home depot, paint…" className="mt-1.5" />
@@ -1287,6 +1303,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
       <div className="flex items-center justify-between text-sm text-muted-foreground px-1 flex-wrap gap-2">
         <span>{filtered.length} receipt{filtered.length === 1 ? "" : "s"} · Total: <span className="font-semibold text-foreground">{fmtMoney(totalAmt)}</span></span>
         <div className="flex gap-2">
+          <Button size="sm" onClick={() => setAdminAddOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> Add receipts
+          </Button>
           {unparsedCount > 0 && (
             <Button size="sm" variant="outline" onClick={parseAll} disabled={busyId === "ALL"}>
               <Sparkles className="h-3.5 w-3.5 mr-1.5" />
@@ -1298,6 +1317,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           </Button>
         </div>
       </div>
+
 
       {q.isLoading ? (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
@@ -1336,6 +1356,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     <img src={i.receiptUrl!} alt={i.description} className="h-full w-full object-cover" />
                   )}
                   <span className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
+                  {i.isAdminReceipt && (
+                    <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-400">Admin</span>
+                  )}
                 </button>
                 <CardContent className="p-3 space-y-2 flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-2">
@@ -1408,6 +1431,14 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         onClose={() => setEditing(null)}
         updateFn={updFn}
         onSaved={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
+      />
+
+      <AdminAddReceiptsDialog
+        open={adminAddOpen}
+        onClose={() => setAdminAddOpen(false)}
+        token={token}
+        updateToken={updateToken}
+        onDone={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
       />
     </div>
   );
@@ -1518,8 +1549,206 @@ function EditParsedDialog({
   );
 }
 
+// ===== Admin standalone receipt bulk upload =====
+
+const ADMIN_ALLOWED_MIMES = new Set(["image/jpeg", "image/png", "application/pdf"]);
+
+function currentWeekStartISOClient(): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().slice(0, 10);
+}
+
+function AdminAddReceiptsDialog({
+  open, onClose, token, updateToken, onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  token: string;
+  updateToken: (t: string) => void;
+  onDone: () => void;
+}) {
+  const uploadFn = useServerFn(uploadReceipt);
+  const addFn = useServerFn(adminAddStandaloneReceipt);
+  const [payee, setPayee] = useState("");
+  const [description, setDescription] = useState("");
+  const [weekStart, setWeekStart] = useState(currentWeekStartISOClient());
+  const [files, setFiles] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setPayee(""); setDescription(""); setFiles([]);
+      setProgress(null); setBusy(false);
+      setWeekStart(currentWeekStartISOClient());
+    }
+  }, [open]);
+
+  const addFiles = (list: FileList | File[]) => {
+    const incoming = Array.from(list).filter(f => {
+      if (!ADMIN_ALLOWED_MIMES.has(f.type)) {
+        toast.error(`Skipped ${f.name}: must be JPG, PNG, or PDF`);
+        return false;
+      }
+      if (f.size > 10 * 1024 * 1024) {
+        toast.error(`Skipped ${f.name}: over 10MB`);
+        return false;
+      }
+      return true;
+    });
+    setFiles(prev => [...prev, ...incoming].slice(0, 10));
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+  };
+
+  const fileToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = reader.result as string;
+      const idx = res.indexOf("base64,");
+      resolve(idx >= 0 ? res.slice(idx + 7) : res);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  const submit = async () => {
+    if (!payee.trim()) { toast.error("Payee is required"); return; }
+    if (files.length === 0) { toast.error("Add at least one file"); return; }
+    setBusy(true);
+    setProgress({ done: 0, total: files.length });
+    let ok = 0, failed = 0;
+    for (const f of files) {
+      try {
+        const base64 = await fileToBase64(f);
+        const up = await uploadFn({ data: {
+          token, filename: f.name, mime: f.type as any, base64,
+        } });
+        updateToken(up.token);
+        const r = await addFn({ data: {
+          token: up.token,
+          payeeLabel: payee.trim(),
+          description: description.trim() || undefined,
+          weekStart,
+          receiptUrl: up.url,
+          receiptMime: up.mime,
+        } });
+        updateToken(r.token);
+        ok++;
+      } catch (e: any) {
+        failed++;
+        console.error("admin receipt upload failed", e);
+      } finally {
+        setProgress(p => p ? { done: p.done + 1, total: p.total } : null);
+      }
+    }
+    setBusy(false);
+    if (ok > 0) toast.success(`Uploaded ${ok} receipt${ok === 1 ? "" : "s"}${failed ? ` (${failed} failed)` : ""} — parsing in background`);
+    if (ok === 0 && failed > 0) toast.error("All uploads failed");
+    onDone();
+    if (ok > 0) onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add receipts</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Business receipts not tied to a worker. Each file is parsed by AI and added to your Google Sheet.
+          </p>
+          <div>
+            <Label className="text-xs">Payee <span className="text-red-500">*</span></Label>
+            <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="e.g. Home Depot, Acme Plumbing" className="mt-1" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Week</Label>
+              <Input type="date" value={weekStart} onChange={(e) => {
+                const [y, m, d] = e.target.value.split("-").map(Number);
+                if (!y) return;
+                const dt = new Date(y, (m || 1) - 1, d || 1);
+                dt.setDate(dt.getDate() - dt.getDay());
+                const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+                setWeekStart(iso);
+              }} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Note (optional)</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="optional" className="mt-1" />
+            </div>
+          </div>
+
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            onClick={() => inputRef.current?.click()}
+            className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition ${
+              dragOver ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+            }`}
+          >
+            <Paperclip className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm">Drop files or click to choose</p>
+            <p className="text-[11px] text-muted-foreground mt-1">JPG, PNG, PDF · up to 10 files · 10MB each</p>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,application/pdf"
+              multiple
+              className="hidden"
+              onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+            />
+          </div>
+
+          {files.length > 0 && (
+            <div className="space-y-1 max-h-40 overflow-auto">
+              {files.map((f, idx) => (
+                <div key={`${f.name}-${idx}`} className="flex items-center justify-between gap-2 text-xs bg-muted/50 rounded px-2 py-1">
+                  <span className="truncate flex-1">{f.name}</span>
+                  <span className="text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
+                  <button
+                    type="button"
+                    onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))}
+                    className="text-muted-foreground hover:text-red-500"
+                    disabled={busy}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {progress && (
+            <p className="text-xs text-center text-muted-foreground">
+              Uploading {progress.done} / {progress.total}…
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button onClick={submit} disabled={busy || files.length === 0 || !payee.trim()}>
+            {busy ? "Uploading…" : `Upload ${files.length || ""}`.trim()}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 // ===== Pending payouts =====
+
+
 
 function PendingPayoutsView({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const listFn = useServerFn(listPendingWeeks);

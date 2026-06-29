@@ -164,6 +164,7 @@ export const listPendingWeeks = createServerFn({ method: "POST" })
       buckets.set(key, cur);
     }
     for (const r of reimbs ?? []) {
+      if (!r.worker_id) continue; // skip admin (standalone) receipts
       const wk = String(r.week_start);
       const key = `${r.worker_id}|${wk}`;
       const cur = buckets.get(key) ?? { workerId: r.worker_id, weekStart: wk, hours: 0, reimbTotal: 0 };
