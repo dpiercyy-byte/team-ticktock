@@ -249,6 +249,8 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     total: z.number().nullable().optional(),
     category: z.enum(CATEGORIES).nullable().optional(),
     jobSiteId: z.string().uuid().nullable().optional(),
+    materialType: z.enum(["regular", "client_billable"]).optional(),
+    billableJobSiteId: z.string().uuid().nullable().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
@@ -260,6 +262,28 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     if (data.total !== undefined) patch.parsed_total = data.total;
     if (data.category !== undefined) patch.parsed_category = data.category;
     if (data.jobSiteId !== undefined) patch.parsed_job_site_id = data.jobSiteId;
+    if (data.materialType !== undefined) patch.material_type = data.materialType;
+    if (data.billableJobSiteId !== undefined) patch.billable_job_site_id = data.billableJobSiteId;
+
+    // Validate: client-billable must reference a real, active client job site
+    const willBeBillable = data.materialType === "client_billable"
+      || (data.materialType === undefined && data.billableJobSiteId);
+    if (willBeBillable) {
+      const targetId = data.billableJobSiteId;
+      if (!targetId) {
+        // allow clearing material_type back to regular by passing materialType: 'regular'
+        // but if marking billable, require a site
+        if (data.materialType === "client_billable") throw new Error("Pick a client job site to bill");
+      } else {
+        const { data: site } = await supabaseAdmin.from("job_sites")
+          .select("id, kind, archived_at").eq("id", targetId).maybeSingle();
+        if (!site || site.kind !== "client" || site.archived_at) {
+          throw new Error("Billable job site must be an active client site");
+        }
+      }
+    }
+    // If switching back to regular, clear billable link
+    if (data.materialType === "regular") patch.billable_job_site_id = null;
 
     const { error } = await supabaseAdmin.from("reimbursements").update(patch).eq("id", data.id);
     if (error) throw error;
@@ -272,6 +296,7 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     try { await syncRow(data.id); } catch (e) { console.error("sheet sync failed", e); }
     return refreshed;
   });
+
 
 // ---------- Sheets settings ----------
 
