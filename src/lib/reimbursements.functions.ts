@@ -43,7 +43,7 @@ export const listAllReceipts = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin
       .from("reimbursements")
-      .select("id, worker_id, description, amount, week_start, created_at, receipt_url, receipt_mime, workers(name)")
+      .select("id, worker_id, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, workers(name), job_sites!reimbursements_parsed_job_site_id_fkey(label)")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 500);
     if (data.workerId) q = q.eq("worker_id", data.workerId);
@@ -61,6 +61,16 @@ export const listAllReceipts = createServerFn({ method: "POST" })
       createdAt: r.created_at as string,
       receiptUrl: r.receipt_url as string | null,
       receiptMime: r.receipt_mime as string | null,
+      parsedVendor: r.parsed_vendor as string | null,
+      parsedDate: r.parsed_date as string | null,
+      parsedSubtotal: r.parsed_subtotal == null ? null : Number(r.parsed_subtotal),
+      parsedTax: r.parsed_tax == null ? null : Number(r.parsed_tax),
+      parsedTotal: r.parsed_total == null ? null : Number(r.parsed_total),
+      parsedCategory: r.parsed_category as string | null,
+      parsedJobSiteId: r.parsed_job_site_id as string | null,
+      parsedJobSiteLabel: r.job_sites?.label ?? null,
+      parseStatus: r.parse_status as string | null,
+      parseConfidence: r.parse_confidence == null ? null : Number(r.parse_confidence),
     }));
     return { ...refreshed, items };
   });
@@ -85,6 +95,10 @@ export const addReimbursement = createServerFn({ method: "POST" })
       receipt_mime: data.receiptMime ?? null,
     }).select("id").single();
     if (error) throw error;
+    if (inserted?.id && data.receiptUrl) {
+      const { runParseForReimbursement } = await import("./receipts.functions");
+      runParseForReimbursement(inserted.id).catch((e) => console.error("parse trigger", e));
+    }
     await logAudit({
       actor: { kind: "admin" },
       action: "reimbursement_create",
@@ -188,6 +202,10 @@ export const workerSubmitReimbursement = createServerFn({ method: "POST" })
       receipt_mime: data.receiptMime ?? null,
     }).select("id").single();
     if (error) throw error;
+    if (inserted?.id && data.receiptUrl) {
+      const { runParseForReimbursement } = await import("./receipts.functions");
+      runParseForReimbursement(inserted.id).catch((e) => console.error("parse trigger", e));
+    }
     await logAudit({
       actor: { kind: "worker", id: wid },
       action: "reimbursement_create",
