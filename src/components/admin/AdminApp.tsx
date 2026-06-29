@@ -888,9 +888,20 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                     <div className="min-w-0">
                       <p className="font-semibold text-base truncate">{s.name}</p>
                       {isPaid ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] mt-0.5 px-1.5 py-0.5 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
-                          ● Paid
-                        </span>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                          <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
+                            ● Paid
+                          </span>
+                          {s.tipAmount != null && Math.abs(s.tipAmount) >= 0.005 && (
+                            <span className={`inline-flex items-center text-[11px] px-1.5 py-0.5 rounded-full ${
+                              s.tipAmount > 0
+                                ? "bg-[color-mix(in_oklab,var(--success)_15%,transparent)] text-[var(--success)]"
+                                : "bg-[color-mix(in_oklab,var(--destructive)_15%,transparent)] text-[var(--destructive)]"
+                            }`}>
+                              {s.tipAmount > 0 ? `+${fmtMoney(s.tipAmount)} tip` : `${fmtMoney(s.tipAmount)} short`}
+                            </span>
+                          )}
+                        </div>
                       ) : s.total > 0 ? (
                         <span className="inline-flex items-center gap-1 text-[11px] mt-0.5 px-1.5 py-0.5 rounded-full bg-[color-mix(in_oklab,var(--warning)_22%,transparent)] text-[var(--warning-foreground)]">
                           ● Unpaid
