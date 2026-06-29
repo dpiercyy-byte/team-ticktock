@@ -853,27 +853,70 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
       </TabsContent>
 
       <TabsContent value="weekly" className="mt-0 space-y-4">
-      <div className="flex flex-wrap gap-3 items-end justify-between">
-        <div className="flex-1 min-w-[160px]">
-          <Label className="text-xs">Week starting (Sunday)</Label>
-          <Input type="date" value={week} onChange={(e) => {
-            const [y, m, day] = e.target.value.split("-").map(Number);
-            if (!y || !m || !day) return;
-            const d = new Date(y, m - 1, day);
-            d.setDate(d.getDate() - d.getDay());
-            const pad = (n: number) => String(n).padStart(2, "0");
-            setWeek(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-          }} className="mt-1.5 w-full sm:w-[200px]" />
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => setWeek(addDaysISO(week, -7))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1 text-center min-w-0">
+              <div className="text-sm font-semibold truncate">{weekRangeLabel(week)}</div>
+              {(() => {
+                const rel = relativeWeekLabel(week);
+                return rel ? <Badge variant="secondary" className="mt-0.5 text-xs">{rel}</Badge> : null;
+              })()}
+            </div>
+            <Button variant="outline" size="icon" onClick={() => setWeek(addDaysISO(week, 7))}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Popover open={calOpen} onOpenChange={setCalOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <CalendarIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
+                <Calendar
+                  mode="single"
+                  selected={new Date(week + "T00:00:00")}
+                  onSelect={(d) => {
+                    if (!d) return;
+                    const x = new Date(d);
+                    x.setDate(x.getDate() - x.getDay());
+                    const pad = (n: number) => String(n).padStart(2, "0");
+                    setWeek(`${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`);
+                    setCalOpen(false);
+                  }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <div className="flex flex-wrap gap-2 ml-auto">
+              <Button variant="outline" onClick={downloadCsv} className="flex-1 sm:flex-none">
+                <Download className="h-4 w-4 mr-2" /><span className="hidden xs:inline">Time entries </span>CSV
+              </Button>
+              <Button onClick={downloadPayoutCsv} className="flex-1 sm:flex-none">
+                <Download className="h-4 w-4 mr-2" />Payout CSV
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "This week", val: startOfWeekISO() },
+              { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
+              { label: "2 weeks ago", val: addDaysISO(startOfWeekISO(), -14) },
+            ].map((chip) => (
+              <Button
+                key={chip.label}
+                variant={week === chip.val ? "default" : "outline"}
+                size="sm"
+                onClick={() => setWeek(chip.val)}
+              >
+                {chip.label}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button variant="outline" onClick={downloadCsv} className="flex-1 sm:flex-none">
-            <Download className="h-4 w-4 mr-2" /><span className="hidden xs:inline">Time entries </span>CSV
-          </Button>
-          <Button onClick={downloadPayoutCsv} className="flex-1 sm:flex-none">
-            <Download className="h-4 w-4 mr-2" />Payout CSV
-          </Button>
-        </div>
-      </div>
 
       {pq.isLoading ? (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
