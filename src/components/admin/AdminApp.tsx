@@ -27,6 +27,7 @@ import {
 import {
   parseReceipt, updateParsedReceipt, getSheetSettings, updateSheetSettings, backfillSheet, parseUnprocessed,
 } from "@/lib/receipts.functions";
+import { CameraFilePicker } from "@/components/CameraFilePicker";
 
 import {
   adminLogin, adminVerify, adminChangePassword,
