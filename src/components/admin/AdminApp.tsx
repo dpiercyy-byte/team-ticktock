@@ -934,14 +934,10 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
       <TabsList>
         <TabsTrigger value="weekly">Weekly</TabsTrigger>
         <TabsTrigger value="pending">Pending</TabsTrigger>
-        <TabsTrigger value="receipts">Receipts</TabsTrigger>
         <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
       </TabsList>
       <TabsContent value="pending" className="mt-0">
         <PendingPayoutsView token={token} updateToken={updateToken} />
-      </TabsContent>
-      <TabsContent value="receipts" className="mt-0">
-        <ReceiptsTab token={token} updateToken={updateToken} />
       </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
         <LifetimePayoutView token={token} updateToken={updateToken} />
