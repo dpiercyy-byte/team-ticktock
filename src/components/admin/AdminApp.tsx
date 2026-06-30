@@ -192,6 +192,7 @@ function AdminDashboard({ token, updateToken, onLogout }: {
           </div>
           <TabsContent value="entries"><EntriesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
+          <TabsContent value="receipts"><ReceiptsTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="sites"><JobSitesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="audit"><AuditTab token={token} updateToken={updateToken} /></TabsContent>
