@@ -206,6 +206,11 @@ export const deleteReimbursement = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("reimbursements").delete().eq("id", data.id);
     if (error) throw error;
+    try {
+      const { deleteSheetRowExternal } = await import("./receipts.functions");
+      await deleteSheetRowExternal(data.id);
+    } catch (e) { console.error("sheet row delete failed", e); }
+
     await logAudit({
       actor: { kind: "admin" },
       action: "reimbursement_delete",
