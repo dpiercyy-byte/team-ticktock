@@ -303,6 +303,7 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     jobSiteId: z.string().uuid().nullable().optional(),
     materialType: z.enum(["regular", "client_billable"]).optional(),
     billableJobSiteId: z.string().uuid().nullable().optional(),
+    description: z.string().trim().max(500).nullable().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
