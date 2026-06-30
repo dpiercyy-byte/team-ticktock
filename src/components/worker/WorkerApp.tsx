@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel,
 } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -28,7 +28,7 @@ import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
 import { getWorkerState, clockIn, clockOut, workerSetEntryReason, workerListActiveClientSites, workerSetPlannedJob } from "@/lib/entries.functions";
 import {
   workerSubmitReimbursement, workerUploadReceipt,
-  workerListReimbursements, workerDeleteReimbursement,
+  workerListReimbursements, workerDeleteReimbursement, workerListActiveSites,
 } from "@/lib/reimbursements.functions";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -541,16 +541,27 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
   const [open, setOpen] = useState(false);
   const [amt, setAmt] = useState("");
   const [desc, setDesc] = useState("");
+  const [jobSiteId, setJobSiteId] = useState<string>("");
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
 
-  const reset = () => { setAmt(""); setDesc(""); setReceipt(null); };
+  const reset = () => { setAmt(""); setDesc(""); setReceipt(null); setJobSiteId(""); };
 
   const lq = useQuery({
     queryKey: ["worker-reimb", workerId],
     queryFn: () => listFn({ data: { token } }),
   });
+
+  const sitesFn = useServerFn(workerListActiveSites);
+  const sitesQ = useQuery({
+    queryKey: ["worker-sites", workerId],
+    queryFn: () => sitesFn({ data: { token } }),
+    enabled: open,
+  });
+  const sites = (sitesQ.data?.sites ?? []) as Array<{ id: string; label: string; kind: string }>;
+  const clientSites = sites.filter((s) => (s.kind ?? "client") === "client");
+  const supplierSites = sites.filter((s) => s.kind === "supplier");
 
   // Realtime: any change to reimbursements for this worker → refetch
   useEffect(() => {
@@ -594,6 +605,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
       amount: parseFloat(amt) || 0,
       receiptUrl: receipt?.url ?? null,
       receiptMime: receipt?.mime ?? null,
+      jobSiteId: jobSiteId || null,
     } }),
     onSuccess: () => {
       toast.success("Reimbursement submitted");
@@ -704,6 +716,27 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
                 placeholder="e.g. Screws from Home Depot"
                 rows={2} maxLength={200} className="mt-1.5 text-base"
               />
+            </div>
+            <div>
+              <Label className="text-xs">Job (optional)</Label>
+              <Select value={jobSiteId || "none"} onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}>
+                <SelectTrigger className="mt-1.5 h-11 text-base"><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {clientSites.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Client jobs</SelectLabel>
+                      {clientSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                    </SelectGroup>
+                  )}
+                  {supplierSites.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Suppliers</SelectLabel>
+                      {supplierSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                    </SelectGroup>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-xs">Receipt photo (optional)</Label>
