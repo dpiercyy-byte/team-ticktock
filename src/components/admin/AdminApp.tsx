@@ -1260,6 +1260,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const updFn = useServerFn(updateParsedReceipt);
   const parseAllFn = useServerFn(parseUnprocessed);
   const sitesFn = useServerFn(adminListJobSites);
+  const deleteFn = useServerFn(deleteReimbursement);
   const qc = useQueryClient();
   const [workerId, setWorkerId] = useState<string>("all");
   const [weekStart, setWeekStart] = useState<string>("all");
@@ -1272,6 +1273,8 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [editing, setEditing] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adminAddOpen, setAdminAddOpen] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<any | null>(null);
+
 
   const q = useQuery({
     queryKey: ["all-receipts"],
@@ -1551,7 +1554,11 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     <Button size="sm" variant="outline" className="px-2" onClick={() => handleDownload(i)} title="Download">
                       <Download className="h-3.5 w-3.5" />
                     </Button>
+                    <Button size="sm" variant="outline" className="px-2 text-destructive hover:text-destructive" onClick={() => setConfirmDel(i)} title="Delete">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
+
                 </CardContent>
               </Card>
             );
@@ -1594,9 +1601,41 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         updateToken={updateToken}
         onDone={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
       />
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this receipt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the receipt{confirmDel?.parsedVendor ? ` from ${confirmDel.parsedVendor}` : ""}
+              {confirmDel ? ` (${fmtMoney(confirmDel.amount)})` : ""} and its uploaded file. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDel) return;
+                try {
+                  const r = await deleteFn({ data: { token, id: confirmDel.id } });
+                  updateToken(r.token);
+                  toast.success("Receipt deleted");
+                  qc.invalidateQueries({ queryKey: ["all-receipts"] });
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to delete");
+                } finally {
+                  setConfirmDel(null);
+                }
+              }}
+            >Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
 function EditParsedDialog({
   item, sites, token, updateToken, onClose, updateFn, onSaved,
