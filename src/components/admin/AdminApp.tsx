@@ -1260,6 +1260,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const updFn = useServerFn(updateParsedReceipt);
   const parseAllFn = useServerFn(parseUnprocessed);
   const sitesFn = useServerFn(adminListJobSites);
+  const deleteFn = useServerFn(deleteReimbursement);
   const qc = useQueryClient();
   const [workerId, setWorkerId] = useState<string>("all");
   const [weekStart, setWeekStart] = useState<string>("all");
@@ -1272,6 +1273,8 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [editing, setEditing] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adminAddOpen, setAdminAddOpen] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<any | null>(null);
+
 
   const q = useQuery({
     queryKey: ["all-receipts"],
