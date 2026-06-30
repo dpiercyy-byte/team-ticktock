@@ -100,6 +100,7 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
     weekStart: z.string().optional(),
     receiptUrl: z.string().url(),
     receiptMime: z.string().max(100),
+    jobSiteId: z.string().uuid().nullable().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
@@ -113,6 +114,7 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
       amount: data.amount ?? 0,
       receipt_url: data.receiptUrl,
       receipt_mime: data.receiptMime,
+      parsed_job_site_id: data.jobSiteId ?? null,
     }).select("id").single();
     if (error) throw error;
     if (inserted?.id) {
@@ -124,7 +126,7 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
       action: "admin_receipt_create",
       entityType: "reimbursement",
       entityId: inserted?.id,
-      after: { payee: data.payeeLabel, week_start: weekStart, amount: data.amount ?? 0 },
+      after: { payee: data.payeeLabel, week_start: weekStart, amount: data.amount ?? 0, job_site_id: data.jobSiteId ?? null },
     });
     return { ...refreshed, id: inserted?.id };
   });

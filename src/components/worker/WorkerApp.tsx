@@ -729,12 +729,6 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
                       {clientSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                     </SelectGroup>
                   )}
-                  {supplierSites.length > 0 && (
-                    <SelectGroup>
-                      <SelectLabel>Suppliers</SelectLabel>
-                      {supplierSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-                    </SelectGroup>
-                  )}
                 </SelectContent>
               </Select>
             </div>

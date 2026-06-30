@@ -1717,12 +1717,6 @@ function EditParsedDialog({
                           {clients.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                         </SelectGroup>
                       )}
-                      {suppliers.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>Suppliers</SelectLabel>
-                          {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-                        </SelectGroup>
-                      )}
                       {archived.length > 0 && (
                         <SelectGroup>
                           <SelectLabel>Archived</SelectLabel>
@@ -1801,18 +1795,27 @@ function AdminAddReceiptsDialog({
 }) {
   const uploadFn = useServerFn(uploadReceipt);
   const addFn = useServerFn(adminAddStandaloneReceipt);
+  const sitesFn = useServerFn(adminListJobSites);
   const [payee, setPayee] = useState("");
   const [description, setDescription] = useState("");
   const [weekStart, setWeekStart] = useState(currentWeekStartISOClient());
+  const [jobSiteId, setJobSiteId] = useState<string>("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  const sitesQ = useQuery({
+    queryKey: ["admin-jobsites-for-receipts"],
+    queryFn: () => sitesFn({ data: { token } }),
+    enabled: open,
+  });
+  const clientJobs = ((sitesQ.data?.sites ?? []) as any[]).filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
+
   useEffect(() => {
     if (!open) {
-      setPayee(""); setDescription(""); setFiles([]);
+      setPayee(""); setDescription(""); setFiles([]); setJobSiteId("");
       setProgress(null); setBusy(false);
       setWeekStart(currentWeekStartISOClient());
     }
@@ -1870,6 +1873,7 @@ function AdminAddReceiptsDialog({
           weekStart,
           receiptUrl: up.url,
           receiptMime: up.mime,
+          jobSiteId: jobSiteId || null,
         } });
         updateToken(r.token);
         ok++;
@@ -1901,23 +1905,40 @@ function AdminAddReceiptsDialog({
             <Label className="text-xs">Payee <span className="text-red-500">*</span></Label>
             <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="e.g. Home Depot, Acme Plumbing" className="mt-1" />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">Week</Label>
-              <Input type="date" value={weekStart} onChange={(e) => {
-                const [y, m, d] = e.target.value.split("-").map(Number);
-                if (!y) return;
-                const dt = new Date(y, (m || 1) - 1, d || 1);
-                dt.setDate(dt.getDate() - dt.getDay());
-                const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-                setWeekStart(iso);
-              }} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Note (optional)</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="optional" className="mt-1" />
-            </div>
+          <div>
+            <Label className="text-xs">Week</Label>
+            <Input type="date" value={weekStart} onChange={(e) => {
+              const [y, m, d] = e.target.value.split("-").map(Number);
+              if (!y) return;
+              const dt = new Date(y, (m || 1) - 1, d || 1);
+              dt.setDate(dt.getDate() - dt.getDay());
+              const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+              setWeekStart(iso);
+            }} className="mt-1" />
           </div>
+          <div>
+            <Label className="text-xs">Note (optional)</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="optional" className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">Job (optional)</Label>
+            <Select value={jobSiteId || "none"} onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— None —</SelectItem>
+                {clientJobs.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Client jobs</SelectLabel>
+                    {clientJobs.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                  </SelectGroup>
+                )}
+              </SelectContent>
+            </Select>
+            {clientJobs.length === 0 && (
+              <p className="text-[11px] text-muted-foreground mt-1">No active client jobs. Add one in Job Sites.</p>
+            )}
+          </div>
+
 
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
