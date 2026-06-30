@@ -109,6 +109,7 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
     const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: null,
       is_admin_receipt: true,
+      uploaded_by_admin: true,
       payee_label: data.payeeLabel,
       week_start: weekStart,
       description: data.description || data.payeeLabel,
