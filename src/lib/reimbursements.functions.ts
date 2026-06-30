@@ -170,6 +170,7 @@ export const addReimbursement = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: data.workerId,
+      uploaded_by_admin: true,
       week_start: data.weekStart,
       description: data.description,
       amount: data.amount,
