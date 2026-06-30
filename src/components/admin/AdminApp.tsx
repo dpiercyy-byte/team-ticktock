@@ -1717,12 +1717,6 @@ function EditParsedDialog({
                           {clients.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                         </SelectGroup>
                       )}
-                      {suppliers.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>Suppliers</SelectLabel>
-                          {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
-                        </SelectGroup>
-                      )}
                       {archived.length > 0 && (
                         <SelectGroup>
                           <SelectLabel>Archived</SelectLabel>
