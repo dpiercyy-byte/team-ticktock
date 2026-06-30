@@ -264,7 +264,18 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
 
     const category = CATEGORIES.includes(parsed.category) ? parsed.category : null;
     const jobSiteId = (sites ?? []).some(s => s.id === parsed.job_site_id) ? parsed.job_site_id : null;
-    const num = (v: any) => (v == null || v === "" || isNaN(Number(v))) ? null : Number(v);
+    const num = (v: any): number | null => {
+      if (v == null || v === "") return null;
+      if (typeof v === "number") return isFinite(v) ? v : null;
+      const s = String(v).replace(/[^\d.,\-]/g, "");
+      // If both . and , present: assume , is thousands sep (e.g. "1,234.56")
+      // If only , present: treat , as decimal (e.g. "12,34")
+      let n: number;
+      if (s.includes(",") && s.includes(".")) n = Number(s.replace(/,/g, ""));
+      else if (s.includes(",") && !s.includes(".")) n = Number(s.replace(",", "."));
+      else n = Number(s);
+      return isFinite(n) ? n : null;
+    };
 
     await supabaseAdmin.from("reimbursements").update({
       parsed_vendor: parsed.vendor || null,
