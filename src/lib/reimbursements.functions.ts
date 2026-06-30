@@ -261,12 +261,26 @@ export const workerUploadReceipt = createServerFn({ method: "POST" })
     return { url: pub.publicUrl, mime: data.mime };
   });
 
+export const workerListActiveSites = createServerFn({ method: "POST" })
+  .inputValidator((d) => workerBase.parse(d))
+  .handler(async ({ data }) => {
+    requireWorker(data.token);
+    const { data: rows, error } = await supabaseAdmin
+      .from("job_sites")
+      .select("id, label, kind")
+      .is("archived_at", null)
+      .order("label", { ascending: true });
+    if (error) throw error;
+    return { sites: rows ?? [] };
+  });
+
 export const workerSubmitReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => workerBase.extend({
     description: z.string().trim().min(1).max(200),
     amount: z.number().min(0).max(100000),
     receiptUrl: z.string().url().nullable().optional(),
     receiptMime: z.string().max(100).nullable().optional(),
+    jobSiteId: z.string().uuid().nullable().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
@@ -278,6 +292,7 @@ export const workerSubmitReimbursement = createServerFn({ method: "POST" })
       amount: data.amount,
       receipt_url: data.receiptUrl ?? null,
       receipt_mime: data.receiptMime ?? null,
+      parsed_job_site_id: data.jobSiteId ?? null,
     }).select("id").single();
     if (error) throw error;
     if (inserted?.id && data.receiptUrl) {
@@ -289,7 +304,7 @@ export const workerSubmitReimbursement = createServerFn({ method: "POST" })
       action: "reimbursement_create",
       entityType: "reimbursement",
       entityId: inserted?.id,
-      after: { week_start: weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl },
+      after: { week_start: weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl, job_site_id: data.jobSiteId ?? null },
     });
     return { ok: true };
   });
