@@ -1510,6 +1510,12 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1">
+                    {i.isAdminReceipt ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-400">Admin</span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Worker</span>
+                    )}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
                     {i.parsedCategory && <Badge variant="secondary" className="text-[10px]">{i.parsedCategory}</Badge>}
                     {i.parsedJobSiteLabel && <Badge variant="outline" className="text-[10px]">{i.parsedJobSiteLabel}</Badge>}
                     {(i.materialType ?? "regular") === "client_billable" && (
