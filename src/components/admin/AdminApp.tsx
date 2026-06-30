@@ -1905,23 +1905,40 @@ function AdminAddReceiptsDialog({
             <Label className="text-xs">Payee <span className="text-red-500">*</span></Label>
             <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="e.g. Home Depot, Acme Plumbing" className="mt-1" />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">Week</Label>
-              <Input type="date" value={weekStart} onChange={(e) => {
-                const [y, m, d] = e.target.value.split("-").map(Number);
-                if (!y) return;
-                const dt = new Date(y, (m || 1) - 1, d || 1);
-                dt.setDate(dt.getDate() - dt.getDay());
-                const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-                setWeekStart(iso);
-              }} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Note (optional)</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="optional" className="mt-1" />
-            </div>
+          <div>
+            <Label className="text-xs">Week</Label>
+            <Input type="date" value={weekStart} onChange={(e) => {
+              const [y, m, d] = e.target.value.split("-").map(Number);
+              if (!y) return;
+              const dt = new Date(y, (m || 1) - 1, d || 1);
+              dt.setDate(dt.getDate() - dt.getDay());
+              const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+              setWeekStart(iso);
+            }} className="mt-1" />
           </div>
+          <div>
+            <Label className="text-xs">Note (optional)</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="optional" className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">Job (optional)</Label>
+            <Select value={jobSiteId || "none"} onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— None —</SelectItem>
+                {clientJobs.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Client jobs</SelectLabel>
+                    {clientJobs.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                  </SelectGroup>
+                )}
+              </SelectContent>
+            </Select>
+            {clientJobs.length === 0 && (
+              <p className="text-[11px] text-muted-foreground mt-1">No active client jobs. Add one in Job Sites.</p>
+            )}
+          </div>
+
 
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
