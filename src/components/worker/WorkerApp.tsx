@@ -541,16 +541,27 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
   const [open, setOpen] = useState(false);
   const [amt, setAmt] = useState("");
   const [desc, setDesc] = useState("");
+  const [jobSiteId, setJobSiteId] = useState<string>("");
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
 
-  const reset = () => { setAmt(""); setDesc(""); setReceipt(null); };
+  const reset = () => { setAmt(""); setDesc(""); setReceipt(null); setJobSiteId(""); };
 
   const lq = useQuery({
     queryKey: ["worker-reimb", workerId],
     queryFn: () => listFn({ data: { token } }),
   });
+
+  const sitesFn = useServerFn(workerListActiveSites);
+  const sitesQ = useQuery({
+    queryKey: ["worker-sites", workerId],
+    queryFn: () => sitesFn({ data: { token } }),
+    enabled: open,
+  });
+  const sites = (sitesQ.data?.sites ?? []) as Array<{ id: string; label: string; kind: string }>;
+  const clientSites = sites.filter((s) => (s.kind ?? "client") === "client");
+  const supplierSites = sites.filter((s) => s.kind === "supplier");
 
   // Realtime: any change to reimbursements for this worker → refetch
   useEffect(() => {
