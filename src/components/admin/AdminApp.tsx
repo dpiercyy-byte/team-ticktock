@@ -1394,6 +1394,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All workers</SelectItem>
+              <SelectItem value="__admin__">Admin</SelectItem>
               {workers.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
             </SelectContent>
           </Select>
