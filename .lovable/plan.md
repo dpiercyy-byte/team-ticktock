@@ -1,31 +1,34 @@
 ## Goal
+Restyle the Receipts tab cards so that status/source badges sit inside the bottom content area instead of overlaying the receipt image, with explicit "Admin" / "Worker" source labels.
 
-Make every admin-uploaded receipt visibly identifiable. Standalone admin uploads already show as "Admin" — keep that. Admin uploads on a worker's behalf will keep the worker's name but gain a clear **"Uploaded by admin"** badge.
+## Current state
+In `AdminApp.tsx` each receipt card has:
+- Top-left overlay: AI-parsed / Edited / Scanning / Scan-failed / Unparsed status pill
+- Top-right overlay: "Admin" or "Uploaded by admin" pill
+- Bottom section (CardContent): vendor, amount, category/job-site pills, action buttons
 
 ## Changes
 
-### 1. Schema (migration)
+### 1. Remove overlay pills from the image area
+In the receipt card grid map, delete the two `absolute` positioned `<span>` elements that sit inside the `<button>` wrapping the receipt image:
+- The top-left `statusLabel` pill
+- The top-right `Admin` / `Uploaded by admin` pill
 
-- Add `uploaded_by_admin boolean NOT NULL DEFAULT false` to `reimbursements`.
-- Backfill from `audit_log`: set `uploaded_by_admin = true` for every reimbursement whose creation row in `audit_log` has `actor_kind = 'admin'` (covers both standalone admin uploads and admin-for-worker uploads, including historical ones).
+### 2. Add a badge row inside CardContent
+Inside the existing flex-wrap badge area (currently holding Category, Job Site, and Bill-client badges), prepend two new pills:
+- **Source pill** — "Admin" (secondary/Admin color) when `isAdminReceipt === true`, otherwise "Worker" (outline or muted style) when `isAdminReceipt === false`. This gives the explicit Admin / Worker distinction the user wants.
+- **Status pill** — the same `statusLabel` and `statusColor` that was previously at top-left. Keep the same color mapping (green=ok, blue=manual, amber=pending, red=failed, muted=unparsed).
 
-### 2. Server functions (`src/lib/reimbursements.functions.ts`)
-
-- `adminAddStandaloneReceipt` — also set `uploaded_by_admin: true` on insert (redundant with `is_admin_receipt` but keeps the new flag truthful).
-- `addReimbursement` (admin adds on a worker's behalf) — set `uploaded_by_admin: true`.
-- Worker self-upload server fn — unchanged (flag stays false).
-- `listReimbursements` — include `uploadedByAdmin` in returned items.
-
-### 3. Admin UI (`src/components/admin/AdminApp.tsx` Receipts tab)
-
-- On each receipt card, when `uploadedByAdmin === true` AND `isAdminReceipt === false` (i.e. worker-named but admin-uploaded), render a small badge next to the worker name: **"Uploaded by admin"** (neutral/secondary variant).
-- Standalone admin receipts already display "Admin" — no change.
-- Worker dropdown filter — no structural change; the existing "Admin" entry continues to filter `is_admin_receipt = true`.
-
-### 4. No change to Google Sheets sync
-
-The "Worker" column already shows "Admin" for standalone admin receipts and the worker's name otherwise. The badge is a UI affordance only; the source data in Sheets stays consistent.
+### 3. Keep existing layout and spacing
+- Do not change card dimensions, grid columns, or image aspect ratio.
+- Keep action buttons and existing extracted-info text exactly as-is.
+- No backend or data changes required.
 
 ## Out of scope
+- No changes to filters, CSV export, edit dialog, upload flow, or AI parsing.
+- No new data fields.
 
-- Reclassifying the two existing worker self-uploads ("Floor pro", "Paint from Benny moore") — these have `actor_kind = 'worker'` in the audit log, so the backfill correctly leaves them as worker uploads.
+## Acceptance criteria
+- Receipt image no longer shows any overlay text.
+- Every card shows a source pill ("Admin" or "Worker") and a status pill ("AI parsed", "Edited", "Scanning…", "Scan failed", or "Unparsed") in the bottom info area.
+- Existing category/job-site/bill-client pills remain present.
