@@ -440,7 +440,8 @@ export const parseUnprocessed = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: rows } = await supabaseAdmin.from("reimbursements")
-      .select("id").not("receipt_url", "is", null).is("parse_status", null).limit(50);
+      .select("id, parse_status").not("receipt_url", "is", null)
+      .or("parse_status.is.null,parse_status.eq.failed").limit(50);
     let started = 0;
     for (const r of rows ?? []) {
       // Sequential to avoid rate limits
