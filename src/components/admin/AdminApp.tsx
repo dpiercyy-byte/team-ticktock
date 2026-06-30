@@ -1601,9 +1601,41 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         updateToken={updateToken}
         onDone={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
       />
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this receipt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the receipt{confirmDel?.parsedVendor ? ` from ${confirmDel.parsedVendor}` : ""}
+              {confirmDel ? ` (${fmtMoney(confirmDel.amount)})` : ""} and its uploaded file. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!confirmDel) return;
+                try {
+                  const r = await deleteFn({ data: { token, id: confirmDel.id } });
+                  updateToken(r.token);
+                  toast.success("Receipt deleted");
+                  qc.invalidateQueries({ queryKey: ["all-receipts"] });
+                } catch (e: any) {
+                  toast.error(e?.message || "Failed to delete");
+                } finally {
+                  setConfirmDel(null);
+                }
+              }}
+            >Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
 function EditParsedDialog({
   item, sites, token, updateToken, onClose, updateFn, onSaved,
