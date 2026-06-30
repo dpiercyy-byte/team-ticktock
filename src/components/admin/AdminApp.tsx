@@ -1307,7 +1307,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   });
 
 
-  const totalAmt = filtered.reduce((s, i) => s + i.amount, 0);
+  const totalAmt = filtered.reduce((s, i) => s + (Number(i.parsedTotal ?? i.amount) || 0), 0);
   const unparsedCount = items.filter(i => !i.parseStatus).length;
 
   function downloadName(i: typeof items[number]) {
