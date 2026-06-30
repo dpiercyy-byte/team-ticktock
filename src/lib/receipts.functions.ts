@@ -317,6 +317,7 @@ export const updateParsedReceipt = createServerFn({ method: "POST" })
     if (data.jobSiteId !== undefined) patch.parsed_job_site_id = data.jobSiteId;
     if (data.materialType !== undefined) patch.material_type = data.materialType;
     if (data.billableJobSiteId !== undefined) patch.billable_job_site_id = data.billableJobSiteId;
+    if (data.description !== undefined) patch.description = data.description ? data.description : null;
 
     // Validate: client-billable must reference a real, active client job site
     const willBeBillable = data.materialType === "client_billable"
