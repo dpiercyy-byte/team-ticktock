@@ -718,6 +718,27 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
               />
             </div>
             <div>
+              <Label className="text-xs">Job (optional)</Label>
+              <Select value={jobSiteId || "none"} onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}>
+                <SelectTrigger className="mt-1.5 h-11 text-base"><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {clientSites.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Client jobs</SelectLabel>
+                      {clientSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                    </SelectGroup>
+                  )}
+                  {supplierSites.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Suppliers</SelectLabel>
+                      {supplierSites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                    </SelectGroup>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs">Receipt photo (optional)</Label>
               <div className="mt-1.5">
                 {receipt ? (
