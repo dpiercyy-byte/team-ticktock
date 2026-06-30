@@ -1699,6 +1699,7 @@ function EditParsedDialog({
         jobSiteId: jobSite || null,
         materialType,
         billableJobSiteId: materialType === "client_billable" ? (billableSite || null) : null,
+        description: description.trim() ? description.trim() : null,
       } });
       updateToken(r.token);
       toast.success("Saved");
