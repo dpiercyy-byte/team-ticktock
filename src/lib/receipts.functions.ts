@@ -14,37 +14,42 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("AI not configured");
 
-  // Build content block
+  // Fetch the file server-side and inline it; provider can't always fetch our URLs.
+  const fileRes = await fetch(receiptUrl);
+  if (!fileRes.ok) throw new Error(`Fetch receipt ${fileRes.status}`);
+  const buf = Buffer.from(await fileRes.arrayBuffer());
+  const b64 = buf.toString("base64");
+  const isPdf = mime === "application/pdf";
+
   const content: any[] = [
     {
       type: "text",
       text:
         "Extract structured data from this receipt. Return ONLY valid JSON matching the schema. " +
-        "If a field is illegible, set it to null. Category must be one of: " +
-        CATEGORIES.join(", ") + ". " +
+        "Numbers must be raw (no currency symbols, no thousands separators, '.' as decimal). " +
+        "Date must be ISO 'YYYY-MM-DD'. If a field is illegible, set it to null. " +
+        "Category must be one of: " + CATEGORIES.join(", ") + ". " +
         "If the vendor address or name clearly matches one of these job sites, return its id as job_site_id; otherwise null.\n" +
         "Job sites:\n" +
         (jobSites.length ? jobSites.map(j => `- ${j.id}: ${j.label}`).join("\n") : "(none)") +
-        "\n\nSchema: { vendor: string|null, date: string|null (YYYY-MM-DD), subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number (0-1) }",
+        "\n\nSchema: { vendor: string|null, date: string|null, subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number }",
     },
   ];
 
-  if (mime === "application/pdf") {
-    // Fetch and base64 the PDF (Gemini accepts PDF files inline)
-    const buf = Buffer.from(await (await fetch(receiptUrl)).arrayBuffer());
+  if (isPdf) {
     content.unshift({
       type: "file",
-      file: { filename: "receipt.pdf", file_data: `data:application/pdf;base64,${buf.toString("base64")}` },
+      file: { filename: "receipt.pdf", file_data: `data:application/pdf;base64,${b64}` },
     });
   } else {
-    content.unshift({ type: "image_url", image_url: { url: receiptUrl } });
+    content.unshift({ type: "image_url", image_url: { url: `data:${mime || "image/jpeg"};base64,${b64}` } });
   }
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Lovable-API-Key": key,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
@@ -55,12 +60,19 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
 
   if (!res.ok) {
     const t = await res.text().catch(() => "");
-    throw new Error(`AI gateway ${res.status}: ${t.slice(0, 200)}`);
+    throw new Error(`AI gateway ${res.status}: ${t.slice(0, 300)}`);
   }
   const json: any = await res.json();
-  const text: string = json?.choices?.[0]?.message?.content ?? "{}";
-  let parsed: any = {};
-  try { parsed = JSON.parse(text); } catch { parsed = {}; }
+  const finish = json?.choices?.[0]?.finish_reason;
+  const text: string = json?.choices?.[0]?.message?.content ?? "";
+  if (finish === "length") throw new Error("AI response truncated");
+  if (!text.trim()) throw new Error("AI returned empty response");
+
+  // Strip ```json fences if present
+  const cleaned = text.replace(/^\s*```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  let parsed: any;
+  try { parsed = JSON.parse(cleaned); }
+  catch { throw new Error(`AI returned non-JSON: ${cleaned.slice(0, 200)}`); }
   return parsed;
 }
 
