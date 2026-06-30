@@ -182,7 +182,8 @@ function AdminDashboard({ token, updateToken, onLogout }: {
           <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 overflow-x-auto">
             <TabsList className="mx-4 sm:mx-0 w-max sm:w-auto">
               <TabsTrigger value="entries">Time Entries</TabsTrigger>
-              <TabsTrigger value="payouts">Payout</TabsTrigger>
+            <TabsTrigger value="payouts">Payout</TabsTrigger>
+              <TabsTrigger value="receipts">Receipts</TabsTrigger>
               <TabsTrigger value="workers">Workers</TabsTrigger>
               <TabsTrigger value="sites">Job Sites</TabsTrigger>
               <TabsTrigger value="audit">Audit Log</TabsTrigger>
