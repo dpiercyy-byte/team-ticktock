@@ -213,6 +213,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const forceOut = useServerFn(adminForceClockOut);
   const updGeo = useServerFn(adminUpdateEntryGeo);
   const updPlanned = useServerFn(adminUpdateEntryPlannedJob);
+  const listPendingFn = useServerFn(listPendingWeeks);
 
   const listSites = useServerFn(adminListJobSites);
   const settingsFn = useServerFn(getPublicSettings);
