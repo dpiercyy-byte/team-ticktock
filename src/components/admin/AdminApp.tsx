@@ -1795,18 +1795,27 @@ function AdminAddReceiptsDialog({
 }) {
   const uploadFn = useServerFn(uploadReceipt);
   const addFn = useServerFn(adminAddStandaloneReceipt);
+  const sitesFn = useServerFn(adminListJobSites);
   const [payee, setPayee] = useState("");
   const [description, setDescription] = useState("");
   const [weekStart, setWeekStart] = useState(currentWeekStartISOClient());
+  const [jobSiteId, setJobSiteId] = useState<string>("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  const sitesQ = useQuery({
+    queryKey: ["admin-jobsites-for-receipts"],
+    queryFn: () => sitesFn({ data: { token } }),
+    enabled: open,
+  });
+  const clientJobs = ((sitesQ.data?.sites ?? []) as any[]).filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
+
   useEffect(() => {
     if (!open) {
-      setPayee(""); setDescription(""); setFiles([]);
+      setPayee(""); setDescription(""); setFiles([]); setJobSiteId("");
       setProgress(null); setBusy(false);
       setWeekStart(currentWeekStartISOClient());
     }
