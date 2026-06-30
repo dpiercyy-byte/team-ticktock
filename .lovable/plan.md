@@ -1,24 +1,21 @@
 ## Goal
-When an admin deletes a receipt, also remove its row from the synced Google Sheet so the sheet stays consistent and has no blank gap.
+Let admins edit the "Note" (description) field of any receipt from the existing **Edit receipt details** dialog. Today the dialog exposes vendor/date/amounts/category/job site/material type but not the note the worker (or admin) typed at upload time, so it can only be changed by deleting and re-creating the receipt.
 
 ## Changes
 
-### 1. `src/lib/receipts.functions.ts` — add `deleteSheetRowExternal(reimbursementId)`
-- Reuses existing `gw` helper and `app_settings` lookup.
-- No-op if sync disabled or no sheet configured.
-- Fetch the spreadsheet metadata to resolve the Receipts tab's numeric `sheetId` (needed for `deleteDimension`).
-- Read column A of the tab, find the row whose value equals the reimbursement id.
-- If found, call `spreadsheets:batchUpdate` with a `deleteDimension` request (`dimension: "ROWS"`, `startIndex: rowIdx-1`, `endIndex: rowIdx`). This deletes the entire row so rows below shift up — no blank gap left behind.
-- Swallow/log errors so a sheet outage never blocks the DB delete.
+1. **`src/lib/receipts.functions.ts` — `updateParsedReceipt`**
+   - Add `description: z.string().trim().max(500).nullable().optional()` to the input validator.
+   - When provided, set `patch.description = data.description` (empty string → `null`).
+   - Existing `syncRow(...)` call already writes `description` to the Google Sheet, so the edited note flows to Sheets automatically.
 
-### 2. `src/lib/reimbursements.functions.ts` — call it from `deleteReimbursement`
-- Before (or right after) the DB delete, dynamically import `deleteSheetRowExternal` and await it inside a try/catch (mirroring the existing `syncRowExternal` pattern in `updateStandaloneReceipt`).
-- Best-effort: a sheet failure logs an error but the DB row + storage file are still removed and the admin still sees a success toast.
+2. **`src/components/admin/AdminApp.tsx` — `EditParsedDialog`**
+   - Add a `description` state, initialise it from `item.description` in the existing `useEffect`.
+   - Render a new **Note** `<Textarea>` (2–3 rows) at the bottom of the form, above material type.
+   - Include `description: description.trim() || null` in the `updateFn` payload.
 
-### 3. No UI changes required
-The existing confirm-delete dialog already triggers `deleteReimbursement`; behavior just becomes "delete locally + delete from sheet."
+3. **Receipt card display (optional polish)**
+   - The card already shows the note as `"…"` under vendor (line 1541) when `parsedVendor !== description`. No change needed; it will reflect edits after the list re-fetches.
 
-## Notes / edge cases
-- Receipts created before sync was enabled (no row in the sheet) → lookup returns nothing, function exits cleanly.
-- If the user later renames the tab, the lookup misses → logged, DB delete still proceeds.
-- Worker-side deletes (`workerDeleteReimbursement`) are out of scope for this change unless you want them included too — let me know and I'll add the same call there.
+## Out of scope
+- Worker-side editing of their own note (still delete + re-add).
+- Renaming the column "Description" → "Note" in code or Sheets (kept as-is to avoid breaking the existing sheet header).

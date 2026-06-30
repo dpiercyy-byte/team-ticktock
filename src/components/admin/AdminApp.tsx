@@ -1657,6 +1657,7 @@ function EditParsedDialog({
   const [jobSite, setJobSite] = useState<string>("");
   const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [billableSite, setBillableSite] = useState<string>("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   const clientSites = useMemo(
@@ -1675,6 +1676,7 @@ function EditParsedDialog({
     setJobSite(item.parsedJobSiteId || "");
     setMaterialType((item.materialType as any) || "regular");
     setBillableSite(item.billableJobSiteId || "");
+    setDescription(item.description || "");
   }, [item]);
 
   const save = async () => {
@@ -1697,6 +1699,7 @@ function EditParsedDialog({
         jobSiteId: jobSite || null,
         materialType,
         billableJobSiteId: materialType === "client_billable" ? (billableSite || null) : null,
+        description: description.trim() ? description.trim() : null,
       } });
       updateToken(r.token);
       toast.success("Saved");
@@ -1800,6 +1803,16 @@ function EditParsedDialog({
                 )}
               </div>
             )}
+          </div>
+          <div>
+            <Label className="text-xs">Note</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional note"
+              rows={3}
+              className="mt-1"
+            />
           </div>
         </div>
         <DialogFooter>
