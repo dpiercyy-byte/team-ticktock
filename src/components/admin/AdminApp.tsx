@@ -1704,7 +1704,34 @@ function EditParsedDialog({
               <SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">— None —</SelectItem>
-                {sites.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                {(() => {
+                  const active = sites.filter((s) => !s.archived_at);
+                  const clients = active.filter((s) => (s.kind ?? "client") === "client");
+                  const suppliers = active.filter((s) => s.kind === "supplier");
+                  const archived = sites.filter((s) => s.archived_at);
+                  return (
+                    <>
+                      {clients.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Client jobs</SelectLabel>
+                          {clients.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                        </SelectGroup>
+                      )}
+                      {suppliers.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Suppliers</SelectLabel>
+                          {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                        </SelectGroup>
+                      )}
+                      {archived.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Archived</SelectLabel>
+                          {archived.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                        </SelectGroup>
+                      )}
+                    </>
+                  );
+                })()}
               </SelectContent>
             </Select>
           </div>
