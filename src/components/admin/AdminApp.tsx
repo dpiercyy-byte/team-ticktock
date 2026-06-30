@@ -182,7 +182,8 @@ function AdminDashboard({ token, updateToken, onLogout }: {
           <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 overflow-x-auto">
             <TabsList className="mx-4 sm:mx-0 w-max sm:w-auto">
               <TabsTrigger value="entries">Time Entries</TabsTrigger>
-              <TabsTrigger value="payouts">Payout</TabsTrigger>
+            <TabsTrigger value="payouts">Payout</TabsTrigger>
+              <TabsTrigger value="receipts">Receipts</TabsTrigger>
               <TabsTrigger value="workers">Workers</TabsTrigger>
               <TabsTrigger value="sites">Job Sites</TabsTrigger>
               <TabsTrigger value="audit">Audit Log</TabsTrigger>
@@ -191,6 +192,7 @@ function AdminDashboard({ token, updateToken, onLogout }: {
           </div>
           <TabsContent value="entries"><EntriesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
+          <TabsContent value="receipts"><ReceiptsTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="sites"><JobSitesTab token={token} updateToken={updateToken} /></TabsContent>
           <TabsContent value="audit"><AuditTab token={token} updateToken={updateToken} /></TabsContent>
@@ -932,14 +934,10 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
       <TabsList>
         <TabsTrigger value="weekly">Weekly</TabsTrigger>
         <TabsTrigger value="pending">Pending</TabsTrigger>
-        <TabsTrigger value="receipts">Receipts</TabsTrigger>
         <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
       </TabsList>
       <TabsContent value="pending" className="mt-0">
         <PendingPayoutsView token={token} updateToken={updateToken} />
-      </TabsContent>
-      <TabsContent value="receipts" className="mt-0">
-        <ReceiptsTab token={token} updateToken={updateToken} />
       </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
         <LifetimePayoutView token={token} updateToken={updateToken} />
