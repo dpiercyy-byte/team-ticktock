@@ -247,30 +247,51 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [confirmForce, setConfirmForce] = useState<string | null>(null);
+  const [weekStart, setWeekStart] = useState<string>(() => startOfWeekISO());
+  const [calOpen, setCalOpen] = useState(false);
 
   const projectsEnabled = sq.data?.project_tracking_enabled;
 
-  const totals = (() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const wk = new Date(startOfWeekISO()); wk.setHours(0, 0, 0, 0);
-    let day = 0, week = 0, month = 0;
-    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-    for (const e of eq.data ?? []) {
-      if (!e.clock_out) continue;
-      const h = diffHours(e.clock_in, e.clock_out);
-      const d = new Date(e.clock_in);
-      if (d >= today) day += h;
-      if (d >= wk) week += h;
-      if (d >= monthStart) month += h;
-    }
-    return { day, week, month };
-  })();
+  const pendingQ = useQuery({
+    enabled: !!token,
+    queryKey: ["pending-payouts-all"],
+    queryFn: () => listPendingFn({ data: { token, includePaid: true } }).then((r) => { updateToken(r.token); return r.items; }),
+  });
+  const weekRow = (pendingQ.data ?? []).find((r: any) => r.workerId === workerId && r.weekStart === weekStart) ?? null;
+  const weekStatus: "paid" | "unpaid" | "overdue" | null = weekRow?.status ?? null;
+
+  // Filter entries to the selected week
+  const weekStartTs = new Date(weekStart + "T00:00:00").getTime();
+  const weekEndTs = weekStartTs + 7 * 86_400_000;
+  const weekEntries = (eq.data ?? []).filter((e: any) => {
+    const t = new Date(e.clock_in).getTime();
+    return t >= weekStartTs && t < weekEndTs;
+  });
+
+  const weekHours = weekEntries.reduce(
+    (s, e: any) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0), 0,
+  );
+  const weekWages = weekRow?.wages ?? 0;
+  const weekReimb = weekRow?.reimbursements ?? 0;
+  const weekTotal = weekRow?.total ?? (weekWages + weekReimb);
 
   // group entries by date
-  const byDate = (eq.data ?? []).reduce<Record<string, any[]>>((acc, e) => {
+  const byDate = weekEntries.reduce<Record<string, any[]>>((acc, e) => {
     const k = new Date(e.clock_in).toDateString();
     (acc[k] ||= []).push(e); return acc;
   }, {});
+
+  const statusStyles =
+    weekStatus === "paid"
+      ? { border: "border-l-[var(--success)]", tint: "bg-[color-mix(in_oklab,var(--success)_4%,transparent)]",
+          pill: "bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]", label: "Paid" }
+      : weekStatus === "overdue"
+      ? { border: "border-l-[var(--destructive)]", tint: "bg-[color-mix(in_oklab,var(--destructive)_4%,transparent)]",
+          pill: "bg-[color-mix(in_oklab,var(--destructive)_18%,transparent)] text-[var(--destructive)]", label: "Overdue" }
+      : weekStatus === "unpaid"
+      ? { border: "border-l-[var(--warning)]", tint: "bg-[color-mix(in_oklab,var(--warning)_4%,transparent)]",
+          pill: "bg-[color-mix(in_oklab,var(--warning)_22%,transparent)] text-[var(--warning-foreground)]", label: "Unpaid" }
+      : null;
 
   return (
     <div className="space-y-6">
@@ -307,25 +328,97 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Today" value={fmtHours(totals.day)} />
-        <Stat label="This Week" value={fmtHours(totals.week)} />
-        <Stat label="This Month" value={fmtHours(totals.month)} />
+      {/* Week navigator */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1 text-center min-w-0">
+            <div className="text-sm font-semibold truncate">{weekRangeLabel(weekStart)}</div>
+            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
+              {(() => {
+                const rel = relativeWeekLabel(weekStart);
+                return rel ? <Badge variant="secondary" className="text-xs">{rel}</Badge> : null;
+              })()}
+              {statusStyles && (
+                <span className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${statusStyles.pill}`}>
+                  ● {statusStyles.label}
+                </span>
+              )}
+            </div>
+          </div>
+          <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="shrink-0">
+                <CalendarIcon className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
+              <Calendar
+                mode="single"
+                selected={new Date(weekStart + "T00:00:00")}
+                onSelect={(d) => {
+                  if (!d) return;
+                  const x = new Date(d);
+                  x.setDate(x.getDate() - x.getDay());
+                  const pad = (n: number) => String(n).padStart(2, "0");
+                  setWeekStart(`${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`);
+                  setCalOpen(false);
+                }}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "This week", val: startOfWeekISO() },
+            { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
+            { label: "2 weeks ago", val: addDaysISO(startOfWeekISO(), -14) },
+          ].map((chip) => (
+            <Button
+              key={chip.label}
+              variant={weekStart === chip.val ? "default" : "outline"}
+              size="sm"
+              onClick={() => setWeekStart(chip.val)}
+            >
+              {chip.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Stat label="Hours" value={fmtHours(weekHours)} />
+        <Stat label="Wages" value={fmtMoney(weekWages)} />
+        <Stat label="Reimb" value={fmtMoney(weekReimb)} />
+        <Stat label="Total" value={fmtMoney(weekTotal)} />
       </div>
 
       <Card>
         <CardContent className="p-0">
           {!workerId || eq.isLoading ? (
             <p className="p-6 text-sm text-muted-foreground">Loading…</p>
-          ) : (eq.data?.length ?? 0) === 0 ? (
-            <p className="p-10 text-center text-sm text-muted-foreground">No entries yet for this worker.</p>
+          ) : weekEntries.length === 0 ? (
+            <p className="p-10 text-center text-sm text-muted-foreground">No entries this week.</p>
           ) : (
             <div className="divide-y divide-border">
               {Object.entries(byDate).map(([date, items]) => {
                 const dayHours = items.reduce((s, e) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0), 0);
                 return (
-                  <div key={date}>
+                  <div
+                    key={date}
+                    className={statusStyles
+                      ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
+                      : "border-l-[3px] border-l-transparent"}
+                  >
                     <div className="px-4 sm:px-5 py-2 bg-secondary flex justify-between text-sm">
+
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
                       <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
