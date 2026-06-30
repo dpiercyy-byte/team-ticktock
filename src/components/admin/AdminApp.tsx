@@ -379,7 +379,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           {[
             { label: "This week", val: startOfWeekISO() },
             { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
-            { label: "2 weeks ago", val: addDaysISO(startOfWeekISO(), -14) },
           ].map((chip) => (
             <Button
               key={chip.label}
@@ -1001,7 +1000,6 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
             {[
               { label: "This week", val: startOfWeekISO() },
               { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
-              { label: "2 weeks ago", val: addDaysISO(startOfWeekISO(), -14) },
             ].map((chip) => (
               <Button
                 key={chip.label}
