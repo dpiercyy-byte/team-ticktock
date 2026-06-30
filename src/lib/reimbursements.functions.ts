@@ -45,7 +45,7 @@ export const listAllReceipts = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin
       .from("reimbursements")
-      .select("id, worker_id, is_admin_receipt, payee_label, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
+      .select("id, worker_id, is_admin_receipt, uploaded_by_admin, payee_label, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 500);
     if (data.workerId) q = q.eq("worker_id", data.workerId);
