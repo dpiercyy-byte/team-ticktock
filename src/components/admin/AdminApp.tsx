@@ -1263,7 +1263,6 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [workerId, setWorkerId] = useState<string>("all");
   const [weekStart, setWeekStart] = useState<string>("all");
   const [category, setCategory] = useState<string>("all");
-  const [kind, setKind] = useState<"all" | "worker" | "admin">("all");
   const [materialType, setMaterialType] = useState<"all" | "regular" | "client_billable">("all");
   const [search, setSearch] = useState("");
 
@@ -1295,9 +1294,8 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   const weeks = useMemo(() => Array.from(new Set(items.map(i => i.weekStart))).sort().reverse(), [items]);
 
   const filtered = items.filter(i => {
-    if (kind === "worker" && i.isAdminReceipt) return false;
-    if (kind === "admin" && !i.isAdminReceipt) return false;
-    if (workerId !== "all" && i.workerId !== workerId) return false;
+    if (workerId === "__admin__") { if (!i.isAdminReceipt) return false; }
+    else if (workerId !== "all") { if (i.isAdminReceipt || i.workerId !== workerId) return false; }
     if (weekStart !== "all" && i.weekStart !== weekStart) return false;
     if (category !== "all" && i.parsedCategory !== category) return false;
     if (materialType !== "all" && (i.materialType ?? "regular") !== materialType) return false;
@@ -1396,6 +1394,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All workers</SelectItem>
+              <SelectItem value="__admin__">Admin</SelectItem>
               {workers.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -1417,17 +1416,6 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
               {RECEIPT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[120px]">
-          <Label className="text-xs">Kind</Label>
-          <Select value={kind} onValueChange={(v) => setKind(v as any)}>
-            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="worker">Worker</SelectItem>
-              <SelectItem value="admin">Admin only</SelectItem>
             </SelectContent>
           </Select>
         </div>
