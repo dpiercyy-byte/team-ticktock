@@ -605,6 +605,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
       amount: parseFloat(amt) || 0,
       receiptUrl: receipt?.url ?? null,
       receiptMime: receipt?.mime ?? null,
+      jobSiteId: jobSiteId || null,
     } }),
     onSuccess: () => {
       toast.success("Reimbursement submitted");
