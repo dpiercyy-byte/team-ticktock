@@ -1554,7 +1554,11 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     <Button size="sm" variant="outline" className="px-2" onClick={() => handleDownload(i)} title="Download">
                       <Download className="h-3.5 w-3.5" />
                     </Button>
+                    <Button size="sm" variant="outline" className="px-2 text-destructive hover:text-destructive" onClick={() => setConfirmDel(i)} title="Delete">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
+
                 </CardContent>
               </Card>
             );
