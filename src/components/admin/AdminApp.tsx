@@ -254,7 +254,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const pendingQ = useQuery({
     enabled: !!token,
-    queryKey: ["pending-payouts-all"],
+    queryKey: ["pending-payouts", "all"],
     queryFn: () => listPendingFn({ data: { token, includePaid: true } }).then((r) => { updateToken(r.token); return r.items; }),
   });
   const weekRow = (pendingQ.data ?? []).find((r: any) => r.workerId === workerId && r.weekStart === weekStart) ?? null;
