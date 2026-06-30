@@ -1676,6 +1676,7 @@ function EditParsedDialog({
     setJobSite(item.parsedJobSiteId || "");
     setMaterialType((item.materialType as any) || "regular");
     setBillableSite(item.billableJobSiteId || "");
+    setDescription(item.description || "");
   }, [item]);
 
   const save = async () => {
