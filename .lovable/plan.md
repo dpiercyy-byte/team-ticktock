@@ -1,36 +1,24 @@
 ## Goal
-1. Let workers attach a **job** to a receipt when they submit a reimbursement.
-2. Stop mixing client jobs, suppliers, and archived sites in the admin receipt "Job site" dropdown.
+When an admin deletes a receipt, also remove its row from the synced Google Sheet so the sheet stays consistent and has no blank gap.
 
 ## Changes
 
-### 1. Worker — pick a job on the receipt dialog
+### 1. `src/lib/receipts.functions.ts` — add `deleteSheetRowExternal(reimbursementId)`
+- Reuses existing `gw` helper and `app_settings` lookup.
+- No-op if sync disabled or no sheet configured.
+- Fetch the spreadsheet metadata to resolve the Receipts tab's numeric `sheetId` (needed for `deleteDimension`).
+- Read column A of the tab, find the row whose value equals the reimbursement id.
+- If found, call `spreadsheets:batchUpdate` with a `deleteDimension` request (`dimension: "ROWS"`, `startIndex: rowIdx-1`, `endIndex: rowIdx`). This deletes the entire row so rows below shift up — no blank gap left behind.
+- Swallow/log errors so a sheet outage never blocks the DB delete.
 
-**`src/lib/reimbursements.functions.ts`**
-- Add `workerListActiveJobSites` — returns active sites (not archived), each with `{ id, label, kind }`. No auth elevation; just `requireWorker`.
-- Extend `workerSubmitReimbursement` input with optional `jobSiteId: string | uuid | null`. Persist as `parsed_job_site_id` so it flows through the existing AI-edit and Sheets-sync pipeline (`parse_status` stays unchanged; the AI parser will only fill blanks).
+### 2. `src/lib/reimbursements.functions.ts` — call it from `deleteReimbursement`
+- Before (or right after) the DB delete, dynamically import `deleteSheetRowExternal` and await it inside a try/catch (mirroring the existing `syncRowExternal` pattern in `updateStandaloneReceipt`).
+- Best-effort: a sheet failure logs an error but the DB row + storage file are still removed and the admin still sees a success toast.
 
-**`src/components/worker/WorkerApp.tsx` (Reimbursements dialog around lines 686–745)**
-- Query the new function once when the dialog opens.
-- Insert a "Job (optional)" `<Select>` between Description and Receipt photo.
-- Group options with `SelectGroup` / `SelectLabel`:
-  - "— None —"
-  - **Client jobs**
-  - **Suppliers**
-- Pass the chosen id into `submitFn` as `jobSiteId`.
+### 3. No UI changes required
+The existing confirm-delete dialog already triggers `deleteReimbursement`; behavior just becomes "delete locally + delete from sheet."
 
-### 2. Admin — group sites in the receipt edit dropdown
-
-**`src/components/admin/AdminApp.tsx` → `EditParsedDialog` (Job site Select, line ~1701–1710)**
-- Replace the flat `sites.map(...)` with three grouped sections using `SelectGroup` + `SelectLabel`:
-  - **Client jobs** (active, `kind = client`)
-  - **Suppliers** (active, `kind = supplier`)
-  - **Archived** (anything with `archived_at`, collapsed at the bottom, label "Archived")
-- Use the same grouping for the "Bill to client" select if it ever shows more than client sites (currently filtered — leave as is).
-- The dropdown already opens via the shared `sites` prop — no server changes needed.
-
-### Out of scope
-- Changing the AI parser to overwrite a worker-provided job.
-- Adding the "Client-billable" toggle to the worker UI (admin-only stays).
-- Changes to the geo-tag editor (already grouped).
-- Schema / migrations.
+## Notes / edge cases
+- Receipts created before sync was enabled (no row in the sheet) → lookup returns nothing, function exits cleanly.
+- If the user later renames the tab, the lookup misses → logged, DB delete still proceeds.
+- Worker-side deletes (`workerDeleteReimbursement`) are out of scope for this change unless you want them included too — let me know and I'll add the same call there.
