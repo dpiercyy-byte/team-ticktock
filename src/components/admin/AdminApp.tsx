@@ -1657,6 +1657,7 @@ function EditParsedDialog({
   const [jobSite, setJobSite] = useState<string>("");
   const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [billableSite, setBillableSite] = useState<string>("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   const clientSites = useMemo(
