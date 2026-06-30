@@ -124,6 +124,51 @@ export async function syncRowExternal(reimbursementId: string) {
   return syncRow(reimbursementId);
 }
 
+export async function deleteSheetRowExternal(reimbursementId: string) {
+  const { data: s } = await supabaseAdmin.from("app_settings")
+    .select("google_sheet_id, google_sheet_tab, sheet_sync_enabled").eq("id", 1).single();
+  if (!s?.sheet_sync_enabled || !s.google_sheet_id) return { skipped: true };
+  const tab = s.google_sheet_tab || "Receipts";
+
+  // Resolve numeric sheetId for the tab
+  const metaUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}?fields=sheets.properties`;
+  const meta: any = await (await gw(metaUrl)).json();
+  const sheetProps = (meta?.sheets || [])
+    .map((x: any) => x?.properties)
+    .find((p: any) => p?.title === tab);
+  if (!sheetProps) return { skipped: true };
+  const numericSheetId = sheetProps.sheetId;
+
+  // Find the row by id in column A
+  const findUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:A`;
+  const findBody: any = await (await gw(findUrl)).json();
+  const col: string[][] = findBody?.values || [];
+  let rowIdx = -1;
+  for (let i = 1; i < col.length; i++) {
+    if (col[i]?.[0] === reimbursementId) { rowIdx = i + 1; break; }
+  }
+  if (rowIdx < 1) return { skipped: true };
+
+  await gw(`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}:batchUpdate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requests: [{
+        deleteDimension: {
+          range: {
+            sheetId: numericSheetId,
+            dimension: "ROWS",
+            startIndex: rowIdx - 1,
+            endIndex: rowIdx,
+          },
+        },
+      }],
+    }),
+  });
+  return { ok: true };
+}
+
+
 async function syncRow(reimbursementId: string) {
   const { data: s } = await supabaseAdmin.from("app_settings")
     .select("google_sheet_id, google_sheet_tab, sheet_sync_enabled").eq("id", 1).single();
