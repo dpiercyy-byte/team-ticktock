@@ -1873,6 +1873,7 @@ function AdminAddReceiptsDialog({
           weekStart,
           receiptUrl: up.url,
           receiptMime: up.mime,
+          jobSiteId: jobSiteId || null,
         } });
         updateToken(r.token);
         ok++;
