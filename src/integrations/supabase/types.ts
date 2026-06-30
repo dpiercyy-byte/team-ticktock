@@ -146,6 +146,7 @@ export type Database = {
           receipt_mime: string | null
           receipt_url: string | null
           sheet_row_id: string | null
+          uploaded_by_admin: boolean
           week_start: string
           worker_id: string | null
         }
@@ -172,6 +173,7 @@ export type Database = {
           receipt_mime?: string | null
           receipt_url?: string | null
           sheet_row_id?: string | null
+          uploaded_by_admin?: boolean
           week_start: string
           worker_id?: string | null
         }
@@ -198,6 +200,7 @@ export type Database = {
           receipt_mime?: string | null
           receipt_url?: string | null
           sheet_row_id?: string | null
+          uploaded_by_admin?: boolean
           week_start?: string
           worker_id?: string | null
         }

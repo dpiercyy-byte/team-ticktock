@@ -45,7 +45,7 @@ export const listAllReceipts = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin
       .from("reimbursements")
-      .select("id, worker_id, is_admin_receipt, payee_label, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
+      .select("id, worker_id, is_admin_receipt, uploaded_by_admin, payee_label, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 500);
     if (data.workerId) q = q.eq("worker_id", data.workerId);
@@ -63,6 +63,7 @@ export const listAllReceipts = createServerFn({ method: "POST" })
         ? (r.payee_label || "Admin")
         : (r.workers?.name ?? "Unknown"),
       isAdminReceipt: !!r.is_admin_receipt,
+      uploadedByAdmin: !!r.uploaded_by_admin,
       payeeLabel: r.payee_label as string | null,
       description: r.description,
       amount: Number(r.amount),
@@ -108,6 +109,7 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
     const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: null,
       is_admin_receipt: true,
+      uploaded_by_admin: true,
       payee_label: data.payeeLabel,
       week_start: weekStart,
       description: data.description || data.payeeLabel,
@@ -168,6 +170,7 @@ export const addReimbursement = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: data.workerId,
+      uploaded_by_admin: true,
       week_start: data.weekStart,
       description: data.description,
       amount: data.amount,
