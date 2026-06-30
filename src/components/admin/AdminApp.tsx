@@ -1804,6 +1804,16 @@ function EditParsedDialog({
               </div>
             )}
           </div>
+          <div>
+            <Label className="text-xs">Note</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional note"
+              rows={3}
+              className="mt-1"
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
