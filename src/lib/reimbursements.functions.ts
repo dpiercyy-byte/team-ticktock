@@ -60,7 +60,7 @@ export const listAllReceipts = createServerFn({ method: "POST" })
       id: r.id,
       workerId: r.worker_id,
       workerName: r.is_admin_receipt
-        ? (r.payee_label || "Admin")
+        ? (r.payee_label || r.parsed_vendor || "Admin")
         : (r.workers?.name ?? "Unknown"),
       isAdminReceipt: !!r.is_admin_receipt,
       uploadedByAdmin: !!r.uploaded_by_admin,
