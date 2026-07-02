@@ -23,6 +23,8 @@ export type Database = {
           project_tracking_enabled: boolean
           sheet_sync_enabled: boolean
           show_pay_estimates: boolean
+          worker_export_last_sync_at: string | null
+          worker_export_sheet_id: string | null
         }
         Insert: {
           admin_password_hash: string
@@ -32,6 +34,8 @@ export type Database = {
           project_tracking_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
+          worker_export_last_sync_at?: string | null
+          worker_export_sheet_id?: string | null
         }
         Update: {
           admin_password_hash?: string
@@ -41,6 +45,8 @@ export type Database = {
           project_tracking_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
+          worker_export_last_sync_at?: string | null
+          worker_export_sheet_id?: string | null
         }
         Relationships: []
       }
