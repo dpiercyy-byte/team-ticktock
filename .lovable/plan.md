@@ -1,41 +1,23 @@
-## Google Sheets Full Export — Nightly Sync
+## Fix: re-scan wipes worker's job site + weak AI fills
 
-Export **all** worker time entries and weekly payouts to a Google Sheet, with one tab per worker per data type. First run backfills complete history automatically.
+### 1. Never overwrite an existing job site on re-scan
+In `src/lib/receipts.functions.ts` → `runParseForReimbursement`:
+- Before writing the patch, read the row's current `parsed_job_site_id`.
+- Only set `parsed_job_site_id` from the AI result when the current value is `null`. Otherwise, omit the key from the patch so the worker's (or admin's) selection is preserved.
+- Same guard for `material_type` / `billable_job_site_id` (don't clobber if already set by a human).
 
-### Sheet target
-- Sheet ID: `1Qxn6DRVYIIuXvoCXlHSa1fu-CThlBTyj6ipYVVEP4bY`
-- Tabs created/overwritten per active worker:
-  - `{Worker Name} - Time Entries`
-  - `{Worker Name} - Payouts`
+### 2. Improve AI parsing quality
+Also in `runParseForReimbursement` / `aiParseReceipt`:
+- Upgrade the prompt with concrete instructions: locate vendor at top of receipt, prefer transaction date over print date, prefer the largest bottom-line "TOTAL" for total, sum items→subtotal, tax line if labeled, and infer category from vendor (Home Depot/Lowes→Materials, Shell/Chevron/gas→Fuel, etc.).
+- Return a per-field confidence map so we can log low-confidence fields.
+- Add one retry with a stricter "re-read and correct" pass if any of vendor/date/total came back null.
+- Keep the existing model (`google/gemini-3-flash-preview`) but add `temperature: 0` for determinism.
 
-### Data source (accurate to app state)
-- **Time Entries tab** — every row in `time_entries` for that worker:
-  - Date, Clock In, Clock Out, Hours, Project, Clock-In Tag, Clock-Out Tag, Geo Status, Flagged, Entry ID
-  - Hours computed live from `clock_out - clock_in`; open entries show blank hours.
-- **Payouts tab** — every row in `weekly_payouts` for that worker:
-  - Week Start, Hours, Wages, Reimbursements, Tips, Total Amount, Actual Paid, Paid At, Paid By, Notes
-  - Uses stored `wages` value (preserves historical $35/$36/$25 rate exactly as recorded — no recalculation).
+### 3. UI signal (small)
+In the admin receipt edit dialog, show a subtle "Job locked by worker selection" hint next to the job site field when it was set pre-parse, so admins know a re-scan won't touch it.
 
-### Sync behavior
-- **Full overwrite** on every run — reflects edits and deletions in the app.
-- **First run = complete backfill** (Colin's 102 entries + 22 payout weeks, Edgardo's 106 entries + 24 payout weeks, plus anything added later). No separate migration step needed.
-- Frozen header row, bold headers, auto-resized columns via Sheets `batchUpdate`.
-- Missing tabs are created automatically; obsolete tabs (deleted worker) are left in place.
+### Files touched
+- `src/lib/receipts.functions.ts` (parse guard + prompt)
+- `src/components/admin/AdminApp.tsx` (hint text only)
 
-### Trigger
-- **Nightly** at 1:00 AM ET via `pg_cron` → `POST /api/public/hooks/sheet-export`.
-- **Manual "Sync to Sheets now"** button in Admin → Settings for on-demand runs (used for the initial backfill).
-- Endpoint secured via `apikey` header (Supabase anon key), same pattern as existing `auto-clockout` hook.
-
-### Admin UI (Settings tab)
-- New "Worker Data Export" card:
-  - Sheet ID field (defaults to the one above, editable)
-  - "Sync now" button with toast + last-sync timestamp
-  - Link out to the sheet
-
-### Technical
-- New file: `src/routes/api/public/hooks/sheet-export.ts`
-- New helper: `src/lib/sheet-export.server.ts` — builds tab data, calls Google Sheets `values.update` + `batchUpdate` via existing `google_sheets` connector gateway
-- New server fn: `src/lib/sheet-export.functions.ts` — `runSheetExport()` wrapped with `requireSupabaseAuth` + admin check
-- New settings columns on `app_settings`: `worker_export_sheet_id`, `worker_export_last_sync_at`
-- pg_cron entry: `0 5 * * *` UTC (= 1 AM ET during EDT; acceptable 1hr drift in EST)
+No schema changes. No migration needed.
