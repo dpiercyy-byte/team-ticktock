@@ -253,7 +253,8 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
   await supabaseAdmin.from("reimbursements").update({ parse_status: "pending" }).eq("id", reimbursementId);
   try {
     const { data: r } = await supabaseAdmin.from("reimbursements")
-      .select("id, receipt_url, receipt_mime, is_admin_receipt, payee_label").eq("id", reimbursementId).maybeSingle();
+      .select("id, receipt_url, receipt_mime, is_admin_receipt, payee_label, parsed_job_site_id")
+      .eq("id", reimbursementId).maybeSingle();
     if (!r?.receipt_url) {
       await supabaseAdmin.from("reimbursements").update({ parse_status: "failed" }).eq("id", reimbursementId);
       return;
@@ -284,17 +285,21 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
       parsed_tax: num(parsed.tax),
       parsed_total: num(parsed.total),
       parsed_category: category,
-      parsed_job_site_id: jobSiteId,
       parse_confidence: num(parsed.confidence),
       parse_raw: parsed,
       parse_status: "ok",
       parsed_at: new Date().toISOString(),
     };
+    // Preserve a job site already picked by the worker/admin — AI never overwrites it.
+    if (r.parsed_job_site_id == null) {
+      patch.parsed_job_site_id = jobSiteId;
+    }
     // Backfill payee_label from parsed vendor for admin receipts left blank
     if (r.is_admin_receipt && !r.payee_label && parsed.vendor) {
       patch.payee_label = String(parsed.vendor).slice(0, 100);
     }
     await supabaseAdmin.from("reimbursements").update(patch).eq("id", reimbursementId);
+
 
     try { await syncRow(reimbursementId); } catch (e) { console.error("sheet sync failed", e); }
   } catch (e: any) {
