@@ -253,7 +253,7 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
   await supabaseAdmin.from("reimbursements").update({ parse_status: "pending" }).eq("id", reimbursementId);
   try {
     const { data: r } = await supabaseAdmin.from("reimbursements")
-      .select("id, receipt_url, receipt_mime").eq("id", reimbursementId).maybeSingle();
+      .select("id, receipt_url, receipt_mime, is_admin_receipt, payee_label").eq("id", reimbursementId).maybeSingle();
     if (!r?.receipt_url) {
       await supabaseAdmin.from("reimbursements").update({ parse_status: "failed" }).eq("id", reimbursementId);
       return;
@@ -277,7 +277,7 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
       return isFinite(n) ? n : null;
     };
 
-    await supabaseAdmin.from("reimbursements").update({
+    const patch: any = {
       parsed_vendor: parsed.vendor || null,
       parsed_date: parsed.date || null,
       parsed_subtotal: num(parsed.subtotal),
@@ -289,7 +289,12 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
       parse_raw: parsed,
       parse_status: "ok",
       parsed_at: new Date().toISOString(),
-    }).eq("id", reimbursementId);
+    };
+    // Backfill payee_label from parsed vendor for admin receipts left blank
+    if (r.is_admin_receipt && !r.payee_label && parsed.vendor) {
+      patch.payee_label = String(parsed.vendor).slice(0, 100);
+    }
+    await supabaseAdmin.from("reimbursements").update(patch).eq("id", reimbursementId);
 
     try { await syncRow(reimbursementId); } catch (e) { console.error("sheet sync failed", e); }
   } catch (e: any) {
