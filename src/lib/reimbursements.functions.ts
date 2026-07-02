@@ -95,7 +95,7 @@ function currentWeekStartFromAdmin(): string {
 
 export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
-    payeeLabel: z.string().trim().min(1).max(100),
+    payeeLabel: z.string().trim().min(1).max(100).optional(),
     description: z.string().trim().max(200).optional(),
     amount: z.number().min(0).max(100000).optional(),
     weekStart: z.string().optional(),
