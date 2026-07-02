@@ -325,7 +325,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           <Select value={workerId ?? ""} onValueChange={setWorkerId}>
             <SelectTrigger className="w-full sm:w-[220px] mt-1.5"><SelectValue placeholder="Select worker" /></SelectTrigger>
             <SelectContent>
-              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -1155,7 +1155,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                       {initials || "?"}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-semibold text-base truncate">{s.name}</p>
+                      <p className="font-bold text-lg truncate">{s.name}</p>
                       {isPaid ? (
                         <div className="mt-0.5 flex flex-wrap items-center gap-1">
                           <span className="inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
