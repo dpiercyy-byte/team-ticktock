@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
 
 const AdminRoute = AdminRouteImport.update({
@@ -23,6 +24,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSheetExportRoute =
+  ApiPublicHooksSheetExportRouteImport.update({
+    id: '/api/public/hooks/sheet-export',
+    path: '/api/public/hooks/sheet-export',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAutoClockoutRoute =
   ApiPublicHooksAutoClockoutRouteImport.update({
     id: '/api/public/hooks/auto-clockout',
@@ -34,30 +41,47 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
+  '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
+  '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
+  '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/api/public/hooks/auto-clockout'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/api/public/hooks/auto-clockout'
+    | '/api/public/hooks/sheet-export'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/api/public/hooks/auto-clockout'
-  id: '__root__' | '/' | '/admin' | '/api/public/hooks/auto-clockout'
+  to:
+    | '/'
+    | '/admin'
+    | '/api/public/hooks/auto-clockout'
+    | '/api/public/hooks/sheet-export'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/api/public/hooks/auto-clockout'
+    | '/api/public/hooks/sheet-export'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   ApiPublicHooksAutoClockoutRoute: typeof ApiPublicHooksAutoClockoutRoute
+  ApiPublicHooksSheetExportRoute: typeof ApiPublicHooksSheetExportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -76,6 +100,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sheet-export': {
+      id: '/api/public/hooks/sheet-export'
+      path: '/api/public/hooks/sheet-export'
+      fullPath: '/api/public/hooks/sheet-export'
+      preLoaderRoute: typeof ApiPublicHooksSheetExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/auto-clockout': {
       id: '/api/public/hooks/auto-clockout'
       path: '/api/public/hooks/auto-clockout'
@@ -90,6 +121,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   ApiPublicHooksAutoClockoutRoute: ApiPublicHooksAutoClockoutRoute,
+  ApiPublicHooksSheetExportRoute: ApiPublicHooksSheetExportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
