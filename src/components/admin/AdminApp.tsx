@@ -1894,8 +1894,8 @@ function AdminAddReceiptsDialog({
   });
 
   const submit = async () => {
-    if (!payee.trim()) { toast.error("Payee is required"); return; }
     if (files.length === 0) { toast.error("Add at least one file"); return; }
+
     setBusy(true);
     setProgress({ done: 0, total: files.length });
     let ok = 0, failed = 0;
