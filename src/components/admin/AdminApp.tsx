@@ -2626,6 +2626,92 @@ function GoogleSheetsSettingsCard({ token, updateToken }: { token: string; updat
   );
 }
 
+function WorkerExportSettingsCard({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+  const getFn = useServerFn(getWorkerExportSettings);
+  const updFn = useServerFn(updateWorkerExportSettings);
+  const runFn = useServerFn(runWorkerSheetExportFn);
+  const qc = useQueryClient();
+  const [sheetId, setSheetId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["worker-export-settings"],
+    queryFn: () => getFn({ data: { token } }).then((r) => { updateToken(r.token); return r; }),
+  });
+
+  useEffect(() => {
+    if (q.data?.settings) setSheetId(q.data.settings.worker_export_sheet_id || "");
+  }, [q.data]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await updFn({ data: { token, sheetId } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["worker-export-settings"] });
+      toast.success("Saved");
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const run = async () => {
+    setRunning(true);
+    try {
+      const r = await runFn({ data: { token } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["worker-export-settings"] });
+      toast.success(`Synced ${r.workers} workers · ${r.entries} entries · ${r.payouts} payouts`);
+    } catch (e: any) { toast.error(e?.message || "Failed"); }
+    finally { setRunning(false); }
+  };
+
+  const connectorReady = q.data?.connectorReady;
+  const lastSync = q.data?.settings?.worker_export_last_sync_at;
+  const resolvedId = (sheetId.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1]) || sheetId;
+  const sheetUrl = resolvedId ? `https://docs.google.com/spreadsheets/d/${resolvedId}/edit` : null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Sheet className="h-4 w-4" /> Worker data export</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!connectorReady ? (
+          <p className="text-sm text-muted-foreground">
+            Google Sheets connection missing. Reconnect via the workspace connectors panel.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Full overwrite of all worker time entries and payouts. One tab per worker per data type.
+              Runs nightly at 1:00 AM ET, and can be triggered manually below.
+            </p>
+            <div>
+              <Label className="text-xs">Sheet URL or ID</Label>
+              <div className="flex gap-2 mt-1">
+                <Input value={sheetId} onChange={(e) => setSheetId(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/…" />
+                <Button onClick={save} disabled={saving} variant="outline">Save</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground">
+                {lastSync ? <>Last sync: {new Date(lastSync).toLocaleString()}</> : <>Not synced yet.</>}
+                {sheetUrl && (
+                  <> · <a href={sheetUrl} target="_blank" rel="noreferrer" className="underline">Open sheet</a></>
+                )}
+              </div>
+              <Button size="sm" onClick={run} disabled={running || !sheetId}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${running ? "animate-spin" : ""}`} />
+                {running ? "Syncing…" : "Sync to Sheets now"}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+
 // ===== Job Sites tab =====
 function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const listFn = useServerFn(adminListJobSites);
