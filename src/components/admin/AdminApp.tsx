@@ -2517,6 +2517,8 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
       </Card>
 
       <GoogleSheetsSettingsCard token={token} updateToken={updateToken} />
+
+      <WorkerExportSettingsCard token={token} updateToken={updateToken} />
     </div>
   );
 }
