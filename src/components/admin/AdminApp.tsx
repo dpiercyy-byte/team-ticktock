@@ -1908,7 +1908,7 @@ function AdminAddReceiptsDialog({
         updateToken(up.token);
         const r = await addFn({ data: {
           token: up.token,
-          payeeLabel: payee.trim(),
+          payeeLabel: payee.trim() || undefined,
           description: description.trim() || undefined,
           weekStart,
           receiptUrl: up.url,
