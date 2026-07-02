@@ -1942,8 +1942,8 @@ function AdminAddReceiptsDialog({
             Business receipts not tied to a worker. Each file is parsed by AI and added to your Google Sheet.
           </p>
           <div>
-            <Label className="text-xs">Payee <span className="text-red-500">*</span></Label>
-            <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="e.g. Home Depot, Acme Plumbing" className="mt-1" />
+            <Label className="text-xs">Payee (optional)</Label>
+            <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="Auto-filled from receipt if left blank" className="mt-1" />
           </div>
           <div>
             <Label className="text-xs">Week</Label>
