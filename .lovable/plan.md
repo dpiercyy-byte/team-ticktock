@@ -1,34 +1,52 @@
-## Goal
-Restyle the Receipts tab cards so that status/source badges sit inside the bottom content area instead of overlaying the receipt image, with explicit "Admin" / "Worker" source labels.
+## 1. Make "Payee" optional on admin receipt upload
 
-## Current state
-In `AdminApp.tsx` each receipt card has:
-- Top-left overlay: AI-parsed / Edited / Scanning / Scan-failed / Unparsed status pill
-- Top-right overlay: "Admin" or "Uploaded by admin" pill
-- Bottom section (CardContent): vendor, amount, category/job-site pills, action buttons
+- `src/components/admin/AdminApp.tsx` (admin bulk-upload dialog around lines 1839–2040):
+  - Remove the required asterisk/toast guard on payee.
+  - Remove the `!payee.trim()` condition from the submit `disabled` prop.
+  - Relabel the field to "Payee (optional)".
+- `src/lib/reimbursements.functions.ts` — `adminAddStandaloneReceipt`:
+  - Make `payeeLabel` optional; if blank, insert `null` and let the display layer fall back.
+  - After the AI parse completes (`runParseForReimbursement`), when `payee_label` is still null, backfill it with the parsed `vendor`.
+- `listAllReceipts` mapping: `workerName` for admin receipts becomes `payee_label || parsed_vendor || "Admin"` so the card label stays useful even before parsing finishes.
 
-## Changes
+## 2. Redesign the Workers tab as Payout-style cards
 
-### 1. Remove overlay pills from the image area
-In the receipt card grid map, delete the two `absolute` positioned `<span>` elements that sit inside the `<button>` wrapping the receipt image:
-- The top-left `statusLabel` pill
-- The top-right `Admin` / `Uploaded by admin` pill
+Replace the current single-column divided list in `WorkersTab` (lines ~694–759) with the same responsive grid pattern used by the Payout worker cards:
 
-### 2. Add a badge row inside CardContent
-Inside the existing flex-wrap badge area (currently holding Category, Job Site, and Bill-client badges), prepend two new pills:
-- **Source pill** — "Admin" (secondary/Admin color) when `isAdminReceipt === true`, otherwise "Worker" (outline or muted style) when `isAdminReceipt === false`. This gives the explicit Admin / Worker distinction the user wants.
-- **Status pill** — the same `statusLabel` and `statusColor` that was previously at top-left. Keep the same color mapping (green=ok, blue=manual, amber=pending, red=failed, muted=unparsed).
+- `grid gap-4 sm:grid-cols-2 lg:grid-cols-3` of `Card`s.
+- Card header: initials avatar circle + name + hourly rate pill.
+- Card body: stacked personal info rows (icon + label + value) for
+  - Phone
+  - Email
+  - Address
+  - Emergency contact (name + phone)
+  Empty fields render as a muted "Add …" affordance.
+- Card footer: existing Edit / PIN / Delete actions kept, aligned right.
 
-### 3. Keep existing layout and spacing
-- Do not change card dimensions, grid columns, or image aspect ratio.
-- Keep action buttons and existing extracted-info text exactly as-is.
-- No backend or data changes required.
+### Data model
+
+New nullable columns on `public.workers` via migration:
+- `phone text`
+- `email text`
+- `address text`
+- `emergency_contact_name text`
+- `emergency_contact_phone text`
+
+No RLS/grant changes needed (existing policies already cover the table).
+
+### Server functions
+
+`src/lib/workers.functions.ts`:
+- Extend `listWorkersAdmin` select to include the new columns.
+- Extend `createWorker` input + insert with the optional fields.
+- New `updateWorkerProfile({ workerId, phone?, email?, address?, emergencyContactName?, emergencyContactPhone? })` — admin-only, validated with zod (`email().optional()`, length caps), audit-logged.
+
+### UI wiring
+
+- `WorkerEditor` (line 802) gains tabs or a longer form with the new personal fields; calls `updateWorkerProfile` in addition to existing name/rate updates.
+- "Add worker" dialog gains the same optional inputs (all optional except name/PIN/rate).
+- Worker cards render the personal info block; clicking any empty row opens the editor focused on that field.
 
 ## Out of scope
-- No changes to filters, CSV export, edit dialog, upload flow, or AI parsing.
-- No new data fields.
 
-## Acceptance criteria
-- Receipt image no longer shows any overlay text.
-- Every card shows a source pill ("Admin" or "Worker") and a status pill ("AI parsed", "Edited", "Scanning…", "Scan failed", or "Unparsed") in the bottom info area.
-- Existing category/job-site/bill-client pills remain present.
+- No changes to worker-facing UI, payout logic, or receipt parsing beyond the vendor fallback described above.

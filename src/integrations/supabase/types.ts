@@ -381,24 +381,39 @@ export type Database = {
       }
       workers: {
         Row: {
+          address: string | null
           created_at: string
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           hourly_rate: number
           id: string
           name: string
+          phone: string | null
           pin_hash: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           hourly_rate?: number
           id?: string
           name: string
+          phone?: string | null
           pin_hash: string
         }
         Update: {
+          address?: string | null
           created_at?: string
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           hourly_rate?: number
           id?: string
           name?: string
+          phone?: string | null
           pin_hash?: string
         }
         Relationships: []
