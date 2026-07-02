@@ -60,7 +60,7 @@ export const listAllReceipts = createServerFn({ method: "POST" })
       id: r.id,
       workerId: r.worker_id,
       workerName: r.is_admin_receipt
-        ? (r.payee_label || "Admin")
+        ? (r.payee_label || r.parsed_vendor || "Admin")
         : (r.workers?.name ?? "Unknown"),
       isAdminReceipt: !!r.is_admin_receipt,
       uploadedByAdmin: !!r.uploaded_by_admin,
@@ -95,7 +95,7 @@ function currentWeekStartFromAdmin(): string {
 
 export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
-    payeeLabel: z.string().trim().min(1).max(100),
+    payeeLabel: z.string().trim().min(1).max(100).optional(),
     description: z.string().trim().max(200).optional(),
     amount: z.number().min(0).max(100000).optional(),
     weekStart: z.string().optional(),
@@ -110,9 +110,9 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
       worker_id: null,
       is_admin_receipt: true,
       uploaded_by_admin: true,
-      payee_label: data.payeeLabel,
+      payee_label: data.payeeLabel ?? null,
       week_start: weekStart,
-      description: data.description || data.payeeLabel,
+      description: data.description || data.payeeLabel || "Receipt",
       amount: data.amount ?? 0,
       receipt_url: data.receiptUrl,
       receipt_mime: data.receiptMime,

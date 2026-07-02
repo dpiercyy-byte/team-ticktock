@@ -24,6 +24,7 @@ import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
   Sparkles, RefreshCw, Sheet, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
+  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert,
 } from "lucide-react";
 import {
   parseReceipt, updateParsedReceipt, getSheetSettings, updateSheetSettings, backfillSheet, parseUnprocessed,
@@ -34,7 +35,7 @@ import {
   adminLogin, adminVerify, adminChangePassword,
 } from "@/lib/auth.functions";
 import {
-  listWorkersAdmin, createWorker, deleteWorker, setWorkerRate, setWorkerName, resetWorkerPin,
+  listWorkersAdmin, createWorker, deleteWorker, setWorkerRate, setWorkerName, resetWorkerPin, updateWorkerProfile,
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
@@ -676,6 +677,7 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
   const rateFn = useServerFn(setWorkerRate);
   const nameFn = useServerFn(setWorkerName);
   const pinFn = useServerFn(resetWorkerPin);
+  const profileFn = useServerFn(updateWorkerProfile);
 
   const qc = useQueryClient();
 
@@ -687,33 +689,62 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState(""); const [pin, setPin] = useState(""); const [rate, setRate] = useState("0");
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newAddress, setNewAddress] = useState("");
+  const [newEcName, setNewEcName] = useState("");
+  const [newEcPhone, setNewEcPhone] = useState("");
   const [confirmDel, setConfirmDel] = useState<{ id: string; name: string } | null>(null);
   const [resetting, setResetting] = useState<{ id: string; name: string } | null>(null);
   const [newPin, setNewPin] = useState("");
 
+  const initials = (n: string) => n.split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={adding} onOpenChange={setAdding}>
+        <Dialog open={adding} onOpenChange={(o) => {
+          setAdding(o);
+          if (!o) { setName(""); setPin(""); setRate("0"); setNewPhone(""); setNewEmail(""); setNewAddress(""); setNewEcName(""); setNewEcPhone(""); }
+        }}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Add worker</Button></DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Add worker</DialogTitle></DialogHeader>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-              <div><Label>PIN (4–12 digits)</Label>
-                <Input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} maxLength={12} type="password" />
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>PIN (4–12)</Label>
+                  <Input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} maxLength={12} type="password" />
+                </div>
+                <div><Label>Hourly rate ($)</Label>
+                  <Input type="number" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} />
+                </div>
               </div>
-              <div><Label>Hourly rate ($)</Label>
-                <Input type="number" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} />
+              <div className="pt-2 border-t space-y-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Personal info (optional)</p>
+                <div><Label className="text-xs">Phone</Label><Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="(555) 123-4567" /></div>
+                <div><Label className="text-xs">Email</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="name@example.com" /></div>
+                <div><Label className="text-xs">Address</Label><Input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="Street, city" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">Emergency contact</Label><Input value={newEcName} onChange={(e) => setNewEcName(e.target.value)} placeholder="Name" /></div>
+                  <div><Label className="text-xs">Emergency phone</Label><Input value={newEcPhone} onChange={(e) => setNewEcPhone(e.target.value)} placeholder="Phone" /></div>
+                </div>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setAdding(false)}>Cancel</Button>
               <Button onClick={async () => {
                 try {
-                  const r = await createFn({ data: { token, name, pin, hourlyRate: parseFloat(rate) || 0 } });
+                  const r = await createFn({ data: {
+                    token, name, pin, hourlyRate: parseFloat(rate) || 0,
+                    phone: newPhone.trim() || undefined,
+                    email: newEmail.trim() || undefined,
+                    address: newAddress.trim() || undefined,
+                    emergencyContactName: newEcName.trim() || undefined,
+                    emergencyContactPhone: newEcPhone.trim() || undefined,
+                  } });
                   updateToken(r.token); refresh(); toast.success("Worker added");
-                  setAdding(false); setName(""); setPin(""); setRate("0");
+                  setAdding(false);
                 } catch (e: any) { toast.error(e?.message || "Failed"); }
               }} disabled={!name.trim() || pin.length < 4}>Add</Button>
             </DialogFooter>
@@ -721,42 +752,70 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
         </Dialog>
       </div>
 
-      <Card><CardContent className="p-0">
-        {wq.isLoading ? <p className="p-6 text-sm">Loading…</p> :
-         wq.data?.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">No workers yet.</p> :
-         <div className="divide-y divide-border">
-           {wq.data?.map(w => (
-             <div key={w.id} className="px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
-               <div className="min-w-0">
-                 <p className="font-medium truncate">{w.name}</p>
-                 <p className="text-xs text-muted-foreground">${Number(w.hourly_rate).toFixed(2)}/hr</p>
-               </div>
-                <div className="flex items-center gap-2 shrink-0 ml-auto">
-                  <WorkerEditor worker={w} onSave={async ({ name: newName, rate: newRate }) => {
-                    try {
-                      if (newName !== w.name) {
-                        const r1 = await nameFn({ data: { token, workerId: w.id, name: newName } });
-                        updateToken(r1.token);
-                      }
-                      if (newRate !== Number(w.hourly_rate)) {
-                        const r2 = await rateFn({ data: { token, workerId: w.id, hourlyRate: newRate } });
-                        updateToken(r2.token);
-                      }
-                      refresh(); toast.success("Worker updated");
-                    } catch (e: any) { toast.error(e?.message || "Failed"); }
-                  }} />
-                  <Button variant="outline" size="sm" onClick={() => { setResetting({ id: w.id, name: w.name }); setNewPin(""); }}>
-                    <KeyRound className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">PIN</span>
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setConfirmDel({ id: w.id, name: w.name })}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-
-             </div>
+      {wq.isLoading ? <p className="p-6 text-sm">Loading…</p> :
+       wq.data?.length === 0 ? (
+         <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">No workers yet.</CardContent></Card>
+       ) : (
+         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+           {wq.data?.map((w: any) => (
+             <Card key={w.id} className="flex flex-col">
+               <CardHeader className="pb-3">
+                 <div className="flex items-center gap-3">
+                   <div className="h-11 w-11 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm shrink-0">
+                     {initials(w.name)}
+                   </div>
+                   <div className="min-w-0 flex-1">
+                     <p className="font-semibold truncate leading-tight">{w.name}</p>
+                     <p className="text-xs text-muted-foreground">${Number(w.hourly_rate).toFixed(2)}/hr</p>
+                   </div>
+                 </div>
+               </CardHeader>
+               <CardContent className="pt-0 flex-1 flex flex-col gap-3">
+                 <div className="space-y-2 text-sm flex-1">
+                   <InfoRow icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={w.phone} href={w.phone ? `tel:${w.phone}` : undefined} />
+                   <InfoRow icon={<Mail className="h-3.5 w-3.5" />} label="Email" value={w.email} href={w.email ? `mailto:${w.email}` : undefined} />
+                   <InfoRow icon={<HomeIcon className="h-3.5 w-3.5" />} label="Address" value={w.address} />
+                   <InfoRow
+                     icon={<ShieldAlert className="h-3.5 w-3.5" />}
+                     label="Emergency"
+                     value={w.emergency_contact_name || w.emergency_contact_phone
+                       ? [w.emergency_contact_name, w.emergency_contact_phone].filter(Boolean).join(" · ")
+                       : null}
+                     href={w.emergency_contact_phone ? `tel:${w.emergency_contact_phone}` : undefined}
+                   />
+                 </div>
+                 <div className="flex items-center gap-2 pt-2 border-t">
+                   <WorkerEditor worker={w} onSave={async (v) => {
+                     try {
+                       if (v.name !== w.name) {
+                         const r1 = await nameFn({ data: { token, workerId: w.id, name: v.name } });
+                         updateToken(r1.token);
+                       }
+                       if (v.rate !== Number(w.hourly_rate)) {
+                         const r2 = await rateFn({ data: { token, workerId: w.id, hourlyRate: v.rate } });
+                         updateToken(r2.token);
+                       }
+                       const r3 = await profileFn({ data: {
+                         token, workerId: w.id,
+                         phone: v.phone, email: v.email, address: v.address,
+                         emergencyContactName: v.ecName, emergencyContactPhone: v.ecPhone,
+                       } });
+                       updateToken(r3.token);
+                       refresh(); toast.success("Worker updated");
+                     } catch (e: any) { toast.error(e?.message || "Failed"); }
+                   }} />
+                   <Button variant="outline" size="sm" onClick={() => { setResetting({ id: w.id, name: w.name }); setNewPin(""); }}>
+                     <KeyRound className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">PIN</span>
+                   </Button>
+                   <Button variant="ghost" size="icon" className="ml-auto" onClick={() => setConfirmDel({ id: w.id, name: w.name })}>
+                     <Trash2 className="h-4 w-4 text-destructive" />
+                   </Button>
+                 </div>
+               </CardContent>
+             </Card>
            ))}
-         </div>}
-      </CardContent></Card>
+         </div>
+       )}
 
       <Dialog open={!!resetting} onOpenChange={() => setResetting(null)}>
         <DialogContent>
@@ -799,25 +858,81 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
   );
 }
 
-function WorkerEditor({ worker, onSave }: { worker: any; onSave: (v: { name: string; rate: number }) => void }) {
+function InfoRow({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string | null | undefined; href?: string }) {
+  const empty = !value;
+  const content = (
+    <div className="flex items-start gap-2 min-w-0">
+      <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-tight">{label}</p>
+        {empty
+          ? <p className="text-xs text-muted-foreground/60 italic">Not set</p>
+          : <p className="text-xs truncate">{value}</p>}
+      </div>
+    </div>
+  );
+  if (href && !empty) {
+    return <a href={href} className="block hover:bg-muted/50 -mx-1 px-1 py-0.5 rounded transition-colors">{content}</a>;
+  }
+  return content;
+}
+
+function WorkerEditor({ worker, onSave }: {
+  worker: any;
+  onSave: (v: { name: string; rate: number; phone: string; email: string; address: string; ecName: string; ecPhone: string }) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(worker.name);
   const [rate, setRate] = useState(String(worker.hourly_rate));
-  useEffect(() => { setName(worker.name); setRate(String(worker.hourly_rate)); }, [worker.name, worker.hourly_rate, open]);
+  const [phone, setPhone] = useState(worker.phone ?? "");
+  const [email, setEmail] = useState(worker.email ?? "");
+  const [address, setAddress] = useState(worker.address ?? "");
+  const [ecName, setEcName] = useState(worker.emergency_contact_name ?? "");
+  const [ecPhone, setEcPhone] = useState(worker.emergency_contact_phone ?? "");
+  useEffect(() => {
+    setName(worker.name);
+    setRate(String(worker.hourly_rate));
+    setPhone(worker.phone ?? "");
+    setEmail(worker.email ?? "");
+    setAddress(worker.address ?? "");
+    setEcName(worker.emergency_contact_name ?? "");
+    setEcPhone(worker.emergency_contact_phone ?? "");
+  }, [worker, open]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm"><Pencil className="h-3.5 w-3.5 sm:mr-1" /><span className="hidden sm:inline">Edit</span></Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Edit worker</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div><Label>Hourly rate ($)</Label><Input type="number" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} /></div>
+          <div className="pt-2 border-t space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Personal info</p>
+            <div><Label className="text-xs">Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" /></div>
+            <div><Label className="text-xs">Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" /></div>
+            <div><Label className="text-xs">Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Emergency contact</Label><Input value={ecName} onChange={(e) => setEcName(e.target.value)} placeholder="Name" /></div>
+              <div><Label className="text-xs">Emergency phone</Label><Input value={ecPhone} onChange={(e) => setEcPhone(e.target.value)} placeholder="Phone" /></div>
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!name.trim()} onClick={() => { onSave({ name: name.trim(), rate: parseFloat(rate) || 0 }); setOpen(false); }}>Save</Button>
+          <Button disabled={!name.trim()} onClick={() => {
+            onSave({
+              name: name.trim(),
+              rate: parseFloat(rate) || 0,
+              phone: phone.trim(),
+              email: email.trim(),
+              address: address.trim(),
+              ecName: ecName.trim(),
+              ecPhone: ecPhone.trim(),
+            });
+            setOpen(false);
+          }}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1894,8 +2009,8 @@ function AdminAddReceiptsDialog({
   });
 
   const submit = async () => {
-    if (!payee.trim()) { toast.error("Payee is required"); return; }
     if (files.length === 0) { toast.error("Add at least one file"); return; }
+
     setBusy(true);
     setProgress({ done: 0, total: files.length });
     let ok = 0, failed = 0;
@@ -1908,7 +2023,7 @@ function AdminAddReceiptsDialog({
         updateToken(up.token);
         const r = await addFn({ data: {
           token: up.token,
-          payeeLabel: payee.trim(),
+          payeeLabel: payee.trim() || undefined,
           description: description.trim() || undefined,
           weekStart,
           receiptUrl: up.url,
@@ -1942,8 +2057,8 @@ function AdminAddReceiptsDialog({
             Business receipts not tied to a worker. Each file is parsed by AI and added to your Google Sheet.
           </p>
           <div>
-            <Label className="text-xs">Payee <span className="text-red-500">*</span></Label>
-            <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="e.g. Home Depot, Acme Plumbing" className="mt-1" />
+            <Label className="text-xs">Payee (optional)</Label>
+            <Input value={payee} onChange={(e) => setPayee(e.target.value)} placeholder="Auto-filled from receipt if left blank" className="mt-1" />
           </div>
           <div>
             <Label className="text-xs">Week</Label>
@@ -2034,7 +2149,7 @@ function AdminAddReceiptsDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || files.length === 0 || !payee.trim()}>
+          <Button onClick={submit} disabled={busy || files.length === 0}>
             {busy ? "Uploading…" : `Upload ${files.length || ""}`.trim()}
           </Button>
         </DialogFooter>
