@@ -34,7 +34,7 @@ import {
   adminLogin, adminVerify, adminChangePassword,
 } from "@/lib/auth.functions";
 import {
-  listWorkersAdmin, createWorker, deleteWorker, setWorkerRate, setWorkerName, resetWorkerPin,
+  listWorkersAdmin, createWorker, deleteWorker, setWorkerRate, setWorkerName, resetWorkerPin, updateWorkerProfile,
 } from "@/lib/workers.functions";
 import {
   adminListEntries, adminAddEntry, adminEditEntry, adminDeleteEntry, adminFlaggedEntries,
