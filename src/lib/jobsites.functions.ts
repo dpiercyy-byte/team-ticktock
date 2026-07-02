@@ -56,7 +56,7 @@ export const adminAddJobSite = createServerFn({ method: "POST" })
     adminBase.extend({
       address: z.string().trim().min(3).max(300),
       label: z.string().trim().max(80).optional(),
-      radius_m: z.number().int().min(25).max(2000).default(100),
+      radius_m: z.number().int().min(25).max(2000).default(250),
       kind: z.enum(["client", "supplier"]).default("client"),
     }).parse(d),
   )

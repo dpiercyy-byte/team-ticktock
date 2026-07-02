@@ -2641,7 +2641,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   const [kind, setKind] = useState<"client" | "supplier">("client");
   const [address, setAddress] = useState("");
   const [label, setLabel] = useState("");
-  const [radius, setRadius] = useState(100);
+  const [radius, setRadius] = useState(250);
   const [editing, setEditing] = useState<any | null>(null);
   const [eLabel, setELabel] = useState("");
   const [eAddress, setEAddress] = useState("");
@@ -2654,7 +2654,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     setELabel(s.label ?? "");
     setEAddress(s.address ?? "");
     setEOrigAddress(s.address ?? "");
-    setERadius(s.radius_m ?? 100);
+    setERadius(s.radius_m ?? 250);
     setEKind((s.kind ?? "client") as "client" | "supplier");
   };
 
@@ -3342,7 +3342,7 @@ function BulkAddDialog({
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"client" | "supplier">("supplier");
   const [brand, setBrand] = useState("");
-  const [radius, setRadius] = useState(100);
+  const [radius, setRadius] = useState(250);
   const [mode, setMode] = useState<"paste" | "search">("paste");
   const [pasteText, setPasteText] = useState("");
   const [searchQ, setSearchQ] = useState("");
