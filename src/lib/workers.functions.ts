@@ -10,7 +10,9 @@ export const listWorkersAdmin = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: rows, error } = await supabaseAdmin
-      .from("workers").select("id, name, hourly_rate, created_at").order("name");
+      .from("workers")
+      .select("id, name, hourly_rate, created_at, phone, email, address, emergency_contact_name, emergency_contact_phone")
+      .order("name");
     if (error) throw error;
     return { ...refreshed, workers: rows ?? [] };
   });
