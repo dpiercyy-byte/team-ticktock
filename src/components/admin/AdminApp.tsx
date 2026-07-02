@@ -1848,6 +1848,10 @@ function EditParsedDialog({
           </div>
           <div>
             <Label className="text-xs">Job site</Label>
+            {item.parsedJobSiteId && (
+              <p className="text-[11px] text-muted-foreground mt-0.5">Locked to worker's pick — re-scan won't change this.</p>
+            )}
+
             <Select value={jobSite || "none"} onValueChange={(v) => setJobSite(v === "none" ? "" : v)}>
               <SelectTrigger className="mt-1"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
