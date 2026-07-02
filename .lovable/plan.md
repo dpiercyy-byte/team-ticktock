@@ -1,23 +1,45 @@
-## Fix: re-scan wipes worker's job site + weak AI fills
+## Redesign receipt card layout for consistent scanning
 
-### 1. Never overwrite an existing job site on re-scan
-In `src/lib/receipts.functions.ts` → `runParseForReimbursement`:
-- Before writing the patch, read the row's current `parsed_job_site_id`.
-- Only set `parsed_job_site_id` from the AI result when the current value is `null`. Otherwise, omit the key from the patch so the worker's (or admin's) selection is preserved.
-- Same guard for `material_type` / `billable_job_site_id` (don't clobber if already set by a human).
+The receipt cards currently mix priority info (job site, source, total) with meta chips (AI parsed / Edited / Scanning / Failed) all in one wrapping row. Every card ends up with a different shape, so your eye has to hunt.
 
-### 2. Improve AI parsing quality
-Also in `runParseForReimbursement` / `aiParseReceipt`:
-- Upgrade the prompt with concrete instructions: locate vendor at top of receipt, prefer transaction date over print date, prefer the largest bottom-line "TOTAL" for total, sum items→subtotal, tax line if labeled, and infer category from vendor (Home Depot/Lowes→Materials, Shell/Chevron/gas→Fuel, etc.).
-- Return a per-field confidence map so we can log low-confidence fields.
-- Add one retry with a stricter "re-read and correct" pass if any of vendor/date/total came back null.
-- Keep the existing model (`google/gemini-3-flash-preview`) but add `temperature: 0` for determinism.
+### New card structure (top → bottom, fixed positions)
 
-### 3. UI signal (small)
-In the admin receipt edit dialog, show a subtle "Job locked by worker selection" hint next to the job site field when it was set pre-parse, so admins know a re-scan won't touch it.
+```text
+┌──────────────────────────────────────┐
+│         [ receipt thumbnail ]        │
+├──────────────────────────────────────┤
+│  Vendor                       $Total │  ← row 1: identity + amount (always same spot)
+│  Date · sub/tax meta                 │  ← row 2: small muted line
+├──────────────────────────────────────┤
+│  Source pill    Job site pill        │  ← row 3: dedicated priority strip
+│  (Admin/Worker) (job site or "No job")
+├──────────────────────────────────────┤
+│  Category · Client-billable (opt.)   │  ← row 4: secondary tags, only if present
+│  "description" (opt.)                │
+├──────────────────────────────────────┤
+│  [edit] [rescan] [view] [dl] [del]   │
+└──────────────────────────────────────┘
+```
+
+Row 3 is the new dedicated priority strip — always rendered, always in the same place, even when a field is empty (job site shows a muted "No job" pill so the layout doesn't shift).
+
+### Parse-status simplification
+
+- Drop the four-state chip (AI parsed / Edited / Scanning / Failed) from the card face — it's noise for the 95% success case and it competes with the priority info.
+- Keep only the two states that require action:
+  - **Scanning…** — small amber dot + label, shown inline on row 2 while pending.
+  - **Scan failed** — small red dot + label on row 2, replacing the date meta.
+- "AI parsed" vs "Edited" collapse into nothing on the card. The distinction stays available inside the edit dialog (unchanged) for anyone who needs it.
+
+### Consistency details
+
+- Vendor falls back to description if missing, same as today, but the amount slot is always `parsedTotal ?? amount` in the same top-right position.
+- Source pill uses the same two-tone style for both Admin and Worker so they read as a matched pair, not "colored vs plain".
+- Job site pill uses the outline style already used elsewhere; when absent, render `No job` in muted-foreground so the row height is stable.
+- Grid, thumbnail, and action row stay as-is.
 
 ### Files touched
-- `src/lib/receipts.functions.ts` (parse guard + prompt)
-- `src/components/admin/AdminApp.tsx` (hint text only)
 
-No schema changes. No migration needed.
+- `src/components/admin/AdminApp.tsx` — only the card render block inside `ReceiptsTab` (roughly lines 1585–1670). No data, server-function, or filter changes.
+
+No schema, no migration, no behavior change to parsing or sync.

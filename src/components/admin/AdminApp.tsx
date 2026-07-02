@@ -1585,16 +1585,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           {filtered.map(i => {
             const isPdf = (i.receiptMime || "").includes("pdf");
             const status = i.parseStatus;
-            const statusColor = status === "ok" ? "bg-green-500/15 text-green-700 dark:text-green-400"
-              : status === "manual" ? "bg-blue-500/15 text-blue-700 dark:text-blue-400"
-              : status === "pending" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-              : status === "failed" ? "bg-red-500/15 text-red-700 dark:text-red-400"
-              : "bg-muted text-muted-foreground";
-            const statusLabel = status === "ok" ? "AI parsed"
-              : status === "manual" ? "Edited"
-              : status === "pending" ? "Scanning…"
-              : status === "failed" ? "Scan failed"
-              : "Unparsed";
+            const isBillable = (i.materialType ?? "regular") === "client_billable";
             return (
               <Card key={i.id} className="overflow-hidden flex flex-col">
                 <button
@@ -1611,41 +1602,74 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     <img src={i.receiptUrl!} alt={i.description} className="h-full w-full object-cover" />
                   )}
                 </button>
-                <CardContent className="p-3 space-y-2 flex-1 flex flex-col">
+                <CardContent className="p-3 space-y-2.5 flex-1 flex flex-col">
+                  {/* Row 1: vendor + total (fixed position) */}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{i.parsedVendor || i.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {i.workerName} · {i.parsedDate ? fmtDate(i.parsedDate) : `wk ${fmtDate(i.weekStart)}`}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-sm whitespace-nowrap">{fmtMoney(i.parsedTotal ?? i.amount)}</p>
+                    <p className="font-medium text-sm truncate min-w-0">{i.parsedVendor || i.description}</p>
+                    <p className="font-semibold text-sm whitespace-nowrap tabular-nums">{fmtMoney(i.parsedTotal ?? i.amount)}</p>
                   </div>
-                  {(i.parsedSubtotal != null || i.parsedTax != null) && (
-                    <p className="text-[11px] text-muted-foreground">
-                      {i.parsedSubtotal != null && <>sub {fmtMoney(i.parsedSubtotal)} · </>}
-                      {i.parsedTax != null && <>tax {fmtMoney(i.parsedTax)}</>}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-1">
-                    {i.isAdminReceipt ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-400">Admin</span>
+
+                  {/* Row 2: date meta OR status when actionable */}
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 -mt-1">
+                    {status === "pending" ? (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        <span>Scanning…</span>
+                      </>
+                    ) : status === "failed" ? (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                        <span>Scan failed</span>
+                      </>
                     ) : (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Worker</span>
+                      <>
+                        <span>{i.parsedDate ? fmtDate(i.parsedDate) : `wk ${fmtDate(i.weekStart)}`}</span>
+                        {(i.parsedSubtotal != null || i.parsedTax != null) && (
+                          <span className="text-muted-foreground/70">
+                            · {i.parsedSubtotal != null && <>sub {fmtMoney(i.parsedSubtotal)}</>}
+                            {i.parsedSubtotal != null && i.parsedTax != null && " · "}
+                            {i.parsedTax != null && <>tax {fmtMoney(i.parsedTax)}</>}
+                          </span>
+                        )}
+                      </>
                     )}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
-                    {i.parsedCategory && <Badge variant="secondary" className="text-[10px]">{i.parsedCategory}</Badge>}
-                    {i.parsedJobSiteLabel && <Badge variant="outline" className="text-[10px]">{i.parsedJobSiteLabel}</Badge>}
-                    {(i.materialType ?? "regular") === "client_billable" && (
-                      <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/15">
-                        Bill client{i.billableJobSiteLabel ? ` · ${i.billableJobSiteLabel}` : ""}
+                  </p>
+
+                  {/* Row 3: dedicated priority strip — source + job site, always rendered */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/60">
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      i.isAdminReceipt
+                        ? "bg-purple-500/15 text-purple-700 dark:text-purple-400"
+                        : "bg-sky-500/15 text-sky-700 dark:text-sky-400"
+                    }`}>
+                      {i.isAdminReceipt ? "Admin" : (i.workerName || "Worker")}
+                    </span>
+                    {i.parsedJobSiteLabel ? (
+                      <Badge variant="outline" className="text-[10px] font-normal max-w-[180px] truncate">
+                        {i.parsedJobSiteLabel}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground border-dashed">
+                        No job
                       </Badge>
                     )}
                   </div>
 
+                  {/* Row 4: secondary tags + description, only if present */}
+                  {(i.parsedCategory || isBillable) && (
+                    <div className="flex flex-wrap gap-1">
+                      {i.parsedCategory && <Badge variant="secondary" className="text-[10px]">{i.parsedCategory}</Badge>}
+                      {isBillable && (
+                        <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/15">
+                          Bill client{i.billableJobSiteLabel ? ` · ${i.billableJobSiteLabel}` : ""}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                   {i.parsedVendor && i.description && i.parsedVendor !== i.description && (
                     <p className="text-xs text-muted-foreground truncate" title={i.description}>“{i.description}”</p>
                   )}
+
                   <div className="flex gap-1.5 mt-auto pt-1">
                     <Button size="sm" variant="outline" className="flex-1 px-2" onClick={() => setEditing(i)} title="Edit fields">
                       <Pencil className="h-3.5 w-3.5" />
@@ -1669,6 +1693,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
               </Card>
             );
           })}
+
         </div>
       )}
 
