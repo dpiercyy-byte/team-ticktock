@@ -2034,7 +2034,7 @@ function AdminAddReceiptsDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={submit} disabled={busy || files.length === 0 || !payee.trim()}>
+          <Button onClick={submit} disabled={busy || files.length === 0}>
             {busy ? "Uploading…" : `Upload ${files.length || ""}`.trim()}
           </Button>
         </DialogFooter>
