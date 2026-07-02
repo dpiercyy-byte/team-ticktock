@@ -21,20 +21,32 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
   const b64 = buf.toString("base64");
   const isPdf = mime === "application/pdf";
 
-  const content: any[] = [
-    {
-      type: "text",
-      text:
-        "Extract structured data from this receipt. Return ONLY valid JSON matching the schema. " +
-        "Numbers must be raw (no currency symbols, no thousands separators, '.' as decimal). " +
-        "Date must be ISO 'YYYY-MM-DD'. If a field is illegible, set it to null. " +
-        "Category must be one of: " + CATEGORIES.join(", ") + ". " +
-        "If the vendor address or name clearly matches one of these job sites, return its id as job_site_id; otherwise null.\n" +
-        "Job sites:\n" +
-        (jobSites.length ? jobSites.map(j => `- ${j.id}: ${j.label}`).join("\n") : "(none)") +
-        "\n\nSchema: { vendor: string|null, date: string|null, subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number }",
-    },
-  ];
+  const promptText =
+    "You are extracting structured data from a purchase receipt image or PDF. " +
+    "Return ONLY a single JSON object matching the schema — no prose, no code fences.\n\n" +
+    "Rules:\n" +
+    "- vendor: the merchant/store name at the TOP of the receipt (e.g. 'The Home Depot', 'Shell', 'Lowe's'). " +
+    "Ignore slogans, phone numbers, addresses, and cashier names. Trim to the brand name.\n" +
+    "- date: the TRANSACTION date (not the print date, not an expiry). Format strictly 'YYYY-MM-DD'. " +
+    "If year is 2 digits, assume 20YY. If ambiguous MM/DD vs DD/MM, prefer MM/DD/YYYY (US).\n" +
+    "- total: the FINAL amount charged — typically labeled 'TOTAL', 'GRAND TOTAL', 'AMOUNT DUE', or the largest bold number at the bottom. " +
+    "Not 'SUBTOTAL', not 'BALANCE', not 'CHANGE', not 'TENDER'.\n" +
+    "- subtotal: pre-tax amount if shown. If only total and tax are shown, compute subtotal = total - tax.\n" +
+    "- tax: sales tax / VAT / GST line. 0 if the receipt explicitly shows no tax; null if not shown.\n" +
+    "- All numbers RAW: no currency symbols, no thousands separators, '.' as decimal (e.g. 1234.56).\n" +
+    "- category MUST be one of: " + CATEGORIES.join(", ") + ". Infer from vendor when unclear " +
+    "(Home Depot/Lowe's/Menards/Ace Hardware/lumber yards → Materials; " +
+    "Shell/Chevron/Exxon/BP/gas stations → Fuel; " +
+    "Harbor Freight/tool stores → Tools; " +
+    "permit offices/city/county fees → Permits; otherwise Other).\n" +
+    "- job_site_id: ONLY set if the vendor name or address on the receipt clearly matches one of the job sites below; otherwise null. Do NOT guess.\n" +
+    "- confidence: your overall confidence in the extraction as a number between 0 and 1.\n" +
+    "- Any field you truly cannot read → null (except confidence).\n\n" +
+    "Job sites:\n" +
+    (jobSites.length ? jobSites.map(j => `- ${j.id}: ${j.label}`).join("\n") : "(none)") +
+    "\n\nSchema: { vendor: string|null, date: string|null, subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number }";
+
+  const content: any[] = [{ type: "text", text: promptText }];
 
   if (isPdf) {
     content.unshift({
@@ -45,36 +57,52 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
     content.unshift({ type: "image_url", image_url: { url: `data:${mime || "image/jpeg"};base64,${b64}` } });
   }
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
-      messages: [{ role: "user", content }],
-      response_format: { type: "json_object" },
-    }),
-  });
+  const callModel = async (extraSystem?: string) => {
+    const messages: any[] = [];
+    if (extraSystem) messages.push({ role: "system", content: extraSystem });
+    messages.push({ role: "user", content });
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages,
+        temperature: 0,
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`AI gateway ${res.status}: ${t.slice(0, 300)}`);
+    }
+    const json: any = await res.json();
+    const finish = json?.choices?.[0]?.finish_reason;
+    const text: string = json?.choices?.[0]?.message?.content ?? "";
+    if (finish === "length") throw new Error("AI response truncated");
+    if (!text.trim()) throw new Error("AI returned empty response");
+    const cleaned = text.replace(/^\s*```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    try { return JSON.parse(cleaned); }
+    catch { throw new Error(`AI returned non-JSON: ${cleaned.slice(0, 200)}`); }
+  };
 
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`AI gateway ${res.status}: ${t.slice(0, 300)}`);
+  let parsed = await callModel();
+  // Retry once with a stricter re-read if the critical fields came back empty.
+  const missingCritical = !parsed?.vendor || !parsed?.date || parsed?.total == null;
+  if (missingCritical) {
+    try {
+      parsed = await callModel(
+        "The previous extraction was incomplete. Look at the receipt again carefully — vendor is at the top, total is the largest bottom-line amount, transaction date is usually near the top or bottom. Return the complete JSON object with every readable field filled."
+      );
+    } catch (e) {
+      console.warn("receipt parse retry failed", e);
+    }
   }
-  const json: any = await res.json();
-  const finish = json?.choices?.[0]?.finish_reason;
-  const text: string = json?.choices?.[0]?.message?.content ?? "";
-  if (finish === "length") throw new Error("AI response truncated");
-  if (!text.trim()) throw new Error("AI returned empty response");
-
-  // Strip ```json fences if present
-  const cleaned = text.replace(/^\s*```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
-  let parsed: any;
-  try { parsed = JSON.parse(cleaned); }
-  catch { throw new Error(`AI returned non-JSON: ${cleaned.slice(0, 200)}`); }
   return parsed;
 }
+
 
 // ---------- Internal: Sheets sync ----------
 
