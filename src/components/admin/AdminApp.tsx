@@ -372,13 +372,13 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" className="shrink-0">
-                <CalendarIcon className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
-              <Calendar
+              <PopoverTrigger asChild>
+                <Button variant="default" size="icon" className="shrink-0">
+                  <CalendarIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
+                <Calendar
                 mode="single"
                 selected={new Date(weekStart + "T00:00:00")}
                 onSelect={(d) => {
