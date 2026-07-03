@@ -555,6 +555,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       <EntryDialog
         open={adding} onClose={() => setAdding(false)}
         title="Add time entry" projectsEnabled={!!projectsEnabled}
+        sites={sitesQ.data ?? []}
         onSubmit={async (vals) => {
           try {
             const r = await addE({ data: { token, workerId: workerId!, ...vals } });
@@ -569,8 +570,10 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         <EntryDialog
           open onClose={() => setEditing(null)}
           title="Edit entry" projectsEnabled={!!projectsEnabled}
+          sites={sitesQ.data ?? []}
           initial={{
             clockIn: editing.clock_in, clockOut: editing.clock_out, project: editing.project,
+            assignedJobSiteIds: editing.assigned_job_site_ids ?? [],
           }}
           allowOpenEnd
           onSubmit={async (vals) => {
@@ -584,6 +587,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           }}
         />
       )}
+
 
       <AlertDialog open={!!confirmDel} onOpenChange={() => setConfirmDel(null)}>
         <AlertDialogContent>
