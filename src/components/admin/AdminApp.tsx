@@ -3295,10 +3295,10 @@ function GeoTagEditor({
       status === "no_gps" ? "No GPS" :
       "Set tag";
     trigger = (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/80 hover:text-foreground cursor-pointer">
+      <span className="flex items-center gap-1.5 min-w-0 max-w-full text-xs text-muted-foreground/80 hover:text-foreground cursor-pointer">
         <DirIcon className={`h-3 w-3 shrink-0 ${dirClass}`} />
-        <span className="font-medium">{field === "out" ? "Out:" : "In:"}</span>
-        <span className="truncate">{text}</span>
+        <span className="shrink-0 font-medium">{field === "out" ? "Out:" : "In:"}</span>
+        <span className="min-w-0 flex-1 truncate">{text}</span>
       </span>
     );
   } else {
