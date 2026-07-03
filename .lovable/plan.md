@@ -1,48 +1,43 @@
 ## Goal
 
-Make each shift ticket read cleanly on ~360–400px screens: no orphaned "hrs" pill on its own line, no title being pushed under the action icons, no address truncating to a single character.
+Make the shift ticket's bold title strictly reflect the **assigned job site** (the project being billed), and always show the raw GPS punch locations in the footer audit timeline — regardless of whether they match the title.
 
-## Changes (mobile-first, `src/components/admin/AdminApp.tsx` only)
+## Changes (all in `src/components/admin/AdminApp.tsx`, entry card around L429–L560)
 
-### 1. Reserve the top-right action strip
+### 1. Rewrite the title resolver
 
-Action icons (force-clockout / pencil / trash) currently overlay the card with `absolute top-1.5 right-1.5` and the content uses `pr-24`. On 360px that eats ~40% of the row width. Switch to:
+Replace the current priority chain (worker-typed → clock-in client site → clock-out client site → planned → "Material run" → "Unassigned") with a strict assigned-job-only rule:
 
-- Card becomes `grid grid-cols-[minmax(0,1fr)_auto] gap-2` so the icon column reserves exact width and the content column gets `min-w-0`.
-- Icons drop from `size="icon"` (36px) to `h-8 w-8` and tighten to `gap-0` on mobile, `sm:gap-0.5`.
-- Remove the `pr-24` hack.
+- `title = planned_job.label` when the entry has a `planned_job_site_id`.
+- Otherwise `title = "Unassigned"` and `unassigned = true`.
+- Drop `workerTyped`, `inClient`, `outClient`, `inSupplier`, `outSupplier`, and "Material run" branches from title selection. (The typed `project` field and supplier context can still surface as a small muted hint under the title — see step 2 — but never as the bold title.)
 
-### 2. Time row: keep time + hours pill together
+Result: a shift clocked in at a supplier no longer shows the supplier as the title; if no job is assigned it reads **Unassigned** with the existing `AssignJobButton`.
 
-- Wrap time range and hours pill in a single `flex items-center gap-2 flex-nowrap min-w-0` row.
-- Time range: `tabular-nums text-sm`, `shrink-0`.
-- Hours pill: `shrink-0 whitespace-nowrap`.
-- Arrow between times becomes a lucide `ArrowRight` icon (`h-3.5 w-3.5`) instead of the literal "→" so it never wraps as a text glyph.
-- "active" state stays a pill, same treatment.
+### 2. Source hint
 
-### 3. Title row: single line with truncation
+- Remove the "From clock-in site" / "From clock-out site" / "Planned job" source line, since the title is now unambiguous.
+- Keep a muted hint only when useful: if worker typed a `project` value different from the assigned job's label, render it as `text-[11px] text-muted-foreground` under the title ("Worker note: {project}"). Otherwise render nothing.
 
-- Remove `max-w-[240px]` (fixed cap breaks on 320px).
-- Title becomes `flex-1 min-w-0 truncate`.
-- "Assign job" pill, `manual` / `flagged` badges move to a **separate second line** on mobile (`flex-wrap`) so they never squeeze the title. Amber unassigned dot stays inline with the title.
-- Offsite reason string moves under the title as its own muted line instead of chained inline.
+### 3. Always render the audit footer
 
-### 4. Source hint stays as-is (already `text-[11px]` on its own line).
+- Delete `hideInTag`, `hideOutTag`, and the `matchesTitleOrPlanned` helper.
+- The footer block always renders when the entry has any punch data: always show the **In** row; show the **Out** row whenever `e.clock_out` exists.
+- Container keeps `mt-2 pt-2 border-t border-border/50 flex flex-col gap-1`.
 
-### 5. Audit footer (In/Out lines)
+### 4. Muted footer styling
 
-- Container becomes `grid grid-cols-1 gap-0.5` (already stacked, but enforce `min-w-0` on the GeoTagEditor trigger).
-- `GeoTagEditor` `plain` variant trigger: the outer `<span>` gets `min-w-0 max-w-full` and the address `<span>` keeps `truncate` — currently the parent isn't `min-w-0` so `truncate` no-ops inside a flex row.
+In the `plain` branch of `GeoTagEditor` (around L3285–L3310):
 
-### 6. Daily header row
-
-Already single-line since we removed the hours total. No change.
+- Change the trigger text color from the current `text-muted-foreground` to `text-xs text-gray-500` on both the `In:` / `Out:` prefix and the address span.
+- Keep the green down-arrow (In) and red up-arrow (Out) icons and the existing `min-w-0 truncate` layout so long addresses still ellipsize.
 
 ## Out of scope
 
-- No changes to entry data, resolver logic, or the desktop layout beyond what naturally scales up (`sm:` breakpoints preserve the current denser look).
-- No changes to the worker app.
+- No DB or server-function changes. `time_entries.project` and `planned_job_site_id` semantics stay the same; only the client-side display rule changes.
+- No changes to the worker app, geo resolver, or clock-in flow.
+- Desktop layout inherits the same rules — assigned job title, always-visible audit — with no separate breakpoint work.
 
 ## Files touched
 
-- `src/components/admin/AdminApp.tsx` — entry card JSX (around L430–L570) and the `plain` branch of `GeoTagEditor` (around L3280).
+- `src/components/admin/AdminApp.tsx` — entry card resolver + JSX (L429–L560) and the `plain` variant of `GeoTagEditor` (L3285–L3310).
