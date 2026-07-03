@@ -1298,7 +1298,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
       )}
 
-      <Dialog open={!!reimbFor} onOpenChange={(o) => { if (!o) { setReimbFor(null); setReceipt(null); setDesc(""); setAmt(""); } }}>
+      <Dialog open={!!reimbFor} onOpenChange={(o) => { if (!o) { setReimbFor(null); setReceipt(null); setDesc(""); setAmt(""); setBillableSite("none"); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reimbursements — {reimbFor?.name} (week of {week})</DialogTitle></DialogHeader>
           <div className="space-y-3">
@@ -1308,6 +1308,15 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                 <Input type="number" step="0.01" placeholder="Amount" value={amt}
                        onChange={(e) => setAmt(e.target.value)} className="w-[110px]" />
               </div>
+              <Select value={billableSite} onValueChange={setBillableSite}>
+                <SelectTrigger><SelectValue placeholder="Bill to job site (optional)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No billable job site</SelectItem>
+                  {activeSitesForReimb.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="flex flex-wrap items-center gap-2">
                 {receipt ? (
                   <div className="flex items-center gap-2 rounded-md border border-border p-1.5 pr-2">
@@ -1340,8 +1349,9 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                       description: desc, amount: parseFloat(amt) || 0,
                       receiptUrl: receipt?.url ?? null,
                       receiptMime: receipt?.mime ?? null,
+                      billableJobSiteId: billableSite === "none" ? null : billableSite,
                     } });
-                    updateToken(r.token); setDesc(""); setAmt(""); setReceipt(null);
+                    updateToken(r.token); setDesc(""); setAmt(""); setReceipt(null); setBillableSite("none");
                     qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
                     qc.invalidateQueries({ queryKey: ["payout", week] });
                   } catch (e: any) { toast.error(e?.message || "Failed"); }
