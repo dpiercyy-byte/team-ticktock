@@ -470,11 +470,8 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
 
 
                             {e.offsite_reason_code && (
-                              <p
-                                className="text-[11px] text-muted-foreground italic mt-1 truncate max-w-full"
-                                title={e.offsite_reason_note || undefined}
-                              >
-                                {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
+                              <p className="text-[11px] text-muted-foreground italic mt-1 truncate max-w-full">
+                                {reasonLabel(e.offsite_reason_code)}
                               </p>
                             )}
                           </div>
