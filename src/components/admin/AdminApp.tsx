@@ -425,10 +425,8 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
                       : "border-l-[3px] border-l-transparent"}
                   >
-                    <div className="px-4 sm:px-5 py-2 bg-secondary flex justify-between text-sm">
-
+                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
-                      <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
                     {items.map((e: any) => (
                       <div key={e.id} className="px-4 sm:px-5 py-3">
@@ -437,7 +435,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             {/* Time strip */}
                             <p className="font-medium tabular-nums text-sm sm:text-base">
                               {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                              <span className="ml-2 sm:ml-3 text-muted-foreground text-xs sm:text-sm">
+                              <span className="ml-2 sm:ml-3 text-primary font-medium text-xs sm:text-sm">
                                 {e.clock_out ? `${diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs` : ""}
                               </span>
                             </p>
@@ -661,7 +659,7 @@ function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpen
   open: boolean; onClose: () => void; title: string; projectsEnabled: boolean;
   initial?: { clockIn: string; clockOut?: string | null; project?: string | null; assignedJobSiteIds?: string[] };
   allowOpenEnd?: boolean;
-  sites?: { id: string; label: string; archived_at?: string | null }[];
+  sites?: { id: string; label: string; kind?: string; archived_at?: string | null }[];
   onSubmit: (v: { clockIn: string; clockOut: string; project?: string; assignedJobSiteIds: string[] }) => void;
 }) {
   const [ci, setCi] = useState(toLocalInput(initial?.clockIn) || toLocalInput(new Date().toISOString()));
@@ -677,7 +675,7 @@ function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpen
     }
   }, [open, initial]);
 
-  const activeSites = (sites ?? []).filter((s) => !s.archived_at);
+  const activeSites = (sites ?? []).filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
   const siteMap = new Map(activeSites.map((s) => [s.id, s.label]));
   const available = activeSites.filter((s) => !assigned.includes(s.id));
 
