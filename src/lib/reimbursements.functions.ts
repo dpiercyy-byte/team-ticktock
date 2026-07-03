@@ -45,7 +45,7 @@ export const listAllReceipts = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin
       .from("reimbursements")
-      .select("id, worker_id, is_admin_receipt, uploaded_by_admin, payee_label, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
+      .select("id, worker_id, is_admin_receipt, uploaded_by_admin, payee_label, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, parse_status, parse_confidence, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label, kind), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 500);
     if (data.workerId) q = q.eq("worker_id", data.workerId);
@@ -56,6 +56,55 @@ export const listAllReceipts = createServerFn({ method: "POST" })
     if (data.materialType && data.materialType !== "all") q = q.eq("material_type", data.materialType);
     const { data: rows, error } = await q;
     if (error) throw error;
+
+    // Look up worker's active client job for that receipt's day, so a
+    // supplier punch-in never becomes the receipt's primary title.
+    const needsLookup = (rows ?? []).filter((r: any) =>
+      !r.billable_job_site_id
+      && r.worker_id
+      && (!r.parsed_site || r.parsed_site.kind !== "client")
+    );
+    type Entry = { worker_id: string; clock_in: string; clock_out: string | null; project: string | null; in_site: { label: string; kind: string } | null; out_site: { label: string; kind: string } | null };
+    let entries: Entry[] = [];
+    const workerIds = Array.from(new Set(needsLookup.map((r: any) => r.worker_id))) as string[];
+    if (workerIds.length > 0) {
+      const times = needsLookup
+        .map((r: any) => new Date((r.parsed_date || r.week_start || r.created_at) as string).getTime())
+        .filter((n: number) => Number.isFinite(n));
+      if (times.length > 0) {
+        const minISO = new Date(Math.min(...times) - 24 * 3600_000).toISOString();
+        const maxISO = new Date(Math.max(...times) + 48 * 3600_000).toISOString();
+        const { data: te } = await supabaseAdmin
+          .from("time_entries")
+          .select("worker_id, clock_in, clock_out, project, in_site:job_sites!time_entries_job_site_id_fkey(label, kind), out_site:job_sites!time_entries_clock_out_job_site_id_fkey(label, kind)")
+          .in("worker_id", workerIds)
+          .gte("clock_in", minISO)
+          .lte("clock_in", maxISO);
+        entries = (te ?? []) as any;
+      }
+    }
+    function resolveDisplayJob(r: any): string | null {
+      if (r.billable_site?.label) return r.billable_site.label;
+      if (r.parsed_site?.kind === "client" && r.parsed_site.label) return r.parsed_site.label;
+      if (!r.worker_id) return null;
+      const dayISO = (r.parsed_date || r.week_start || r.created_at) as string;
+      const day = new Date(dayISO);
+      if (Number.isNaN(day.getTime())) return null;
+      const dayKey = day.toISOString().slice(0, 10);
+      const cands = entries.filter((e) => {
+        if (e.worker_id !== r.worker_id) return false;
+        if (new Date(e.clock_in).toISOString().slice(0, 10) === dayKey) return true;
+        const co = e.clock_out ? new Date(e.clock_out) : null;
+        return !!(co && new Date(e.clock_in) <= day && day <= co);
+      });
+      for (const e of cands) {
+        if (e.project) return e.project;
+        if (e.in_site?.kind === "client" && e.in_site.label) return e.in_site.label;
+        if (e.out_site?.kind === "client" && e.out_site.label) return e.out_site.label;
+      }
+      return null;
+    }
+
     const items = (rows ?? []).map((r: any) => ({
       id: r.id,
       workerId: r.worker_id,
@@ -79,6 +128,8 @@ export const listAllReceipts = createServerFn({ method: "POST" })
       parsedCategory: r.parsed_category as string | null,
       parsedJobSiteId: r.parsed_job_site_id as string | null,
       parsedJobSiteLabel: r.parsed_site?.label ?? null,
+      parsedJobSiteKind: (r.parsed_site?.kind ?? null) as string | null,
+      displayJobSiteLabel: resolveDisplayJob(r),
       parseStatus: r.parse_status as string | null,
       parseConfidence: r.parse_confidence == null ? null : Number(r.parse_confidence),
       materialType: (r.material_type ?? "regular") as "regular" | "client_billable",
