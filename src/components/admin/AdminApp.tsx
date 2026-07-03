@@ -321,35 +321,28 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         </Card>
       )}
 
-      <div className="flex flex-wrap items-end gap-3 justify-between">
-        <Card className="flex-1 min-w-[180px]">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Worker</p>
-            <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-              <SelectTrigger className="w-full mt-1 h-auto border-none bg-transparent shadow-none p-0 text-xl font-bold gap-2 focus:ring-0">
-                {(() => {
-                  const w = wq.data?.find((x: any) => x.id === workerId);
-                  if (!w) return <SelectValue placeholder="Select worker" />;
-                  const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-                  return (
-                    <>
-                      <span className="h-8 w-8 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
-                        {initials || "?"}
-                      </span>
-                      <SelectValue placeholder="Select worker" />
-                    </>
-                  );
-                })()}
-              </SelectTrigger>
-              <SelectContent>
-                {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-        <Button onClick={() => setAdding(true)} disabled={!workerId} className="shrink-0">
-          <Plus className="h-4 w-4 mr-2" /> Add entry
-        </Button>
+      <div className="w-full">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Worker</p>
+        <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+          <SelectTrigger className="w-full h-12 bg-gray-100 rounded-lg border-0 shadow-none px-4 text-lg font-bold gap-3 focus:ring-2 focus:ring-ring">
+            {(() => {
+              const w = wq.data?.find((x: any) => x.id === workerId);
+              if (!w) return <SelectValue placeholder="Select worker" />;
+              const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+              return (
+                <>
+                  <span className="h-8 w-8 shrink-0 rounded-full bg-slate-900 text-white inline-flex items-center justify-center text-sm font-semibold">
+                    {initials || "?"}
+                  </span>
+                  <SelectValue placeholder="Select worker" />
+                </>
+              );
+            })()}
+          </SelectTrigger>
+          <SelectContent>
+            {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Week navigator */}
@@ -360,7 +353,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           </Button>
           <div className="flex-1 text-center min-w-0">
             <div className="text-sm font-semibold truncate">{weekRangeLabel(weekStart)}</div>
-            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
+            <div className="mt-1 flex flex-col items-center gap-1.5">
               {(() => {
                 const rel = relativeWeekLabel(weekStart);
                 return rel ? <Badge variant="secondary" className="text-xs">{rel}</Badge> : null;
@@ -399,21 +392,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
             </PopoverContent>
           </Popover>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "This week", val: startOfWeekISO() },
-            { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
-          ].map((chip) => (
-            <Button
-              key={chip.label}
-              variant={weekStart === chip.val ? "default" : "outline"}
-              size="sm"
-              onClick={() => setWeekStart(chip.val)}
-            >
-              {chip.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -422,6 +400,10 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         <Stat label="Reimb" value={fmtMoney(weekReimb)} />
         <Stat label="Total" value={fmtMoney(weekTotal)} />
       </div>
+
+      <Button variant="secondary" className="w-full" onClick={() => setAdding(true)} disabled={!workerId}>
+        <Plus className="h-4 w-4 mr-2" /> Add entry
+      </Button>
 
       <Card>
         <CardContent className="p-0">
