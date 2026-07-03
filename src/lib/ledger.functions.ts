@@ -63,14 +63,6 @@ export const deleteLedgerJob = createServerFn({ method: "POST" })
     return { deleted: 1 };
   });
 
-export const resetLedgerJobs = createServerFn({ method: "POST" })
-  .inputValidator((d) => TokenSchema.parse(d))
-  .handler(async ({ data }) => {
-    requireAdminOnly(data.token);
-    const { data: rows, error } = await supabaseAdmin.from("ledger_jobs").delete().neq("id", "00000000-0000-0000-0000-000000000000").select("id");
-    if (error) throw error;
-    return { reset: true, deleted: rows?.length ?? 0 };
-  });
 
 export const uploadLedgerJobXlsx = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
