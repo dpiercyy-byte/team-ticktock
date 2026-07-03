@@ -63,20 +63,13 @@ export const deleteLedgerJob = createServerFn({ method: "POST" })
     return { deleted: 1 };
   });
 
-export const resetLedgerJobs = createServerFn({ method: "POST" })
-  .inputValidator((d) => TokenSchema.parse(d))
-  .handler(async ({ data }) => {
-    requireAdminOnly(data.token);
-    const { data: rows, error } = await supabaseAdmin.from("ledger_jobs").delete().neq("id", "00000000-0000-0000-0000-000000000000").select("id");
-    if (error) throw error;
-    return { reset: true, deleted: rows?.length ?? 0 };
-  });
 
 export const uploadLedgerJobXlsx = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     token: z.string(),
     filename: z.string().min(1).max(200),
     base64: z.string().min(1),
+    markClosed: z.boolean().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     requireAdminOnly(data.token);
@@ -89,6 +82,10 @@ export const uploadLedgerJobXlsx = createServerFn({ method: "POST" })
       parsed = parseLedgerJobXlsx(bytes, data.filename);
     } catch (e) {
       throw new Response(`Failed to parse xlsx: ${(e as Error).message}`, { status: 400 });
+    }
+
+    if (data.markClosed && !parsed.finish_date) {
+      parsed.finish_date = parsed.start_date ?? new Date().toISOString().slice(0, 10);
     }
 
     // Try to auto-link to a Clockwise job_site by address prefix match

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LedgerJob, fmtMoney, fmtPct, fmtDate, totalExpenses, isAdminSession, useDeleteLedgerJob, useUpdateLedgerJob } from "@/lib/ledger-client";
-import { MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -52,15 +52,31 @@ export function JobCard({ job }: { job: LedgerJob }) {
         <Button variant="ghost" size="sm" onClick={() => setOpen((v) => !v)} className="text-slate-600">
           {open ? <><ChevronUp className="w-4 h-4 mr-1" /> Hide details</> : <><ChevronDown className="w-4 h-4 mr-1" /> Show details</>}
         </Button>
-        {admin && (
-          <Button variant="ghost" size="sm" onClick={async () => {
-            if (!confirm(`Delete job "${job.address}"?`)) return;
-            await del.mutateAsync(job.id);
-            toast.success("Job deleted");
-          }} className="text-red-600 hover:text-red-700">
-            <Trash2 className="w-4 h-4 mr-1" /> Delete
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {admin && !isClosed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                const iso = job.start_date ?? new Date().toISOString().slice(0, 10);
+                await update.mutateAsync({ id: job.id, patch: { finish_date: iso } });
+                toast.success("Marked as closed");
+              }}
+              className="text-emerald-700 hover:text-emerald-800"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-1" /> Mark closed
+            </Button>
+          )}
+          {admin && (
+            <Button variant="ghost" size="sm" onClick={async () => {
+              if (!confirm(`Delete job "${job.address}"?`)) return;
+              await del.mutateAsync(job.id);
+              toast.success("Job deleted");
+            }} className="text-red-600 hover:text-red-700">
+              <Trash2 className="w-4 h-4 mr-1" /> Delete
+            </Button>
+          )}
+        </div>
       </div>
 
       {open && (
