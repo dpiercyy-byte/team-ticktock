@@ -88,7 +88,6 @@ export function WorkerApp() {
     return <PinLogin onLogin={(s) => {
       setWorkerSession(s);
       setSession(s);
-      navigate({ to: "/apps" });
     }} />;
   }
   return (
