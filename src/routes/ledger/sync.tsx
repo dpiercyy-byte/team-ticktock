@@ -134,42 +134,36 @@ function LedgerSync() {
             </div>
           </div>
 
-          {(jobs?.length ?? 0) === 0 ? (
-            <div className="text-sm text-slate-500 p-3 rounded-xl bg-slate-50">
-              No jobs in Ledger yet — upload a spreadsheet below first, then come back here to link a Google Sheet.
+          {activeJobs.length === 0 ? (
+            <div className="text-sm text-slate-600 p-4 rounded-xl bg-slate-50 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1">
+                No active jobs yet. Only active jobs can be linked to a Google Sheet — create one first.
+              </div>
+              <Link to="/ledger/active">
+                <Button size="sm">Go to Active Jobs</Button>
+              </Link>
             </div>
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Job</label>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Active Job</label>
                 <Select value={selectedJobId} onValueChange={setSelectedJobId}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a job..." />
+                    <SelectValue placeholder="Choose an active job..." />
                   </SelectTrigger>
                   <SelectContent className="max-h-[400px]">
-                    {activeJobs.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel>Active</SelectLabel>
-                        {activeJobs.map((j) => (
-                          <SelectItem key={j.id} value={j.id}>
-                            {j.address}{j.client_name ? ` — ${j.client_name}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
-                    {closedJobs.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel>Closed</SelectLabel>
-                        {closedJobs.map((j) => (
-                          <SelectItem key={j.id} value={j.id}>
-                            {j.address}{j.client_name ? ` — ${j.client_name}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
+                    <SelectGroup>
+                      <SelectLabel>Active</SelectLabel>
+                      {activeJobs.map((j) => (
+                        <SelectItem key={j.id} value={j.id}>
+                          {j.address}{j.client_name ? ` — ${j.client_name}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
+
 
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">Google Sheet URL</label>
