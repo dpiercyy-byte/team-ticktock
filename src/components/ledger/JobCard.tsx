@@ -6,17 +6,19 @@ import {
 } from "@/lib/ledger-client";
 import {
   MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp,
-  CheckCircle2, Sheet as SheetIcon, ExternalLink, Upload, Download, Loader2,
+  CheckCircle2, Sheet as SheetIcon, ExternalLink, Upload, Download, Loader2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EditJobDialog } from "@/components/ledger/EditJobDialog";
 import { toast } from "sonner";
 
 const LEAD_OPTIONS = ["referral", "repeat", "designer", "website", "unknown"];
 
 export function JobCard({ job }: { job: LedgerJob }) {
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [leadSource, setLeadSource] = useState(job.lead_source || "unknown");
   const [paymentsReceived, setPaymentsReceived] = useState(String(job.payments_received || 0));
   const [sheetUrl, setSheetUrl] = useState(job.sheet_id || "");
@@ -65,6 +67,11 @@ export function JobCard({ job }: { job: LedgerJob }) {
           {open ? <><ChevronUp className="w-4 h-4 mr-1" /> Hide details</> : <><ChevronDown className="w-4 h-4 mr-1" /> Show details</>}
         </Button>
         <div className="flex items-center gap-1">
+          {admin && (
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="w-4 h-4 mr-1" /> Edit
+            </Button>
+          )}
           {admin && !isClosed && (
             <Button
               variant="ghost"
@@ -203,6 +210,7 @@ export function JobCard({ job }: { job: LedgerJob }) {
           {job.payments_log?.length > 0 && <LogTable title="Payments" rows={job.payments_log.map((p) => [fmtDate(p.date), fmtMoney(p.amount), p.method])} headers={["Date", "Amount", "Method"]} />}
         </div>
       )}
+      {admin && <EditJobDialog job={job} open={editOpen} onOpenChange={setEditOpen} />}
     </div>
   );
 }
