@@ -657,22 +657,29 @@ function fromLocalInput(v: string) {
   return new Date(v).toISOString();
 }
 
-function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpenEnd, onSubmit }: {
+function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpenEnd, sites, onSubmit }: {
   open: boolean; onClose: () => void; title: string; projectsEnabled: boolean;
-  initial?: { clockIn: string; clockOut?: string | null; project?: string | null };
+  initial?: { clockIn: string; clockOut?: string | null; project?: string | null; assignedJobSiteIds?: string[] };
   allowOpenEnd?: boolean;
-  onSubmit: (v: { clockIn: string; clockOut: string; project?: string }) => void;
+  sites?: { id: string; label: string; archived_at?: string | null }[];
+  onSubmit: (v: { clockIn: string; clockOut: string; project?: string; assignedJobSiteIds: string[] }) => void;
 }) {
   const [ci, setCi] = useState(toLocalInput(initial?.clockIn) || toLocalInput(new Date().toISOString()));
   const [co, setCo] = useState(toLocalInput(initial?.clockOut) || "");
   const [p, setP] = useState(initial?.project ?? "");
+  const [assigned, setAssigned] = useState<string[]>(initial?.assignedJobSiteIds ?? []);
   useEffect(() => {
     if (open) {
       setCi(toLocalInput(initial?.clockIn) || toLocalInput(new Date().toISOString()));
       setCo(toLocalInput(initial?.clockOut) || "");
       setP(initial?.project ?? "");
+      setAssigned(initial?.assignedJobSiteIds ?? []);
     }
   }, [open, initial]);
+
+  const activeSites = (sites ?? []).filter((s) => !s.archived_at);
+  const siteMap = new Map(activeSites.map((s) => [s.id, s.label]));
+  const available = activeSites.filter((s) => !assigned.includes(s.id));
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -686,6 +693,31 @@ function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpen
           <div>
             <Label>Clock out {allowOpenEnd && <span className="text-xs text-muted-foreground">(blank = still active)</span>}</Label>
             <Input type="datetime-local" value={co} onChange={(e) => setCo(e.target.value)} />
+          </div>
+          <div>
+            <Label>Assigned job sites <span className="text-xs text-muted-foreground">(stack in title; leave empty for auto)</span></Label>
+            {assigned.length > 0 && (
+              <div className="flex flex-col gap-1 mt-1 mb-2">
+                {assigned.map((id, idx) => (
+                  <div key={id} className="flex items-center gap-2 rounded-md border bg-secondary/40 px-2 py-1 text-sm">
+                    <span className="text-xs text-muted-foreground w-4 tabular-nums">{idx + 1}.</span>
+                    <span className="flex-1 truncate">{siteMap.get(id) ?? "(unknown)"}</span>
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                      onClick={() => setAssigned(assigned.filter((x) => x !== id))}>Remove</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {available.length > 0 && assigned.length < 5 && (
+              <Select value="" onValueChange={(v) => { if (v) setAssigned([...assigned, v]); }}>
+                <SelectTrigger><SelectValue placeholder="+ Add job site" /></SelectTrigger>
+                <SelectContent>
+                  {available.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           {projectsEnabled && (
             <div>
@@ -703,11 +735,13 @@ function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpen
               clockIn: fromLocalInput(ci),
               clockOut: co ? fromLocalInput(co) : "",
               project: p || undefined,
+              assignedJobSiteIds: assigned,
             });
           }}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
   );
 }
 
