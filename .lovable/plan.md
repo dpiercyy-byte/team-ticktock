@@ -1,19 +1,70 @@
-## Unify worker-name typography across admin tabs
+## Admin Tabs Styling Audit
 
-Adopt the **Payout > Weekly** card treatment (`font-bold text-lg`) as the canonical style for every worker-name render in the admin UI. Apply it consistently in cards; in dropdown items use the same weight/family (`font-bold`) at the size that fits the trigger.
+Scope: `src/components/admin/AdminApp.tsx` — Time Entries, Payout, Receipts, Workers, Job Sites, Audit Log, Settings. Read-only audit; no code changes proposed here.
 
-### Changes in `src/components/admin/AdminApp.tsx`
+### 1. Top tab bar (consistent ✓)
+`TabsTrigger` uses default shadcn styling across all 7 tabs. No drift.
 
-| Location | Line | Current | New |
-|---|---|---|---|
-| Payout > Weekly card name | 1177 | `font-bold text-lg` | unchanged (canonical) |
-| Payout > Lifetime card name | 2472 | `font-semibold text-base` | `font-bold text-lg` |
-| Workers tab card name | 790 | `font-semibold` | `font-bold text-lg` |
-| Entries worker-select items | 343 | `font-bold text-sm` | `font-bold text-lg` |
-| Receipts worker-filter select items | 1535 | (default) | wrap in `<span className="font-bold text-lg">` |
-| Flagged-entries worker name | 315 | `font-medium` | `font-bold text-lg` |
-| Reimbursement dialog titles | 1201, 1259, 844, 863 | default | leave (Dialog title component already has its own scale — outside "worker name" list context) |
+### 2. Worker name typography (consistent ✓)
+Recently unified to `font-bold text-lg` in: Entries selector, Receipts filter, Workers cards, Payout Weekly + Lifetime cards, Flagged worker row.
 
-All existing layout, truncation (`truncate`), and container widths stay the same. Only the class strings on the name element change.
+### 3. Card header patterns (inconsistent ⚠)
+| Tab | Pattern |
+|---|---|
+| Payout Weekly | `CardHeader … py-4` + avatar + name |
+| Payout Lifetime | `CardHeader … py-4` + name only (no avatar) |
+| Workers | `CardHeader pb-3` + name |
+| Settings | `CardHeader` (default) + `CardTitle` |
+| Audit | `CardHeader` + `CardTitle` |
+| Entries / Receipts | No CardHeader — content only |
 
-No schema, server-function, or worker-side changes.
+Drift: Payout Lifetime cards lack the avatar that Payout Weekly and Workers use; header padding varies (`py-4` vs `pb-3` vs default).
+
+### 4. Card body padding (inconsistent ⚠)
+- Entries list: `p-0` (table-like)
+- Receipts grid: `p-3 space-y-2.5`
+- Payout Weekly: `pt-0 pb-4 space-y-3`
+- Payout Lifetime: `pt-0 pb-4 space-y-3`
+- Workers: `pt-0 gap-3`
+- Weekly pending rows: `p-3 sm:p-4`
+
+No single spacing scale — receipts and pending rows use `p-3`, payout uses `pb-4`, workers uses `pt-0` only.
+
+### 5. Empty / loading states (mostly consistent ✓, one drift)
+Most tabs: `Card` + `p-6` loading / `border-dashed p-10 text-center`. Entries tab loading state does not follow this — worth confirming.
+
+### 6. Stat / KPI numbers (inconsistent ⚠)
+- Entries stat cards: `text-2xl font-bold tabular-nums`
+- Payout totals header: `text-2xl font-bold tabular-nums`
+- Payout Lifetime per-card total: `text-base font-bold`
+- Payout Weekly per-card total: `text-base font-bold`
+- Weekly pending row total: `font-bold` (no size)
+
+Per-card totals use `text-base` while headline totals use `text-2xl`; the pending row omits an explicit size class.
+
+### 7. Section-level tabs (inconsistent ⚠)
+Payout uses inner `TabsList` (Weekly / Pending / Lifetime). Job Sites detail dialog uses inner tabs (Paste / Search). Both use default styling — consistent with each other, but Receipts/Workers filter bars use plain flex rows rather than tabs for similar segmentation.
+
+### 8. Selectors / filter controls (inconsistent ⚠)
+- Entries worker selector: full-width `bg-gray-100 h-12 rounded-lg` (recently restyled)
+- Receipts worker filter: standard shadcn `SelectTrigger` (small, bordered)
+- Payout tabs: standard `TabsList`
+
+The Entries selector is now visually distinct from every other filter in the admin.
+
+### 9. Color accents (consistent ✓)
+Warning uses `border-warning/40 bg-warning/5`. Status border-l accents on Payout weekly cards. No rogue hex values spotted.
+
+---
+
+### Suggested unification (optional next step — awaits your approval)
+
+If you want me to fix these, a follow-up plan would:
+
+1. Add avatar + matching `py-4` header to Payout Lifetime cards.
+2. Standardize card body padding to one scale (proposal: header `py-4`, body `p-4 space-y-3`).
+3. Bump per-card totals to `text-lg font-bold` and give pending-row total an explicit size.
+4. Restyle Receipts worker filter to match the Entries `bg-gray-100 h-12` selector for cross-tab parity — or revert Entries selector to standard `SelectTrigger` if you prefer the shadcn look everywhere.
+5. Give Entries a `CardHeader` for loading/empty parity with other tabs.
+
+Tell me which of these to apply (all, some, or none) and I'll switch to build mode.
