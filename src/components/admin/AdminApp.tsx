@@ -25,8 +25,11 @@ import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
   Sparkles, RefreshCw, Sheet, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
-  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert,
+  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ChevronDown,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import {
   parseReceipt, updateParsedReceipt, getSheetSettings, updateSheetSettings, backfillSheet, parseUnprocessed,
 } from "@/lib/receipts.functions";
