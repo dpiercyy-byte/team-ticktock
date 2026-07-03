@@ -21,24 +21,42 @@ async function gw(url: string, init?: RequestInit) {
   return res;
 }
 
-const JOB_HEADERS_ACTIVE = [
-  "Address", "Client", "Start Date", "Lead Source", "Total Price",
-  "Gross Cash", "Gross w/ HST", "Finish Materials", "Building Materials",
-  "Subs", "Labor", "Net", "Margin", "Payments Received", "Balance",
+const TABS = ["Summary", "Payments", "Expenses", "Price Log"] as const;
+const SUMMARY_KEYS: Array<{ key: string; label: string; type: "number" | "text" | "date" }> = [
+  { key: "address", label: "Address", type: "text" },
+  { key: "client_name", label: "Client", type: "text" },
+  { key: "start_date", label: "Start Date", type: "date" },
+  { key: "finish_date", label: "Finish Date", type: "date" },
+  { key: "lead_source", label: "Lead Source", type: "text" },
+  { key: "total_price", label: "Total Price", type: "number" },
+  { key: "gross_cash", label: "Gross Cash", type: "number" },
+  { key: "gross_with_hst", label: "Gross w/ HST", type: "number" },
+  { key: "finish_materials", label: "Finish Materials", type: "number" },
+  { key: "building_materials", label: "Building Materials", type: "number" },
+  { key: "subs", label: "Subs", type: "number" },
+  { key: "labor", label: "Labor", type: "number" },
+  { key: "payments_received", label: "Payments Received", type: "number" },
 ];
-const JOB_HEADERS_CLOSED = ["Finish Date", ...JOB_HEADERS_ACTIVE];
-const PAYMENTS_HEADERS = ["Address", "Date", "Amount", "Method"];
-const EXPENSES_HEADERS = ["Address", "Date", "Vendor", "Category", "Amount"];
-const PRICES_HEADERS = ["Address", "Date", "Amount", "Has HST", "Comment"];
+const PAYMENTS_HEADERS = ["Date", "Amount", "Method"];
+const EXPENSES_HEADERS = ["Date", "Vendor", "Category", "Amount"];
+const PRICES_HEADERS = ["Date", "Amount", "Has HST", "Comment"];
 
-const TABS = ["Active Jobs", "Closed Jobs", "Payments Log", "Expenses Log", "Price Log"];
+function num(n: unknown): number {
+  if (n === "" || n == null) return 0;
+  const s = String(n).replace(/[$,]/g, "").trim();
+  const v = Number(s);
+  return Number.isFinite(v) ? v : 0;
+}
+function str(n: unknown): string {
+  return n == null ? "" : String(n);
+}
 
 async function listSheetProps(sheetId: string): Promise<{ title: string; sheetId: number }[]> {
   const meta: any = await (await gw(`${GW}/${sheetId}?fields=sheets.properties`)).json();
   return (meta?.sheets || []).map((s: any) => ({ title: s.properties.title, sheetId: s.properties.sheetId }));
 }
 
-async function ensureTabsAndClear(sheetId: string, tabs: string[]) {
+async function ensureTabsAndClear(sheetId: string, tabs: readonly string[]) {
   const existing = await listSheetProps(sheetId);
   const existingTitles = new Set(existing.map((p) => p.title));
   const toAdd = tabs.filter((t) => !existingTitles.has(t));
@@ -69,25 +87,26 @@ async function writeTab(sheetId: string, tab: string, rows: (string | number)[][
   });
 }
 
-async function formatTab(sheetId: string, numericSheetId: number, colCount: number) {
+async function formatTab(sheetId: string, numericSheetId: number, colCount: number, freezeHeader: boolean) {
   await gw(`${GW}/${sheetId}:batchUpdate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       requests: [
-        {
-          updateSheetProperties: {
-            properties: { sheetId: numericSheetId, gridProperties: { frozenRowCount: 1 } },
-            fields: "gridProperties.frozenRowCount",
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: numericSheetId, startRowIndex: 0, endRowIndex: 1 },
-            cell: { userEnteredFormat: { textFormat: { bold: true } } },
-            fields: "userEnteredFormat.textFormat.bold",
-          },
-        },
+        ...(freezeHeader
+          ? [{
+              updateSheetProperties: {
+                properties: { sheetId: numericSheetId, gridProperties: { frozenRowCount: 1 } },
+                fields: "gridProperties.frozenRowCount",
+              },
+            }, {
+              repeatCell: {
+                range: { sheetId: numericSheetId, startRowIndex: 0, endRowIndex: 1 },
+                cell: { userEnteredFormat: { textFormat: { bold: true } } },
+                fields: "userEnteredFormat.textFormat.bold",
+              },
+            }]
+          : []),
         {
           autoResizeDimensions: {
             dimensions: { sheetId: numericSheetId, dimension: "COLUMNS", startIndex: 0, endIndex: colCount },
@@ -98,82 +117,158 @@ async function formatTab(sheetId: string, numericSheetId: number, colCount: numb
   }).catch(() => {});
 }
 
-function num(n: unknown): number {
-  const v = Number(n);
-  return Number.isFinite(v) ? v : 0;
+async function readValues(sheetId: string, range: string): Promise<string[][]> {
+  const res = await gw(`${GW}/${sheetId}/values/${range}`);
+  const j: any = await res.json();
+  return (j?.values || []) as string[][];
 }
 
-export async function runLedgerSheetExport(): Promise<{
-  jobs: number; active: number; closed: number; payments: number; expenses: number; prices: number; sheetId: string;
-}> {
-  const { data: settings, error: sErr } = await supabaseAdmin
-    .from("app_settings").select("ledger_export_sheet_id").eq("id", 1).single();
-  if (sErr) throw sErr;
-  const sheetId = (settings as any)?.ledger_export_sheet_id;
-  if (!sheetId) throw new Error("Ledger export sheet ID not set");
+// -------- Push (app -> sheet) --------
 
-  const { data: jobs, error: jErr } = await supabaseAdmin
-    .from("ledger_jobs").select("*").order("start_date", { ascending: false, nullsFirst: false });
-  if (jErr) throw jErr;
+export async function pushJobToSheet(jobId: string): Promise<{ sheetId: string }> {
+  const { data: job, error } = await supabaseAdmin.from("ledger_jobs").select("*").eq("id", jobId).single();
+  if (error) throw error;
+  const sheetId: string | null = (job as any)?.sheet_id ?? null;
+  if (!sheetId) throw new Error("Job has no linked Google Sheet");
 
   await ensureTabsAndClear(sheetId, TABS);
   const props = await listSheetProps(sheetId);
   const propByTitle = new Map(props.map((p) => [p.title, p.sheetId]));
 
-  const active: (string | number)[][] = [JOB_HEADERS_ACTIVE];
-  const closed: (string | number)[][] = [JOB_HEADERS_CLOSED];
+  const j = job as any;
+
+  const summary: (string | number)[][] = [["Field", "Value"]];
+  for (const k of SUMMARY_KEYS) {
+    let v: string | number = "";
+    const raw = j[k.key];
+    if (k.type === "number") v = num(raw);
+    else v = raw == null ? "" : String(raw);
+    summary.push([k.label, v]);
+  }
+  const balance = num(j.total_price) - num(j.payments_received);
+  summary.push(["Balance", balance]);
+  summary.push(["Net", num(j.net)]);
+  summary.push(["Margin", num(j.profit_margin)]);
+
   const payments: (string | number)[][] = [PAYMENTS_HEADERS];
+  for (const p of (j.payments_log ?? []) as any[]) {
+    payments.push([str(p.date), num(p.amount), str(p.method)]);
+  }
   const expenses: (string | number)[][] = [EXPENSES_HEADERS];
+  for (const e of (j.expense_log ?? []) as any[]) {
+    expenses.push([str(e.date), str(e.vendor), str(e.category), num(e.amount)]);
+  }
   const prices: (string | number)[][] = [PRICES_HEADERS];
-
-  for (const j of (jobs ?? []) as any[]) {
-    const total = num(j.total_price);
-    const paid = num(j.payments_received);
-    const balance = total - paid;
-    const row = [
-      j.address, j.client_name || "", j.start_date || "", j.lead_source || "",
-      total, num(j.gross_cash), num(j.gross_with_hst),
-      num(j.finish_materials), num(j.building_materials), num(j.subs), num(j.labor),
-      num(j.net), num(j.profit_margin), paid, balance,
-    ];
-    if (j.finish_date) closed.push([j.finish_date, ...row]);
-    else active.push(row);
-
-    for (const p of (j.payments_log ?? []) as any[]) {
-      payments.push([j.address, p.date || "", num(p.amount), p.method || ""]);
-    }
-    for (const e of (j.expense_log ?? []) as any[]) {
-      expenses.push([j.address, e.date || "", e.vendor || "", e.category || "", num(e.amount)]);
-    }
-    for (const p of (j.price_log ?? []) as any[]) {
-      prices.push([j.address, p.date || "", num(p.amount), p.has_hst ? "yes" : "", p.comment || ""]);
-    }
+  for (const p of (j.price_log ?? []) as any[]) {
+    prices.push([str(p.date), num(p.amount), p.has_hst ? "yes" : "", str(p.comment)]);
   }
 
-  const writes: Array<[string, (string | number)[][], number]> = [
-    ["Active Jobs", active, JOB_HEADERS_ACTIVE.length],
-    ["Closed Jobs", closed, JOB_HEADERS_CLOSED.length],
-    ["Payments Log", payments, PAYMENTS_HEADERS.length],
-    ["Expenses Log", expenses, EXPENSES_HEADERS.length],
-    ["Price Log", prices, PRICES_HEADERS.length],
+  const writes: Array<[string, (string | number)[][], number, boolean]> = [
+    ["Summary", summary, 2, true],
+    ["Payments", payments, PAYMENTS_HEADERS.length, true],
+    ["Expenses", expenses, EXPENSES_HEADERS.length, true],
+    ["Price Log", prices, PRICES_HEADERS.length, true],
   ];
-  for (const [tab, rows, cols] of writes) {
+  for (const [tab, rows, cols, freeze] of writes) {
     await writeTab(sheetId, tab, rows);
     const id = propByTitle.get(tab);
-    if (typeof id === "number") await formatTab(sheetId, id, cols);
+    if (typeof id === "number") await formatTab(sheetId, id, cols, freeze);
   }
 
-  await supabaseAdmin.from("app_settings")
-    .update({ ledger_export_last_sync_at: new Date().toISOString() } as never)
-    .eq("id", 1);
+  await supabaseAdmin.from("ledger_jobs")
+    .update({ sheet_last_sync_at: new Date().toISOString() } as never)
+    .eq("id", jobId);
 
-  return {
-    jobs: jobs?.length ?? 0,
-    active: active.length - 1,
-    closed: closed.length - 1,
-    payments: payments.length - 1,
-    expenses: expenses.length - 1,
-    prices: prices.length - 1,
-    sheetId,
-  };
+  return { sheetId };
+}
+
+// -------- Pull (sheet -> app) --------
+
+export async function pullJobFromSheet(jobId: string): Promise<{ sheetId: string; updated: boolean }> {
+  const { data: job, error } = await supabaseAdmin.from("ledger_jobs").select("id, sheet_id, finish_date").eq("id", jobId).single();
+  if (error) throw error;
+  const sheetId: string | null = (job as any)?.sheet_id ?? null;
+  if (!sheetId) throw new Error("Job has no linked Google Sheet");
+
+  // Read the four tabs; ignore missing ones.
+  const [summary, payments, expenses, prices] = await Promise.all([
+    readValues(sheetId, "Summary!A1:B100").catch(() => [] as string[][]),
+    readValues(sheetId, "Payments!A1:C1000").catch(() => [] as string[][]),
+    readValues(sheetId, "Expenses!A1:D1000").catch(() => [] as string[][]),
+    readValues(sheetId, "Price%20Log!A1:D1000").catch(() => [] as string[][]),
+  ]);
+
+  const summaryMap = new Map<string, string>();
+  for (const row of summary.slice(1)) {
+    if (row[0]) summaryMap.set(String(row[0]).trim(), String(row[1] ?? ""));
+  }
+
+  const patch: Record<string, unknown> = {};
+  for (const k of SUMMARY_KEYS) {
+    if (!summaryMap.has(k.label)) continue;
+    const raw = summaryMap.get(k.label) ?? "";
+    if (k.type === "number") patch[k.key] = num(raw);
+    else if (k.type === "date") patch[k.key] = raw.trim() || null;
+    else patch[k.key] = raw.trim();
+  }
+
+  const paymentsLog = payments.slice(1)
+    .filter((r) => (r[0] || r[1] || r[2]))
+    .map((r) => ({ date: str(r[0]).trim() || null, amount: num(r[1]), method: str(r[2]).trim() }));
+  const expenseLog = expenses.slice(1)
+    .filter((r) => (r[0] || r[1] || r[2] || r[3]))
+    .map((r) => ({ date: str(r[0]).trim() || null, vendor: str(r[1]).trim(), category: str(r[2]).trim(), amount: num(r[3]) }));
+  const priceLog = prices.slice(1)
+    .filter((r) => (r[0] || r[1] || r[3]))
+    .map((r) => ({
+      date: str(r[0]).trim() || null,
+      amount: num(r[1]),
+      has_hst: /^(y|yes|true|1)$/i.test(String(r[2] ?? "").trim()),
+      comment: str(r[3]).trim(),
+    }));
+
+  patch.payments_log = paymentsLog;
+  patch.expense_log = expenseLog;
+  patch.price_log = priceLog;
+
+  // Recompute derived: prefer sheet Summary if provided, otherwise derive from logs.
+  if (!summaryMap.has("Payments Received")) {
+    patch.payments_received = paymentsLog.reduce((s, p) => s + p.amount, 0);
+  }
+  const totalPrice = num(patch.total_price ?? summaryMap.get("Total Price") ?? 0);
+  const fm = num(patch.finish_materials);
+  const bm = num(patch.building_materials);
+  const subs = num(patch.subs);
+  const labor = num(patch.labor);
+  const totalExp = fm + bm + subs + labor;
+  patch.net = totalPrice - totalExp;
+  patch.profit_margin = totalPrice > 0 ? (totalPrice - totalExp) / totalPrice : 0;
+  patch.sheet_last_sync_at = new Date().toISOString();
+
+  const { error: uErr } = await supabaseAdmin.from("ledger_jobs").update(patch as never).eq("id", jobId);
+  if (uErr) throw uErr;
+
+  return { sheetId, updated: true };
+}
+
+// -------- Cron: pull all active jobs with a linked sheet --------
+
+export async function pullAllActiveJobs(): Promise<{ pulled: number; errors: Array<{ id: string; error: string }> }> {
+  const { data: jobs, error } = await supabaseAdmin
+    .from("ledger_jobs")
+    .select("id, sheet_id, finish_date")
+    .not("sheet_id", "is", null)
+    .is("finish_date", null);
+  if (error) throw error;
+  const errors: Array<{ id: string; error: string }> = [];
+  let pulled = 0;
+  for (const j of (jobs ?? []) as any[]) {
+    try {
+      await pullJobFromSheet(j.id);
+      pulled++;
+    } catch (e: any) {
+      errors.push({ id: j.id, error: e?.message || String(e) });
+    }
+  }
+  return { pulled, errors };
 }

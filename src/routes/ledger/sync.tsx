@@ -1,19 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   useLedgerJobs,
   useUploadLedgerJobXlsx,
   isAdminSession,
-  useLedgerExportSettings,
-  useUpdateLedgerExportSettings,
-  useRunLedgerSheetExport,
 } from "@/lib/ledger-client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2,
-  Sheet as SheetIcon, RefreshCw,
+  Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,7 +46,7 @@ function LedgerSync() {
     <div className="space-y-6">
       <div>
         <h1 className="display text-2xl md:text-3xl text-slate-900">Sync</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Upload job spreadsheets and mirror Ledger data to Google Sheets</p>
+        <p className="text-sm text-slate-500 mt-0.5">Upload job spreadsheets. Google Sheets links live on each active job.</p>
       </div>
 
       {!admin && (
@@ -99,7 +94,14 @@ function LedgerSync() {
         </div>
       )}
 
-      {admin && <GoogleSheetsCard />}
+      {admin && (
+        <div className="pill-card p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+          <div className="text-sm text-slate-700">
+            Google Sheets sync is now <span className="font-semibold">per active job</span>. Open any active job card and paste its sheet URL to link and sync. Sheet edits pull back into the app automatically every 5 minutes.
+          </div>
+        </div>
+      )}
 
       <div className="pill-card p-6">
         <div className="flex items-baseline justify-between mb-3">
@@ -118,84 +120,6 @@ function LedgerSync() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function GoogleSheetsCard() {
-  const { data: settings } = useLedgerExportSettings();
-  const update = useUpdateLedgerExportSettings();
-  const run = useRunLedgerSheetExport();
-  const [sheetId, setSheetId] = useState("");
-
-  useEffect(() => {
-    const s = (settings as any)?.settings?.ledger_export_sheet_id;
-    if (s) setSheetId(s);
-  }, [settings]);
-
-  const lastSync = (settings as any)?.settings?.ledger_export_last_sync_at;
-  const configured = !!(settings as any)?.settings?.ledger_export_sheet_id;
-  const connectorReady = !!(settings as any)?.connectorReady;
-
-  return (
-    <div className="pill-card p-6 fade-up">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white inline-flex items-center justify-center">
-          <SheetIcon className="w-5 h-5" />
-        </div>
-        <div>
-          <div className="display text-lg text-slate-900">Google Sheets sync</div>
-          <div className="text-xs text-slate-500">Mirror all Ledger data to a Google Sheet</div>
-        </div>
-      </div>
-
-      <label className="text-xs uppercase tracking-wider text-slate-500 mb-1 block">Sheet URL or ID</label>
-      <div className="flex gap-2 mb-3">
-        <Input
-          placeholder="https://docs.google.com/spreadsheets/d/..."
-          value={sheetId}
-          onChange={(e) => setSheetId(e.target.value)}
-          className="flex-1"
-        />
-        <Button
-          variant="outline"
-          disabled={update.isPending}
-          onClick={async () => {
-            await update.mutateAsync(sheetId.trim() || null);
-            toast.success("Sheet saved");
-          }}
-        >
-          Save
-        </Button>
-      </div>
-
-      {!connectorReady && (
-        <div className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mb-3">
-          Google Sheets connector isn't linked yet. Sync will fail until it's connected.
-        </div>
-      )}
-
-      <Button
-        className="w-full"
-        disabled={!configured || run.isPending}
-        onClick={async () => {
-          try {
-            const r = await run.mutateAsync();
-            toast.success(`Synced ${r.jobs} jobs (${r.active} active, ${r.closed} closed)`);
-          } catch (e: any) {
-            toast.error(e?.message || "Sync failed");
-          }
-        }}
-      >
-        {run.isPending
-          ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Syncing...</>
-          : <><RefreshCw className="w-4 h-4 mr-2" /> Sync to Sheets now</>}
-      </Button>
-      {lastSync && (
-        <div className="text-xs text-slate-500 mt-2 text-center">
-          Last sync: {new Date(lastSync).toLocaleString()}
-        </div>
-      )}
     </div>
   );
 }
