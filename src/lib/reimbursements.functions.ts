@@ -287,7 +287,7 @@ export const workerListActiveSites = createServerFn({ method: "POST" })
 export const workerSubmitReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => workerBase.extend({
     description: z.string().trim().max(200).optional(),
-    amount: z.number().min(0).max(100000),
+    amount: z.number().min(0.01).max(100000),
     receiptUrl: z.string().url().nullable().optional(),
     receiptMime: z.string().max(100).nullable().optional(),
     jobSiteId: z.string().uuid(),

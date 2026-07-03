@@ -707,7 +707,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label htmlFor="r-amt" className="text-xs">Amount ($)</Label>
+              <Label htmlFor="r-amt" className="text-xs">Amount ($)<span className="text-destructive ml-0.5">*</span></Label>
               <Input
                 id="r-amt" type="number" step="0.01" inputMode="decimal" min="0"
                 value={amt} onChange={(e) => setAmt(e.target.value)}
@@ -715,15 +715,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
               />
             </div>
             <div>
-              <Label htmlFor="r-desc" className="text-xs">Description (optional)</Label>
-              <Textarea
-                id="r-desc" value={desc} onChange={(e) => setDesc(e.target.value)}
-                placeholder="e.g. Screws from Home Depot"
-                rows={2} maxLength={200} className="mt-1.5 text-base"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Job</Label>
+              <Label className="text-xs">Job<span className="text-destructive ml-0.5">*</span></Label>
               <Select value={jobSiteId} onValueChange={setJobSiteId}>
                 <SelectTrigger className="mt-1.5 h-11 text-base"><SelectValue placeholder="Select a job" /></SelectTrigger>
                 <SelectContent>
@@ -735,6 +727,14 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
                   )}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="r-desc" className="text-xs">Description (optional)</Label>
+              <Textarea
+                id="r-desc" value={desc} onChange={(e) => setDesc(e.target.value)}
+                placeholder="e.g. Screws from Home Depot"
+                rows={2} maxLength={200} className="mt-1.5 text-base"
+              />
             </div>
             <div>
               <Label className="text-xs">Receipt photo (optional)</Label>
