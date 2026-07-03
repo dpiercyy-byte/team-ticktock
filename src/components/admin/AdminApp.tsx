@@ -321,31 +321,30 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         </Card>
       )}
 
-      <Card className="w-full">
-        <CardContent className="p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Worker</p>
-          <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-            <SelectTrigger className="w-full mt-1 h-auto border-none bg-transparent shadow-none p-0 text-xl font-bold gap-2 focus:ring-0">
-              {(() => {
-                const w = wq.data?.find((x: any) => x.id === workerId);
-                if (!w) return <SelectValue placeholder="Select worker" />;
-                const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-                return (
-                  <>
-                    <span className="h-8 w-8 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
-                      {initials || "?"}
-                    </span>
-                    <SelectValue placeholder="Select worker" />
-                  </>
-                );
-              })()}
-            </SelectTrigger>
-            <SelectContent>
-              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+        <SelectTrigger className="w-full h-16 rounded-xl bg-muted/60 hover:bg-muted border-none shadow-none px-3 gap-3 focus:ring-0 [&>svg]:opacity-60">
+          {(() => {
+            const w = wq.data?.find((x: any) => x.id === workerId);
+            const initials = w ? w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() : "?";
+            return (
+              <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                <span className="h-10 w-10 shrink-0 rounded-full bg-background text-foreground inline-flex items-center justify-center text-sm font-semibold shadow-sm">
+                  {w ? initials : "?"}
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Worker</span>
+                  <span className="font-semibold text-base truncate leading-tight mt-1">
+                    {w ? w.name : "Select worker"}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+        </SelectTrigger>
+        <SelectContent>
+          {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
+        </SelectContent>
+      </Select>
 
       {/* Week navigator */}
       <div className="flex items-center gap-2 min-w-0">
@@ -450,12 +449,23 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-medium tabular-nums text-sm sm:text-base">
-                            {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
-                            <span className="truncate max-w-[200px] font-medium text-foreground">{e.project ?? "General"}</span>
+                        <div className="min-w-0 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold tabular-nums text-sm sm:text-base">
+                              {fmtTime(e.clock_in)} → {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
+                            </span>
+                            {e.clock_out ? (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary tabular-nums">
+                                {diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs
+                              </span>
+                            ) : (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-success/15 text-success">
+                                active
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-2 gap-y-1 items-center">
+                            <span className="truncate max-w-[240px] text-base font-semibold text-foreground">{e.project ?? "General"}</span>
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
                             {e.planned_job?.label && (
@@ -471,49 +481,51 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
                               </span>
                             )}
-                          </p>
-                          <div className="mt-1.5 flex flex-col gap-1">
-                            {!hideInTag && (
-                              <GeoTagEditor
-                                entry={e}
-                                field="in"
-                                variant="plain"
-                                sites={sitesQ.data ?? []}
-                                onUpdate={async (status, jobSiteId) => {
-                                  try {
-                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("In tag updated");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                                onUpdatePlanned={async (jobSiteId) => {
-                                  try {
-                                    const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("Planned job updated");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                              />
-                            )}
-                            {e.clock_out && (
-                              <GeoTagEditor
-                                entry={e}
-                                field="out"
-                                variant="plain"
-                                sites={sitesQ.data ?? []}
-                                onUpdate={async (status, jobSiteId) => {
-                                  try {
-                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("Out tag updated");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                              />
-                            )}
                           </div>
+                          {(!hideInTag || e.clock_out) && (
+                            <div className="mt-2 pt-2 border-t border-border/50 flex flex-col gap-1">
+                              {!hideInTag && (
+                                <GeoTagEditor
+                                  entry={e}
+                                  field="in"
+                                  variant="plain"
+                                  sites={sitesQ.data ?? []}
+                                  onUpdate={async (status, jobSiteId) => {
+                                    try {
+                                      const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("In tag updated");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                  onUpdatePlanned={async (jobSiteId) => {
+                                    try {
+                                      const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("Planned job updated");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                />
+                              )}
+                              {e.clock_out && (
+                                <GeoTagEditor
+                                  entry={e}
+                                  field="out"
+                                  variant="plain"
+                                  sites={sitesQ.data ?? []}
+                                  onUpdate={async (status, jobSiteId) => {
+                                    try {
+                                      const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("Out tag updated");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       );
@@ -3195,8 +3207,9 @@ function GeoTagEditor({
       status === "no_gps" ? "No GPS" :
       "Set tag";
     trigger = (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-        <DirIcon className={`h-3.5 w-3.5 shrink-0 ${dirClass}`} />
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/80 hover:text-foreground cursor-pointer">
+        <DirIcon className={`h-3 w-3 shrink-0 ${dirClass}`} />
+        <span className="font-medium">{field === "out" ? "Out:" : "In:"}</span>
         <span className="truncate">{text}</span>
       </span>
     );
