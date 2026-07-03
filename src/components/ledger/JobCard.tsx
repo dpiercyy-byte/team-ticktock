@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LedgerJob, fmtMoney, fmtPct, fmtDate, totalExpenses, isAdminSession, useDeleteLedgerJob, useUpdateLedgerJob } from "@/lib/ledger-client";
-import { MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
