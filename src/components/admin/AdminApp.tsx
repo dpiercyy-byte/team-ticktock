@@ -3215,12 +3215,6 @@ function reasonLabel(code: string | null | undefined) {
   return REASON_LABELS[code] ?? code;
 }
 
-function GeoTagEditor({
-  entry, sites, onUpdate, onUpdatePlanned, field = "in", variant = "badge",
-}: {
-  // placeholder anchor
-}: never;
-function _unused() {}
 function AssignJobButton({ sites, currentId, onAssign }: {
   sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   currentId: string | null;
@@ -3262,8 +3256,9 @@ function AssignJobButton({ sites, currentId, onAssign }: {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type __GeoTagEditorProps = {
+function GeoTagEditor({
+  entry, sites, onUpdate, onUpdatePlanned, field = "in", variant = "badge",
+}: {
   entry: any;
   field?: "in" | "out";
   variant?: "badge" | "plain";
@@ -3271,6 +3266,8 @@ type __GeoTagEditorProps = {
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
   onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
 }) {
+  const [open, setOpen] = useState(false);
+
   const [open, setOpen] = useState(false);
 
   const status: GeoStatus | null = (field === "out" ? entry.clock_out_geo_status : entry.geo_status) ?? null;
