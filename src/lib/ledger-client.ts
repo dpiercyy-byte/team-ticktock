@@ -101,8 +101,47 @@ export function useDeleteLedgerJob() {
   });
 }
 
-export function useResetLedgerJobs() {
-  const fn = useServerFn(resetLedgerJobs);
+export function useUploadLedgerJobXlsx() {
+  const fn = useServerFn(uploadLedgerJobXlsx);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ file, markClosed }: { file: File; markClosed?: boolean }) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      const base64 = await fileToBase64(file);
+      return fn({ data: { token, filename: file.name, base64, markClosed } });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
+  });
+}
+
+export function useLedgerExportSettings() {
+  const fn = useServerFn(getLedgerExportSettings);
+  return useQuery({
+    queryKey: ["ledger_export_settings"],
+    queryFn: async () => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return fn({ data: { token } });
+    },
+  });
+}
+
+export function useUpdateLedgerExportSettings() {
+  const fn = useServerFn(updateLedgerExportSettings);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (sheetId: string | null) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return fn({ data: { token, sheetId } });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_export_settings"] }),
+  });
+}
+
+export function useRunLedgerSheetExport() {
+  const fn = useServerFn(runLedgerSheetExportFn);
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
@@ -110,21 +149,7 @@ export function useResetLedgerJobs() {
       if (!token) throw new Error("Not signed in");
       return fn({ data: { token } });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
-  });
-}
-
-export function useUploadLedgerJobXlsx() {
-  const fn = useServerFn(uploadLedgerJobXlsx);
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (file: File) => {
-      const token = getSessionToken();
-      if (!token) throw new Error("Not signed in");
-      const base64 = await fileToBase64(file);
-      return fn({ data: { token, filename: file.name, base64 } });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_export_settings"] }),
   });
 }
 
