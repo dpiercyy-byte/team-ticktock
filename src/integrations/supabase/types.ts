@@ -128,6 +128,89 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_jobs: {
+        Row: {
+          address: string
+          building_materials: number
+          client_name: string | null
+          created_at: string
+          expense_log: Json
+          finish_date: string | null
+          finish_materials: number
+          gross_cash: number
+          gross_with_hst: number
+          id: string
+          labor: number
+          lead_source: string
+          linked_job_site_id: string | null
+          net: number
+          payments_log: Json
+          payments_received: number
+          price_log: Json
+          profit_margin: number
+          start_date: string | null
+          subs: number
+          total_price: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          building_materials?: number
+          client_name?: string | null
+          created_at?: string
+          expense_log?: Json
+          finish_date?: string | null
+          finish_materials?: number
+          gross_cash?: number
+          gross_with_hst?: number
+          id?: string
+          labor?: number
+          lead_source?: string
+          linked_job_site_id?: string | null
+          net?: number
+          payments_log?: Json
+          payments_received?: number
+          price_log?: Json
+          profit_margin?: number
+          start_date?: string | null
+          subs?: number
+          total_price?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          building_materials?: number
+          client_name?: string | null
+          created_at?: string
+          expense_log?: Json
+          finish_date?: string | null
+          finish_materials?: number
+          gross_cash?: number
+          gross_with_hst?: number
+          id?: string
+          labor?: number
+          lead_source?: string
+          linked_job_site_id?: string | null
+          net?: number
+          payments_log?: Json
+          payments_received?: number
+          price_log?: Json
+          profit_margin?: number
+          start_date?: string | null
+          subs?: number
+          total_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_jobs_linked_job_site_id_fkey"
+            columns: ["linked_job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reimbursements: {
         Row: {
           amount: number
