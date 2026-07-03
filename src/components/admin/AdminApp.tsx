@@ -416,7 +416,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           ) : (
             <div className="divide-y divide-border">
               {Object.entries(byDate).map(([date, items]) => {
-                const dayHours = items.reduce((s, e) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0), 0);
                 return (
                   <div
                     key={date}
@@ -424,16 +423,42 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
                       : "border-l-[3px] border-l-transparent"}
                   >
-                    <div className="px-4 sm:px-5 py-2 bg-secondary flex justify-between text-sm">
-
+                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
-                      <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
                     {items.map((e: any) => {
-                      const inSiteLabel = e.geo_status === "verified" || e.geo_status === "supplier"
-                        ? e.job_sites?.label ?? null
-                        : null;
-                      const hideInTag = !!(inSiteLabel && e.project && inSiteLabel.trim().toLowerCase() === String(e.project).trim().toLowerCase());
+                      const inSite = e.job_sites;
+                      const outSite = e.clock_out_site;
+                      const inClient = inSite && (inSite.kind ?? "client") === "client" ? inSite.label as string : null;
+                      const outClient = outSite && (outSite.kind ?? "client") === "client" ? outSite.label as string : null;
+                      const inSupplier = !!(inSite && inSite.kind === "supplier");
+                      const outSupplier = !!(outSite && outSite.kind === "supplier");
+                      const planned = e.planned_job?.label ?? null;
+                      const proj = e.project?.trim() || null;
+                      const geoLabels = [inClient, outClient].filter(Boolean).map((x) => (x as string).toLowerCase());
+                      const workerTyped = proj && !geoLabels.includes(proj.toLowerCase()) ? proj : null;
+
+                      let title: string;
+                      let source: string | null = null;
+                      let unassigned = false;
+                      if (workerTyped) { title = workerTyped; }
+                      else if (inClient) { title = inClient; source = "From clock-in site"; }
+                      else if (outClient) { title = outClient; source = "From clock-out site"; }
+                      else if (planned) { title = planned; source = "Planned job"; }
+                      else if (inSupplier && (outSupplier || !e.clock_out)) { title = "Material run"; }
+                      else { title = "Unassigned"; unassigned = true; source = "Needs assignment"; }
+
+                      const titleLc = title.toLowerCase();
+                      const plannedLc = planned?.toLowerCase() ?? null;
+                      const matchesTitleOrPlanned = (label: string | null | undefined) => {
+                        if (!label) return false;
+                        const l = label.trim().toLowerCase();
+                        return l === titleLc || (plannedLc !== null && l === plannedLc);
+                      };
+                      const inLabel = (e.geo_status === "verified" || e.geo_status === "supplier") ? inSite?.label ?? null : null;
+                      const outLabel = (e.clock_out_geo_status === "verified" || e.clock_out_geo_status === "supplier") ? outSite?.label ?? null : null;
+                      const hideInTag = matchesTitleOrPlanned(inLabel);
+                      const hideOutTag = matchesTitleOrPlanned(outLabel);
                       return (
                       <div key={e.id} className="relative px-4 sm:px-5 py-3 pr-24">
                         <div className="absolute top-1.5 right-1.5 flex gap-0.5">
@@ -465,14 +490,24 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             )}
                           </div>
                           <div className="flex flex-wrap gap-x-2 gap-y-1 items-center">
-                            <span className="truncate max-w-[240px] text-base font-semibold text-foreground">{e.project ?? "General"}</span>
+                            {unassigned && <span className="h-2 w-2 rounded-full bg-warning inline-block" />}
+                            <span className={`truncate max-w-[240px] text-base font-semibold ${unassigned ? "text-muted-foreground italic" : "text-foreground"}`}>{title}</span>
+                            {unassigned && (
+                              <AssignJobButton
+                                sites={sitesQ.data ?? []}
+                                currentId={e.planned_job_site_id ?? null}
+                                onAssign={async (jobSiteId) => {
+                                  try {
+                                    const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("Job assigned");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                              />
+                            )}
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
-                            {e.planned_job?.label && (
-                              <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
-                                → {e.planned_job.label}
-                              </Badge>
-                            )}
                             {e.offsite_reason_code && (
                               <span
                                 className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
@@ -482,7 +517,10 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                               </span>
                             )}
                           </div>
-                          {(!hideInTag || e.clock_out) && (
+                          {source && (
+                            <div className="text-[11px] text-muted-foreground">{source}</div>
+                          )}
+                          {(!hideInTag || (e.clock_out && !hideOutTag)) && (
                             <div className="mt-2 pt-2 border-t border-border/50 flex flex-col gap-1">
                               {!hideInTag && (
                                 <GeoTagEditor
@@ -508,7 +546,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                   }}
                                 />
                               )}
-                              {e.clock_out && (
+                              {e.clock_out && !hideOutTag && (
                                 <GeoTagEditor
                                   entry={e}
                                   field="out"
