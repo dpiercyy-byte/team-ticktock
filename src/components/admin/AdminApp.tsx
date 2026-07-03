@@ -340,7 +340,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
             })()}
           </SelectTrigger>
           <SelectContent>
-            {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
+            {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-lg">{w.name}</span></SelectItem>)}
           </SelectContent>
         </Select>
       </div>
