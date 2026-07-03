@@ -115,41 +115,42 @@ export function useUploadLedgerJobXlsx() {
   });
 }
 
-export function useLedgerExportSettings() {
-  const fn = useServerFn(getLedgerExportSettings);
-  return useQuery({
-    queryKey: ["ledger_export_settings"],
-    queryFn: async () => {
+export function useSetJobSheet() {
+  const fn = useServerFn(setJobSheet);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ jobId, url }: { jobId: string; url: string }) => {
       const token = getSessionToken();
       if (!token) throw new Error("Not signed in");
-      return fn({ data: { token } });
+      return fn({ data: { token, jobId, url } });
     },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
   });
 }
 
-export function useUpdateLedgerExportSettings() {
-  const fn = useServerFn(updateLedgerExportSettings);
+export function usePushJobToSheet() {
+  const fn = useServerFn(pushJobToSheetFn);
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (sheetId: string | null) => {
+    mutationFn: async (jobId: string) => {
       const token = getSessionToken();
       if (!token) throw new Error("Not signed in");
-      return fn({ data: { token, sheetId } });
+      return fn({ data: { token, jobId } });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_export_settings"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
   });
 }
 
-export function useRunLedgerSheetExport() {
-  const fn = useServerFn(runLedgerSheetExportFn);
+export function usePullJobFromSheet() {
+  const fn = useServerFn(pullJobFromSheetFn);
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (jobId: string) => {
       const token = getSessionToken();
       if (!token) throw new Error("Not signed in");
-      return fn({ data: { token } });
+      return fn({ data: { token, jobId } });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_export_settings"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
   });
 }
 
