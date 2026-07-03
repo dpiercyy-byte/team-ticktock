@@ -1,39 +1,52 @@
-## Worker selector
+## Goal
 
-Drop the `Card` wrapper around the Worker `Select` in `EntriesTab` (`src/components/admin/AdminApp.tsx` ~L324–L348). Replace with a plain full-width `SelectTrigger` styled as an input:
+Every shift ticket should read the same way regardless of whether the worker clocked in at a client site, a supplier, off-site, or with no GPS. No more "50 Red Maple Rd" on one card and "General" on the next for the same kind of work. Also declutter the daily header by removing its duplicate hours total.
 
-- Container: `w-full h-14 rounded-xl bg-muted/60 hover:bg-muted px-3` (soft gray, no border, no shadow — clearly not a stat card).
-- Left: avatar circle (unchanged initials, `bg-background` so it pops against the gray field).
-- Middle: two-line stack — tiny uppercase "Worker" label in `text-muted-foreground`, worker name in `font-semibold text-base`.
-- Right: `ChevronDown` icon in muted color (kept from shadcn default) to signal it's an interactive picker.
-- Empty state: same shell, placeholder text "Select worker".
+## Changes
 
-Result: reads as an input control, not a KPI tile — visually distinct from the four Hours/Wages/Reimb/Total stat cards directly below it.
+### 1. Rework the primary title on each entry card
 
-## Shift Ticket entry rows
+Replace the current `e.project ?? "General"` with a resolver that picks the best available job context, in this priority order:
 
-Restructure each entry inside the day group (`src/components/admin/AdminApp.tsx` ~L433–L520) into a three-zone ticket:
+1. Worker-typed `project` (only if it's not just a mirror of the geo site label)
+2. Clock-in **client** job site label
+3. Clock-out **client** job site label (dual-tag)
+4. **Planned job** (already captured when clock-in/out is at a supplier/off-site)
+5. Fallback label based on what actually happened, not the word "General":
+   - Supplier in + supplier out → **"Material run"**
+   - Supplier/off-site with no planned job → **"Unassigned"** (muted + amber dot to flag admin)
+   - No GPS at all → **"Unassigned"**
 
-**Row 1 — Time & duration**
-- Left: `7:55 AM → 3:52 PM` in `font-semibold tabular-nums` (arrow replaces the current en dash).
-- Immediately right of the time: hours pill `7.96 hrs` styled `text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary` (skip when still clocked in — show `active` chip in `--success` instead).
-- Top-right action icons (pencil/trash/force-out) stay pinned via the existing `absolute top-1.5 right-1.5`.
+"General" goes away entirely — ambiguous and reads like a real project.
 
-**Row 2 — Job site (primary)**
-- `e.project ?? "General"` promoted to `text-base font-semibold text-foreground`, single line with truncation.
-- Inline chips remain to the right at small size: `manual`, `flagged`, planned-job `→ label`, offsite reason. Wrap allowed.
+### 2. Add a small "source" hint under the title
 
-**Row 3 — Audit locations (bottom, muted)**
-- New footer block separated by `mt-2 pt-2 border-t border-border/50`.
-- Two lines, each `text-xs text-muted-foreground/80`:
-  - `In:` prefix + green `ArrowDown` icon (h-3 w-3) + address text.
-  - `Out:` prefix + red `ArrowUp` icon + address text (omit whole line if not clocked out).
-- Existing "hide In line when it matches the job site" rule from the previous pass is preserved.
-- Clicking either line still opens the `GeoTagEditor` popover — keep `variant="plain"` but update its internals to render as `In: <address>` / `Out: <address>` with the small colored arrow, muted text, no hover background, so the whole line reads as a subtle audit trail.
+One line of `text-xs text-muted-foreground` explaining where the title came from:
+- "From clock-in site" / "From clock-out site" / "Planned job" / "Entered by worker" / "Needs assignment"
 
-No other layout, tabs, filters, or business logic change.
+Skipped when it adds no information.
 
-### Technical notes
-- All colors via existing tokens (`--muted`, `--primary`, `--success`, `--destructive`, `--border`) — no hardcoded hex.
-- Duration pill formula unchanged: `diffHours(clock_in, clock_out).toFixed(2)`.
-- `GeoTagEditor` plain variant gets a small refactor so the prefix (`In:` / `Out:`) is rendered by the trigger itself, keeping the popover behavior intact.
+### 3. Make "Unassigned" actionable
+
+When the title resolves to "Unassigned", show a tiny inline "Assign job" button that opens the existing planned-job picker and writes to `planned_job_site_id`. Fixes cases like Mon Jun 29 without opening the full edit dialog.
+
+### 4. Stop the audit lines duplicating the title
+
+Extend the current `hideInTag` and add a matching `hideOutTag`: hide the In/Out audit line when its address matches the resolved title OR the planned job label.
+
+### 5. Remove the daily-header hours total
+
+In the light-gray day header row, drop the daily hours total. The per-shift blue hours pill on each ticket becomes the single source of truth for hours.
+
+### 6. Backfill
+
+Display-only — resolver runs client-side from data already loaded (`job_sites`, `planned_job`, `clock_out_site`). No migration, `time_entries.project` untouched.
+
+## Files touched
+
+- `src/components/admin/AdminApp.tsx` — new `resolveEntryTitle()`, updated ticket header JSX, extended hide logic, inline "Assign job" affordance, and removal of the daily header hours total.
+
+## Out of scope
+
+- No schema changes.
+- No changes to worker clock-in flow or the worker app.
