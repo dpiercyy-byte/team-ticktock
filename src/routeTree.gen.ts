@@ -14,6 +14,7 @@ import { Route as AppsRouteImport } from './routes/apps'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LedgerIndexRouteImport } from './routes/ledger/index'
+import { Route as LedgerClosedRouteImport } from './routes/ledger/closed'
 import { Route as LedgerActiveRouteImport } from './routes/ledger/active'
 import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
@@ -43,6 +44,11 @@ const LedgerIndexRoute = LedgerIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LedgerRoute,
 } as any)
+const LedgerClosedRoute = LedgerClosedRouteImport.update({
+  id: '/closed',
+  path: '/closed',
+  getParentRoute: () => LedgerRoute,
+} as any)
 const LedgerActiveRoute = LedgerActiveRouteImport.update({
   id: '/active',
   path: '/active',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/apps': typeof AppsRoute
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/active': typeof LedgerActiveRoute
+  '/ledger/closed': typeof LedgerClosedRoute
   '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/apps': typeof AppsRoute
   '/ledger/active': typeof LedgerActiveRoute
+  '/ledger/closed': typeof LedgerClosedRoute
   '/ledger': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/apps': typeof AppsRoute
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/active': typeof LedgerActiveRoute
+  '/ledger/closed': typeof LedgerClosedRoute
   '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/apps'
     | '/ledger'
     | '/ledger/active'
+    | '/ledger/closed'
     | '/ledger/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/apps'
     | '/ledger/active'
+    | '/ledger/closed'
     | '/ledger'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/apps'
     | '/ledger'
     | '/ledger/active'
+    | '/ledger/closed'
     | '/ledger/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
@@ -169,6 +181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerIndexRouteImport
       parentRoute: typeof LedgerRoute
     }
+    '/ledger/closed': {
+      id: '/ledger/closed'
+      path: '/closed'
+      fullPath: '/ledger/closed'
+      preLoaderRoute: typeof LedgerClosedRouteImport
+      parentRoute: typeof LedgerRoute
+    }
     '/ledger/active': {
       id: '/ledger/active'
       path: '/active'
@@ -195,11 +214,13 @@ declare module '@tanstack/react-router' {
 
 interface LedgerRouteChildren {
   LedgerActiveRoute: typeof LedgerActiveRoute
+  LedgerClosedRoute: typeof LedgerClosedRoute
   LedgerIndexRoute: typeof LedgerIndexRoute
 }
 
 const LedgerRouteChildren: LedgerRouteChildren = {
   LedgerActiveRoute: LedgerActiveRoute,
+  LedgerClosedRoute: LedgerClosedRoute,
   LedgerIndexRoute: LedgerIndexRoute,
 }
 
