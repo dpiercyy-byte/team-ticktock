@@ -75,7 +75,7 @@ async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
 export function WorkerApp() {
   const [session, setSession] = useState<WorkerSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const navigate = useNavigate();
+  
 
   useEffect(() => {
     setSession(getWorkerSession());
