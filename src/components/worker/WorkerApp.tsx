@@ -75,6 +75,7 @@ async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
 export function WorkerApp() {
   const [session, setSession] = useState<WorkerSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setSession(getWorkerSession());
@@ -84,7 +85,11 @@ export function WorkerApp() {
   if (!hydrated) return <div className="min-h-dvh bg-background" />;
 
   if (!session) {
-    return <PinLogin onLogin={(s) => { setWorkerSession(s); setSession(s); }} />;
+    return <PinLogin onLogin={(s) => {
+      setWorkerSession(s);
+      setSession(s);
+      navigate({ to: "/apps" });
+    }} />;
   }
   return (
     <ClockInScreen
