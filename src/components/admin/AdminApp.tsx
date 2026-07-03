@@ -1044,9 +1044,17 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const [reimbFor, setReimbFor] = useState<{ id: string; name: string } | null>(null);
   const [desc, setDesc] = useState(""); const [amt, setAmt] = useState("");
+  const [billableSite, setBillableSite] = useState<string>("none");
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
+
+  const listSitesFn = useServerFn(adminListJobSites);
+  const sitesQ = useQuery({
+    queryKey: ["admin-jobsites-payouts"],
+    queryFn: () => listSitesFn({ data: { token } }).then(r => { updateToken(r.token); return r.sites; }),
+  });
+  const activeSitesForReimb = ((sitesQ.data ?? []) as any[]).filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
 
   const handleFile = async (file: File) => {
     if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
