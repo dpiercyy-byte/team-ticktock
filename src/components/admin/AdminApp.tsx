@@ -559,6 +559,19 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             </div>
                           )}
                         </div>
+                        <div className="flex items-start gap-0 sm:gap-0.5 -mr-1 sm:mr-0">
+                          {!e.clock_out && (
+                            <Button variant="ghost" className="h-8 w-8 p-0" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
+                              <PowerOff className="h-4 w-4 text-warning" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditing(e)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setConfirmDel(e.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                       );
                     })}
