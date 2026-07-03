@@ -392,21 +392,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
             </PopoverContent>
           </Popover>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "This week", val: startOfWeekISO() },
-            { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
-          ].map((chip) => (
-            <Button
-              key={chip.label}
-              variant={weekStart === chip.val ? "default" : "outline"}
-              size="sm"
-              onClick={() => setWeekStart(chip.val)}
-            >
-              {chip.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -415,6 +400,10 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         <Stat label="Reimb" value={fmtMoney(weekReimb)} />
         <Stat label="Total" value={fmtMoney(weekTotal)} />
       </div>
+
+      <Button variant="secondary" className="w-full" onClick={() => setAdding(true)} disabled={!workerId}>
+        <Plus className="h-4 w-4 mr-2" /> Add entry
+      </Button>
 
       <Card>
         <CardContent className="p-0">
