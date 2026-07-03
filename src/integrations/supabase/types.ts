@@ -154,6 +154,8 @@ export type Database = {
           payments_received: number
           price_log: Json
           profit_margin: number
+          sheet_id: string | null
+          sheet_last_sync_at: string | null
           start_date: string | null
           subs: number
           total_price: number
@@ -178,6 +180,8 @@ export type Database = {
           payments_received?: number
           price_log?: Json
           profit_margin?: number
+          sheet_id?: string | null
+          sheet_last_sync_at?: string | null
           start_date?: string | null
           subs?: number
           total_price?: number
@@ -202,6 +206,8 @@ export type Database = {
           payments_received?: number
           price_log?: Json
           profit_margin?: number
+          sheet_id?: string | null
+          sheet_last_sync_at?: string | null
           start_date?: string | null
           subs?: number
           total_price?: number
