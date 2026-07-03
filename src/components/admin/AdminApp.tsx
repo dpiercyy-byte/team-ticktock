@@ -3339,7 +3339,7 @@ function GeoTagEditor({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
+        <button type="button" className="flex min-w-0 max-w-full" aria-label="Edit geo tag">{trigger}</button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-1 max-h-80 overflow-y-auto" align="start">
         {entry.offsite_reason_code && (
