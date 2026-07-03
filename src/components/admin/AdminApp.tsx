@@ -321,31 +321,30 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         </Card>
       )}
 
-      <Card className="w-full">
-        <CardContent className="p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Worker</p>
-          <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-            <SelectTrigger className="w-full mt-1 h-auto border-none bg-transparent shadow-none p-0 text-xl font-bold gap-2 focus:ring-0">
-              {(() => {
-                const w = wq.data?.find((x: any) => x.id === workerId);
-                if (!w) return <SelectValue placeholder="Select worker" />;
-                const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-                return (
-                  <>
-                    <span className="h-8 w-8 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
-                      {initials || "?"}
-                    </span>
-                    <SelectValue placeholder="Select worker" />
-                  </>
-                );
-              })()}
-            </SelectTrigger>
-            <SelectContent>
-              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+        <SelectTrigger className="w-full h-16 rounded-xl bg-muted/60 hover:bg-muted border-none shadow-none px-3 gap-3 focus:ring-0 [&>svg]:opacity-60">
+          {(() => {
+            const w = wq.data?.find((x: any) => x.id === workerId);
+            const initials = w ? w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() : "?";
+            return (
+              <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                <span className="h-10 w-10 shrink-0 rounded-full bg-background text-foreground inline-flex items-center justify-center text-sm font-semibold shadow-sm">
+                  {w ? initials : "?"}
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Worker</span>
+                  <span className="font-semibold text-base truncate leading-tight mt-1">
+                    {w ? w.name : "Select worker"}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+        </SelectTrigger>
+        <SelectContent>
+          {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
+        </SelectContent>
+      </Select>
 
       {/* Week navigator */}
       <div className="flex items-center gap-2 min-w-0">
