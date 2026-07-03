@@ -3166,10 +3166,11 @@ function reasonLabel(code: string | null | undefined) {
 }
 
 function GeoTagEditor({
-  entry, sites, onUpdate, onUpdatePlanned, field = "in",
+  entry, sites, onUpdate, onUpdatePlanned, field = "in", variant = "badge",
 }: {
   entry: any;
   field?: "in" | "out";
+  variant?: "badge" | "plain";
   sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
   onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
@@ -3183,28 +3184,46 @@ function GeoTagEditor({
       : entry.job_sites?.label ?? null;
   const prefix = field === "out" ? "Out: " : "In: ";
 
-  const trigger =
-    status === "verified" && siteLabel ? (
-      <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
-        <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
-      </Badge>
-    ) : status === "supplier" && siteLabel ? (
-      <Badge variant="outline" className="h-4 text-[10px] border-primary text-primary cursor-pointer hover:bg-primary/10">
-        <Truck className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
-      </Badge>
-    ) : status === "off_site" ? (
-      <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
-        <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}Off-site
-      </Badge>
-    ) : status === "no_gps" ? (
-      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
-        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}No GPS
-      </Badge>
-    ) : (
-      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
-        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}Set tag
-      </Badge>
+  let trigger: React.ReactNode;
+  if (variant === "plain") {
+    const DirIcon = field === "out" ? ArrowUp : ArrowDown;
+    const dirClass = field === "out" ? "text-destructive" : "text-success";
+    const text =
+      status === "verified" && siteLabel ? siteLabel :
+      status === "supplier" && siteLabel ? siteLabel :
+      status === "off_site" ? "Off-site" :
+      status === "no_gps" ? "No GPS" :
+      "Set tag";
+    trigger = (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+        <DirIcon className={`h-3.5 w-3.5 shrink-0 ${dirClass}`} />
+        <span className="truncate">{text}</span>
+      </span>
     );
+  } else {
+    trigger =
+      status === "verified" && siteLabel ? (
+        <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
+          <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
+        </Badge>
+      ) : status === "supplier" && siteLabel ? (
+        <Badge variant="outline" className="h-4 text-[10px] border-primary text-primary cursor-pointer hover:bg-primary/10">
+          <Truck className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
+        </Badge>
+      ) : status === "off_site" ? (
+        <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
+          <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}Off-site
+        </Badge>
+      ) : status === "no_gps" ? (
+        <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+          <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}No GPS
+        </Badge>
+      ) : (
+        <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+          <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}Set tag
+        </Badge>
+      );
+  }
 
   const pick = async (s: GeoStatus, jid: string | null) => {
     setOpen(false);
