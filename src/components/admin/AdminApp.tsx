@@ -2469,7 +2469,7 @@ function LifetimePayoutView({ token, updateToken }: { token: string; updateToken
                   <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
                     {initials || "?"}
                   </span>
-                  <p className="font-semibold text-base truncate">{s.name}</p>
+                  <p className="font-bold text-lg truncate">{s.name}</p>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-3 pt-0 pb-4">
                   <div className="flex items-baseline justify-between gap-3 text-sm">
