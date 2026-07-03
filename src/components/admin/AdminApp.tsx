@@ -327,7 +327,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       <div className="w-full">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Worker</p>
         <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-          <SelectTrigger className="w-full h-12 bg-gray-100 rounded-lg border-0 shadow-none px-4 text-lg font-bold gap-3 focus:ring-2 focus:ring-ring">
+          <SelectTrigger className="w-full h-12 bg-primary text-primary-foreground rounded-lg border-0 shadow-none px-4 text-lg font-bold gap-3 focus:ring-2 focus:ring-ring hover:bg-primary/90 [&>svg]:text-primary-foreground">
             {(() => {
               const w = wq.data?.find((x: any) => x.id === workerId);
               if (!w) return <SelectValue placeholder="Select worker" />;
