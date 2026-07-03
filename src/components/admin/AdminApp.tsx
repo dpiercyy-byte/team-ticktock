@@ -453,7 +453,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                   <span className="font-semibold text-base text-foreground truncate max-w-[240px]">
                                     {(e.geo_status === "verified" && e.job_sites?.label)
                                       || (e.clock_out_geo_status === "verified" && e.clock_out_site?.label)
-                                      || e.project
                                       || "General"}
                                   </span>
                                 )}
@@ -471,11 +470,8 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
 
 
                             {e.offsite_reason_code && (
-                              <p
-                                className="text-[11px] text-muted-foreground italic mt-1 truncate max-w-full"
-                                title={e.offsite_reason_note || undefined}
-                              >
-                                {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
+                              <p className="text-[11px] text-muted-foreground italic mt-1 truncate max-w-full">
+                                {reasonLabel(e.offsite_reason_code)}
                               </p>
                             )}
                           </div>
@@ -1048,9 +1044,17 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const [reimbFor, setReimbFor] = useState<{ id: string; name: string } | null>(null);
   const [desc, setDesc] = useState(""); const [amt, setAmt] = useState("");
+  const [billableSite, setBillableSite] = useState<string>("none");
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
+
+  const listSitesFn = useServerFn(adminListJobSites);
+  const sitesQ = useQuery({
+    queryKey: ["admin-jobsites-payouts"],
+    queryFn: () => listSitesFn({ data: { token } }).then(r => { updateToken(r.token); return r.sites; }),
+  });
+  const activeSitesForReimb = ((sitesQ.data ?? []) as any[]).filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
 
   const handleFile = async (file: File) => {
     if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
@@ -1294,7 +1298,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
       )}
 
-      <Dialog open={!!reimbFor} onOpenChange={(o) => { if (!o) { setReimbFor(null); setReceipt(null); setDesc(""); setAmt(""); } }}>
+      <Dialog open={!!reimbFor} onOpenChange={(o) => { if (!o) { setReimbFor(null); setReceipt(null); setDesc(""); setAmt(""); setBillableSite("none"); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reimbursements — {reimbFor?.name} (week of {week})</DialogTitle></DialogHeader>
           <div className="space-y-3">
@@ -1304,6 +1308,15 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                 <Input type="number" step="0.01" placeholder="Amount" value={amt}
                        onChange={(e) => setAmt(e.target.value)} className="w-[110px]" />
               </div>
+              <Select value={billableSite} onValueChange={setBillableSite}>
+                <SelectTrigger><SelectValue placeholder="Bill to job site (optional)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No billable job site</SelectItem>
+                  {activeSitesForReimb.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="flex flex-wrap items-center gap-2">
                 {receipt ? (
                   <div className="flex items-center gap-2 rounded-md border border-border p-1.5 pr-2">
@@ -1336,8 +1349,9 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                       description: desc, amount: parseFloat(amt) || 0,
                       receiptUrl: receipt?.url ?? null,
                       receiptMime: receipt?.mime ?? null,
+                      billableJobSiteId: billableSite === "none" ? null : billableSite,
                     } });
-                    updateToken(r.token); setDesc(""); setAmt(""); setReceipt(null);
+                    updateToken(r.token); setDesc(""); setAmt(""); setReceipt(null); setBillableSite("none");
                     qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
                     qc.invalidateQueries({ queryKey: ["payout", week] });
                   } catch (e: any) { toast.error(e?.message || "Failed"); }

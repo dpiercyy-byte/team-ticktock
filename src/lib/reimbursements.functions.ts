@@ -165,9 +165,19 @@ export const addReimbursement = createServerFn({ method: "POST" })
     amount: z.number().min(0).max(100000),
     receiptUrl: z.string().url().nullable().optional(),
     receiptMime: z.string().max(100).nullable().optional(),
+    billableJobSiteId: z.string().uuid().nullable().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
+    let billableJobSiteId: string | null = null;
+    if (data.billableJobSiteId) {
+      const { data: site } = await supabaseAdmin
+        .from("job_sites").select("id, archived_at, kind").eq("id", data.billableJobSiteId).maybeSingle();
+      if (!site || site.archived_at || (site.kind ?? "client") !== "client") {
+        throw new Response("Invalid job site", { status: 400 });
+      }
+      billableJobSiteId = site.id;
+    }
     const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: data.workerId,
       uploaded_by_admin: true,
@@ -176,6 +186,8 @@ export const addReimbursement = createServerFn({ method: "POST" })
       amount: data.amount,
       receipt_url: data.receiptUrl ?? null,
       receipt_mime: data.receiptMime ?? null,
+      material_type: billableJobSiteId ? "client_billable" : "regular",
+      billable_job_site_id: billableJobSiteId,
     }).select("id").single();
     if (error) throw error;
     if (inserted?.id && data.receiptUrl) {
@@ -187,7 +199,7 @@ export const addReimbursement = createServerFn({ method: "POST" })
       action: "reimbursement_create",
       entityType: "reimbursement",
       entityId: inserted?.id,
-      after: { worker_id: data.workerId, week_start: data.weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl },
+      after: { worker_id: data.workerId, week_start: data.weekStart, description: data.description, amount: data.amount, has_receipt: !!data.receiptUrl, billable_job_site_id: billableJobSiteId },
     });
     return refreshed;
   });
