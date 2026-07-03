@@ -25,7 +25,7 @@ import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
   Sparkles, RefreshCw, Sheet, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
-  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ArrowDown, ArrowUp,
+  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ArrowDown, ArrowUp, ArrowRight,
 } from "lucide-react";
 import {
   parseReceipt, updateParsedReceipt, getSheetSettings, updateSheetSettings, backfillSheet, parseUnprocessed,
@@ -460,66 +460,60 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       const hideInTag = matchesTitleOrPlanned(inLabel);
                       const hideOutTag = matchesTitleOrPlanned(outLabel);
                       return (
-                      <div key={e.id} className="relative px-4 sm:px-5 py-3 pr-24">
-                        <div className="absolute top-1.5 right-1.5 flex gap-0.5">
-                          {!e.clock_out && (
-                            <Button variant="ghost" size="icon" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
-                              <PowerOff className="h-4 w-4 text-warning" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setConfirmDel(e.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                      <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-3 sm:px-5 py-3">
                         <div className="min-w-0 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold tabular-nums text-sm sm:text-base">
-                              {fmtTime(e.clock_in)} → {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
+                          <div className="flex items-center gap-2 flex-nowrap min-w-0">
+                            <span className="shrink-0 inline-flex items-center gap-1 font-semibold tabular-nums text-sm sm:text-base">
+                              {fmtTime(e.clock_in)}
+                              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
                             </span>
                             {e.clock_out ? (
-                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary tabular-nums">
+                              <span className="shrink-0 whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary tabular-nums">
                                 {diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs
                               </span>
                             ) : (
-                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-success/15 text-success">
+                              <span className="shrink-0 whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded-full bg-success/15 text-success">
                                 active
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-wrap gap-x-2 gap-y-1 items-center">
-                            {unassigned && <span className="h-2 w-2 rounded-full bg-warning inline-block" />}
-                            <span className={`truncate max-w-[240px] text-base font-semibold ${unassigned ? "text-muted-foreground italic" : "text-foreground"}`}>{title}</span>
-                            {unassigned && (
-                              <AssignJobButton
-                                sites={sitesQ.data ?? []}
-                                currentId={e.planned_job_site_id ?? null}
-                                onAssign={async (jobSiteId) => {
-                                  try {
-                                    const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("Job assigned");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                              />
-                            )}
-                            {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
-                            {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
-                            {e.offsite_reason_code && (
-                              <span
-                                className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
-                                title={e.offsite_reason_note || undefined}
-                              >
-                                · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
-                              </span>
-                            )}
+                          <div className="flex items-center gap-2 min-w-0">
+                            {unassigned && <span className="h-2 w-2 shrink-0 rounded-full bg-warning inline-block" />}
+                            <span className={`flex-1 min-w-0 truncate text-base font-semibold ${unassigned ? "text-muted-foreground italic" : "text-foreground"}`}>{title}</span>
                           </div>
+                          {(unassigned || e.created_by === "admin" || e.flagged_review) && (
+                            <div className="flex flex-wrap gap-x-2 gap-y-1 items-center">
+                              {unassigned && (
+                                <AssignJobButton
+                                  sites={sitesQ.data ?? []}
+                                  currentId={e.planned_job_site_id ?? null}
+                                  onAssign={async (jobSiteId) => {
+                                    try {
+                                      const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("Job assigned");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                />
+                              )}
+                              {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
+                              {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
+                            </div>
+                          )}
+                          {e.offsite_reason_code && (
+                            <div
+                              className="text-[11px] text-muted-foreground italic truncate"
+                              title={e.offsite_reason_note || undefined}
+                            >
+                              {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
+                            </div>
+                          )}
                           {source && (
                             <div className="text-[11px] text-muted-foreground">{source}</div>
                           )}
+
                           {(!hideInTag || (e.clock_out && !hideOutTag)) && (
                             <div className="mt-2 pt-2 border-t border-border/50 flex flex-col gap-1">
                               {!hideInTag && (
@@ -564,6 +558,19 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                               )}
                             </div>
                           )}
+                        </div>
+                        <div className="flex items-start gap-0 sm:gap-0.5 -mr-1 sm:mr-0">
+                          {!e.clock_out && (
+                            <Button variant="ghost" className="h-8 w-8 p-0" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
+                              <PowerOff className="h-4 w-4 text-warning" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditing(e)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setConfirmDel(e.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </div>
                       );
@@ -3288,10 +3295,10 @@ function GeoTagEditor({
       status === "no_gps" ? "No GPS" :
       "Set tag";
     trigger = (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/80 hover:text-foreground cursor-pointer">
+      <span className="flex items-center gap-1.5 min-w-0 max-w-full text-xs text-muted-foreground/80 hover:text-foreground cursor-pointer">
         <DirIcon className={`h-3 w-3 shrink-0 ${dirClass}`} />
-        <span className="font-medium">{field === "out" ? "Out:" : "In:"}</span>
-        <span className="truncate">{text}</span>
+        <span className="shrink-0 font-medium">{field === "out" ? "Out:" : "In:"}</span>
+        <span className="min-w-0 flex-1 truncate">{text}</span>
       </span>
     );
   } else {
@@ -3332,7 +3339,7 @@ function GeoTagEditor({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
+        <button type="button" className="flex min-w-0 max-w-full" aria-label="Edit geo tag">{trigger}</button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-1 max-h-80 overflow-y-auto" align="start">
         {entry.offsite_reason_code && (

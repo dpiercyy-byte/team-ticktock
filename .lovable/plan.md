@@ -1,52 +1,48 @@
 ## Goal
 
-Every shift ticket should read the same way regardless of whether the worker clocked in at a client site, a supplier, off-site, or with no GPS. No more "50 Red Maple Rd" on one card and "General" on the next for the same kind of work. Also declutter the daily header by removing its duplicate hours total.
+Make each shift ticket read cleanly on ~360–400px screens: no orphaned "hrs" pill on its own line, no title being pushed under the action icons, no address truncating to a single character.
 
-## Changes
+## Changes (mobile-first, `src/components/admin/AdminApp.tsx` only)
 
-### 1. Rework the primary title on each entry card
+### 1. Reserve the top-right action strip
 
-Replace the current `e.project ?? "General"` with a resolver that picks the best available job context, in this priority order:
+Action icons (force-clockout / pencil / trash) currently overlay the card with `absolute top-1.5 right-1.5` and the content uses `pr-24`. On 360px that eats ~40% of the row width. Switch to:
 
-1. Worker-typed `project` (only if it's not just a mirror of the geo site label)
-2. Clock-in **client** job site label
-3. Clock-out **client** job site label (dual-tag)
-4. **Planned job** (already captured when clock-in/out is at a supplier/off-site)
-5. Fallback label based on what actually happened, not the word "General":
-   - Supplier in + supplier out → **"Material run"**
-   - Supplier/off-site with no planned job → **"Unassigned"** (muted + amber dot to flag admin)
-   - No GPS at all → **"Unassigned"**
+- Card becomes `grid grid-cols-[minmax(0,1fr)_auto] gap-2` so the icon column reserves exact width and the content column gets `min-w-0`.
+- Icons drop from `size="icon"` (36px) to `h-8 w-8` and tighten to `gap-0` on mobile, `sm:gap-0.5`.
+- Remove the `pr-24` hack.
 
-"General" goes away entirely — ambiguous and reads like a real project.
+### 2. Time row: keep time + hours pill together
 
-### 2. Add a small "source" hint under the title
+- Wrap time range and hours pill in a single `flex items-center gap-2 flex-nowrap min-w-0` row.
+- Time range: `tabular-nums text-sm`, `shrink-0`.
+- Hours pill: `shrink-0 whitespace-nowrap`.
+- Arrow between times becomes a lucide `ArrowRight` icon (`h-3.5 w-3.5`) instead of the literal "→" so it never wraps as a text glyph.
+- "active" state stays a pill, same treatment.
 
-One line of `text-xs text-muted-foreground` explaining where the title came from:
-- "From clock-in site" / "From clock-out site" / "Planned job" / "Entered by worker" / "Needs assignment"
+### 3. Title row: single line with truncation
 
-Skipped when it adds no information.
+- Remove `max-w-[240px]` (fixed cap breaks on 320px).
+- Title becomes `flex-1 min-w-0 truncate`.
+- "Assign job" pill, `manual` / `flagged` badges move to a **separate second line** on mobile (`flex-wrap`) so they never squeeze the title. Amber unassigned dot stays inline with the title.
+- Offsite reason string moves under the title as its own muted line instead of chained inline.
 
-### 3. Make "Unassigned" actionable
+### 4. Source hint stays as-is (already `text-[11px]` on its own line).
 
-When the title resolves to "Unassigned", show a tiny inline "Assign job" button that opens the existing planned-job picker and writes to `planned_job_site_id`. Fixes cases like Mon Jun 29 without opening the full edit dialog.
+### 5. Audit footer (In/Out lines)
 
-### 4. Stop the audit lines duplicating the title
+- Container becomes `grid grid-cols-1 gap-0.5` (already stacked, but enforce `min-w-0` on the GeoTagEditor trigger).
+- `GeoTagEditor` `plain` variant trigger: the outer `<span>` gets `min-w-0 max-w-full` and the address `<span>` keeps `truncate` — currently the parent isn't `min-w-0` so `truncate` no-ops inside a flex row.
 
-Extend the current `hideInTag` and add a matching `hideOutTag`: hide the In/Out audit line when its address matches the resolved title OR the planned job label.
+### 6. Daily header row
 
-### 5. Remove the daily-header hours total
-
-In the light-gray day header row, drop the daily hours total. The per-shift blue hours pill on each ticket becomes the single source of truth for hours.
-
-### 6. Backfill
-
-Display-only — resolver runs client-side from data already loaded (`job_sites`, `planned_job`, `clock_out_site`). No migration, `time_entries.project` untouched.
-
-## Files touched
-
-- `src/components/admin/AdminApp.tsx` — new `resolveEntryTitle()`, updated ticket header JSX, extended hide logic, inline "Assign job" affordance, and removal of the daily header hours total.
+Already single-line since we removed the hours total. No change.
 
 ## Out of scope
 
-- No schema changes.
-- No changes to worker clock-in flow or the worker app.
+- No changes to entry data, resolver logic, or the desktop layout beyond what naturally scales up (`sm:` breakpoints preserve the current denser look).
+- No changes to the worker app.
+
+## Files touched
+
+- `src/components/admin/AdminApp.tsx` — entry card JSX (around L430–L570) and the `plain` branch of `GeoTagEditor` (around L3280).
