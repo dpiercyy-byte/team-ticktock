@@ -1,33 +1,25 @@
-## Add Google Sheet URL input to the Sync tab
+## Goal
 
-Right now sheet linking only appears inside an active job card. If you don't have any active jobs yet, there's nowhere to paste a URL. I'll add a linker directly on the Sync tab.
+Enable creating an Active job directly in the Ledger app, and restrict the Sync tab's job picker to active jobs only.
 
-### What changes on `/ledger/sync` (admin only)
+## Changes
 
-Add a new "Link a Google Sheet to a job" card above the upload card with:
+### 1. New "Create Job" server function (`src/lib/ledger.functions.ts`)
+Add `createLedgerJob` that inserts a row into `public.ledger_jobs` with:
+- `job_name` (required)
+- `client_name`, `address` (optional)
+- `start_date` (defaults to today)
+- `finish_date` = null (so it counts as Active)
+- Contract totals default to 0; sheet fields null.
 
-- A **job picker** (dropdown) listing all jobs from Ledger, grouped:
-  - Active jobs (no finish date) at the top
-  - Closed jobs below, collapsed by default
-  - Shows address + client name, searchable
-- A **Sheet URL** text input (accepts full `docs.google.com/spreadsheets/d/...` URL or bare ID — same parser as the job card)
-- **Save & Push** button — links the sheet to the selected job and immediately pushes current job data to the sheet
-- **Pull now** button — pulls sheet data into the selected job
-- Shows current link status and last sync time for the selected job
+### 2. UI: "New Job" button on Active tab (`src/routes/ledger/active.tsx`)
+Add a primary "+ New Job" button in the header that opens a dialog with fields: Job Name (required), Client, Address, Start Date. On submit, calls `createLedgerJob`, invalidates the jobs query, and the new job appears in the Active list ready for a sheet link.
 
-### Empty-state helper
+### 3. Sync tab picker → active-only (`src/routes/ledger/sync.tsx`)
+Remove the "Closed" optgroup. Show only `activeJobs`. If the list is empty, show an inline empty state with a button/link that jumps to `/ledger/active` (where the new "+ New Job" button lives) instead of the current picker.
 
-If the jobs list is empty, show a hint: "Upload a spreadsheet below first, then come back here to link a Google Sheet."
+### 4. Copy tweak
+Update the helper text on the Sync card to say "Only active jobs can be linked to a sheet. Create one under Active if none appear."
 
-### No backend changes
-
-Reuses existing `setJobSheet`, `pushJobToSheetFn`, `pullJobFromSheetFn` server functions and the `useLedgerJobs` hook. The per-job card UI stays as-is.
-
-### Side fix
-
-The Sync page has an SSR hydration warning from a conditional admin-only block. I'll gate the admin/non-admin branches so both render the same shell on the server.
-
-### Files touched
-
-- `src/routes/ledger/sync.tsx` — add the linker card, wire to existing hooks
-- `src/lib/ledger-client.ts` — add a small hook wrapping `setJobSheet` / push / pull if not already exported (verify during build)
+## Out of scope
+No schema migration — `ledger_jobs` already has the needed columns. Closed jobs remain visible on the Closed tab and stop syncing (existing behavior).
