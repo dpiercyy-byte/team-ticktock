@@ -18,6 +18,7 @@ import { Route as LedgerSyncRouteImport } from './routes/ledger/sync'
 import { Route as LedgerClosedRouteImport } from './routes/ledger/closed'
 import { Route as LedgerActiveRouteImport } from './routes/ledger/active'
 import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
+import { Route as ApiPublicHooksLedgerSheetPullRouteImport } from './routes/api/public/hooks/ledger-sheet-pull'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
 
 const LedgerRoute = LedgerRouteImport.update({
@@ -66,6 +67,12 @@ const ApiPublicHooksSheetExportRoute =
     path: '/api/public/hooks/sheet-export',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksLedgerSheetPullRoute =
+  ApiPublicHooksLedgerSheetPullRouteImport.update({
+    id: '/api/public/hooks/ledger-sheet-pull',
+    path: '/api/public/hooks/ledger-sheet-pull',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAutoClockoutRoute =
   ApiPublicHooksAutoClockoutRouteImport.update({
     id: '/api/public/hooks/auto-clockout',
@@ -83,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/ledger/sync': typeof LedgerSyncRoute
   '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
+  '/api/public/hooks/ledger-sheet-pull': typeof ApiPublicHooksLedgerSheetPullRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRoutesByTo {
@@ -94,6 +102,7 @@ export interface FileRoutesByTo {
   '/ledger/sync': typeof LedgerSyncRoute
   '/ledger': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
+  '/api/public/hooks/ledger-sheet-pull': typeof ApiPublicHooksLedgerSheetPullRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRoutesById {
@@ -107,6 +116,7 @@ export interface FileRoutesById {
   '/ledger/sync': typeof LedgerSyncRoute
   '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
+  '/api/public/hooks/ledger-sheet-pull': typeof ApiPublicHooksLedgerSheetPullRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRouteTypes {
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/ledger/sync'
     | '/ledger/'
     | '/api/public/hooks/auto-clockout'
+    | '/api/public/hooks/ledger-sheet-pull'
     | '/api/public/hooks/sheet-export'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/ledger/sync'
     | '/ledger'
     | '/api/public/hooks/auto-clockout'
+    | '/api/public/hooks/ledger-sheet-pull'
     | '/api/public/hooks/sheet-export'
   id:
     | '__root__'
@@ -144,6 +156,7 @@ export interface FileRouteTypes {
     | '/ledger/sync'
     | '/ledger/'
     | '/api/public/hooks/auto-clockout'
+    | '/api/public/hooks/ledger-sheet-pull'
     | '/api/public/hooks/sheet-export'
   fileRoutesById: FileRoutesById
 }
@@ -153,6 +166,7 @@ export interface RootRouteChildren {
   AppsRoute: typeof AppsRoute
   LedgerRoute: typeof LedgerRouteWithChildren
   ApiPublicHooksAutoClockoutRoute: typeof ApiPublicHooksAutoClockoutRoute
+  ApiPublicHooksLedgerSheetPullRoute: typeof ApiPublicHooksLedgerSheetPullRoute
   ApiPublicHooksSheetExportRoute: typeof ApiPublicHooksSheetExportRoute
 }
 
@@ -221,6 +235,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSheetExportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/ledger-sheet-pull': {
+      id: '/api/public/hooks/ledger-sheet-pull'
+      path: '/api/public/hooks/ledger-sheet-pull'
+      fullPath: '/api/public/hooks/ledger-sheet-pull'
+      preLoaderRoute: typeof ApiPublicHooksLedgerSheetPullRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/auto-clockout': {
       id: '/api/public/hooks/auto-clockout'
       path: '/api/public/hooks/auto-clockout'
@@ -254,6 +275,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppsRoute: AppsRoute,
   LedgerRoute: LedgerRouteWithChildren,
   ApiPublicHooksAutoClockoutRoute: ApiPublicHooksAutoClockoutRoute,
+  ApiPublicHooksLedgerSheetPullRoute: ApiPublicHooksLedgerSheetPullRoute,
   ApiPublicHooksSheetExportRoute: ApiPublicHooksSheetExportRoute,
 }
 export const routeTree = rootRouteImport
