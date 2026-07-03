@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
 export function WorkerApp() {
   const [session, setSession] = useState<WorkerSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setSession(getWorkerSession());
@@ -83,7 +85,11 @@ export function WorkerApp() {
   if (!hydrated) return <div className="min-h-dvh bg-background" />;
 
   if (!session) {
-    return <PinLogin onLogin={(s) => { setWorkerSession(s); setSession(s); }} />;
+    return <PinLogin onLogin={(s) => {
+      setWorkerSession(s);
+      setSession(s);
+      navigate({ to: "/apps" });
+    }} />;
   }
   return (
     <ClockInScreen

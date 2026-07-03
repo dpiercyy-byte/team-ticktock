@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -117,10 +118,11 @@ export function AdminApp() {
 
 function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
   const login = useServerFn(adminLogin);
+  const navigate = useNavigate();
   const [pw, setPw] = useState("");
   const m = useMutation({
     mutationFn: () => login({ data: { password: pw } }),
-    onSuccess: (r) => onLogin(r.token),
+    onSuccess: (r) => { onLogin(r.token); navigate({ to: "/apps" }); },
     onError: () => { toast.error("Invalid password"); setPw(""); },
   });
   return (
