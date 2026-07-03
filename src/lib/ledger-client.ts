@@ -58,7 +58,7 @@ export function useLedgerJobs() {
     queryFn: async () => {
       const token = getSessionToken();
       if (!token) return [] as LedgerJob[];
-      return (await listFn({ data: { token } })) as LedgerJob[];
+      return (await listFn({ data: { token } })) as unknown as LedgerJob[];
     },
   });
 
