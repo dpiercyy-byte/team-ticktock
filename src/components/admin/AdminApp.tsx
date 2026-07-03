@@ -1660,9 +1660,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     }`}>
                       {i.isAdminReceipt ? "Admin" : (i.workerName || "Worker")}
                     </span>
-                    {i.displayJobSiteLabel ? (
+                    {i.parsedJobSiteLabel ? (
                       <Badge variant="outline" className="text-[10px] font-normal max-w-[180px] truncate">
-                        {i.displayJobSiteLabel}
+                        {i.parsedJobSiteLabel}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground border-dashed">
@@ -1671,7 +1671,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                     )}
                   </div>
 
-                  {/* Row 4: secondary tags, only if present */}
+                  {/* Row 4: secondary tags + description, only if present */}
                   {(i.parsedCategory || isBillable) && (
                     <div className="flex flex-wrap gap-1">
                       {i.parsedCategory && <Badge variant="secondary" className="text-[10px]">{i.parsedCategory}</Badge>}
@@ -1681,6 +1681,9 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                         </Badge>
                       )}
                     </div>
+                  )}
+                  {i.parsedVendor && i.description && i.parsedVendor !== i.description && (
+                    <p className="text-xs text-muted-foreground truncate" title={i.description}>“{i.description}”</p>
                   )}
 
                   <div className="flex gap-1.5 mt-auto pt-1">
