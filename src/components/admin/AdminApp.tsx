@@ -334,7 +334,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
               const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
               return (
                 <>
-                  <span className="h-8 w-8 shrink-0 rounded-full bg-slate-900 text-white inline-flex items-center justify-center text-sm font-semibold">
+                  <span className="h-8 w-8 shrink-0 rounded-full bg-white text-primary inline-flex items-center justify-center text-sm font-semibold">
                     {initials || "?"}
                   </span>
                   <SelectValue placeholder="Select worker" />
