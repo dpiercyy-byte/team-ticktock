@@ -117,6 +117,76 @@ export function JobCard({ job }: { job: LedgerJob }) {
             </div>
           )}
 
+          {admin && !isClosed && (
+            <div className="rounded-xl bg-emerald-50/60 border border-emerald-100 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <SheetIcon className="w-4 h-4 text-emerald-700" />
+                <div className="text-sm font-semibold text-slate-800">Google Sheet</div>
+                {job.sheet_last_sync_at && (
+                  <div className="text-[10px] text-slate-500 ml-auto">
+                    Last sync: {new Date(job.sheet_last_sync_at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col md:flex-row gap-2">
+                <Input
+                  placeholder="Paste Google Sheet URL"
+                  value={sheetUrl}
+                  onChange={(e) => setSheetUrl(e.target.value)}
+                  className="flex-1 bg-white"
+                />
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={setSheet.isPending}
+                    onClick={async () => {
+                      await setSheet.mutateAsync({ jobId: job.id, url: sheetUrl });
+                      toast.success(sheetUrl.trim() ? "Sheet linked" : "Sheet unlinked");
+                    }}
+                  >
+                    Save link
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={!job.sheet_id || pushSheet.isPending}
+                    onClick={async () => {
+                      try {
+                        await pushSheet.mutateAsync(job.id);
+                        toast.success("Pushed to sheet");
+                      } catch (e: any) { toast.error(e?.message || "Push failed"); }
+                    }}
+                  >
+                    {pushSheet.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1" />}
+                    Push
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!job.sheet_id || pullSheet.isPending}
+                    onClick={async () => {
+                      try {
+                        await pullSheet.mutateAsync(job.id);
+                        toast.success("Pulled from sheet");
+                      } catch (e: any) { toast.error(e?.message || "Pull failed"); }
+                    }}
+                  >
+                    {pullSheet.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1" />}
+                    Pull
+                  </Button>
+                  {sheetHref && (
+                    <a href={sheetHref} target="_blank" rel="noreferrer" className="inline-flex items-center text-xs text-emerald-700 hover:text-emerald-800 px-2">
+                      <ExternalLink className="w-3.5 h-3.5 mr-1" /> Open
+                    </a>
+                  )}
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-2">
+                Sheet is the source of truth. Edits pull back automatically every 5 minutes.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <MiniStat label="Finish Materials" value={fmtMoney(job.finish_materials)} />
             <MiniStat label="Building Materials" value={fmtMoney(job.building_materials)} />
