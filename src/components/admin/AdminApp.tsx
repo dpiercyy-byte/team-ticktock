@@ -442,22 +442,35 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                               </span>
                             </p>
 
-                            {/* Primary title: billed job */}
-                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                              <span className="font-semibold text-base text-foreground truncate max-w-[240px]">
-                                {(e.geo_status === "verified" && e.job_sites?.label)
-                                  || (e.clock_out_geo_status === "verified" && e.clock_out_site?.label)
-                                  || e.project
-                                  || "General"}
-                              </span>
-                              {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
-                              {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
-                              {e.planned_job?.label && (
-                                <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
-                                  → {e.planned_job.label}
-                                </Badge>
-                              )}
+                            {/* Primary title: assigned/billed job(s) */}
+                            <div className="mt-1.5 flex items-start justify-between gap-2 flex-wrap">
+                              <div className="min-w-0 flex flex-col gap-0.5">
+                                {e.assigned_sites && e.assigned_sites.length > 0 ? (
+                                  e.assigned_sites.map((s: any, idx: number) => (
+                                    <span key={s.id} className="font-semibold text-base text-foreground leading-tight truncate max-w-[240px]">
+                                      {idx > 0 && <span className="text-muted-foreground mr-1">+</span>}{s.label}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="font-semibold text-base text-foreground truncate max-w-[240px]">
+                                    {(e.geo_status === "verified" && e.job_sites?.label)
+                                      || (e.clock_out_geo_status === "verified" && e.clock_out_site?.label)
+                                      || e.project
+                                      || "General"}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
+                                {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
+                                {e.planned_job?.label && (
+                                  <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
+                                    → {e.planned_job.label}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
+
 
                             {e.offsite_reason_code && (
                               <p
