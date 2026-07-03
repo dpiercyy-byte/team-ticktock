@@ -46,6 +46,7 @@ function LedgerSync() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [markClosed, setMarkClosed] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [log, setLog] = useState<Array<{ file: string; ok: boolean; msg: string }>>([]);
 
   const [selectedJobId, setSelectedJobId] = useState<string>("");
@@ -227,12 +228,53 @@ function LedgerSync() {
             className="hidden"
             onChange={(e) => handleFiles(e.target.files)}
           />
-          <Button className="w-full" disabled={busy} onClick={() => inputRef.current?.click()}>
-            {busy ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</> : <><FileSpreadsheet className="w-4 h-4 mr-2" /> Choose .xlsx files</>}
-          </Button>
+          <div
+            onClick={() => !busy && inputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (!busy) setDragOver(true); }}
+            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); if (!busy) setDragOver(true); }}
+            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
+            onDrop={(e) => {
+              e.preventDefault(); e.stopPropagation(); setDragOver(false);
+              if (busy) return;
+              const files = e.dataTransfer.files;
+              const valid = Array.from(files).filter((f) => /\.(xlsx|xlsm)$/i.test(f.name));
+              if (valid.length === 0) { toast.error("Only .xlsx / .xlsm files are supported"); return; }
+              const dt = new DataTransfer();
+              valid.forEach((f) => dt.items.add(f));
+              handleFiles(dt.files);
+            }}
+            className={
+              "rounded-2xl border-2 border-dashed transition-colors cursor-pointer flex flex-col items-center justify-center text-center p-8 " +
+              (busy
+                ? "border-slate-200 bg-slate-50 opacity-70 cursor-not-allowed"
+                : dragOver
+                  ? "border-slate-900 bg-slate-100"
+                  : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400")
+            }
+          >
+            {busy ? (
+              <>
+                <Loader2 className="w-8 h-8 text-slate-500 animate-spin mb-2" />
+                <div className="text-sm font-medium text-slate-700">Uploading...</div>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-xl bg-white shadow-sm inline-flex items-center justify-center mb-3">
+                  <FileSpreadsheet className="w-6 h-6 text-slate-700" />
+                </div>
+                <div className="text-sm font-medium text-slate-800">
+                  {dragOver ? "Drop to upload" : "Drag & drop spreadsheets here"}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  or <span className="underline">click to browse</span> · .xlsx / .xlsm · multiple files ok
+                </div>
+              </>
+            )}
+          </div>
           <p className="text-xs text-slate-500 mt-2">
             Tip: filenames starting with <code className="text-slate-700">DONE -</code>, <code className="text-slate-700">CLOSED -</code>, or <code className="text-slate-700">COMPLETE -</code> are auto-marked as closed if the workbook has no finish date.
           </p>
+
         </div>
       )}
 
