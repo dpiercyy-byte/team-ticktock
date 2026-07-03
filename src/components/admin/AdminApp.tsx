@@ -675,7 +675,7 @@ function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpen
     }
   }, [open, initial]);
 
-  const activeSites = (sites ?? []).filter((s) => !s.archived_at);
+  const activeSites = (sites ?? []).filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
   const siteMap = new Map(activeSites.map((s) => [s.id, s.label]));
   const available = activeSites.filter((s) => !assigned.includes(s.id));
 
