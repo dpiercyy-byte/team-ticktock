@@ -427,38 +427,11 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
                     </div>
                     {items.map((e: any) => {
-                      const inSite = e.job_sites;
-                      const outSite = e.clock_out_site;
-                      const inClient = inSite && (inSite.kind ?? "client") === "client" ? inSite.label as string : null;
-                      const outClient = outSite && (outSite.kind ?? "client") === "client" ? outSite.label as string : null;
-                      const inSupplier = !!(inSite && inSite.kind === "supplier");
-                      const outSupplier = !!(outSite && outSite.kind === "supplier");
                       const planned = e.planned_job?.label ?? null;
                       const proj = e.project?.trim() || null;
-                      const geoLabels = [inClient, outClient].filter(Boolean).map((x) => (x as string).toLowerCase());
-                      const workerTyped = proj && !geoLabels.includes(proj.toLowerCase()) ? proj : null;
-
-                      let title: string;
-                      let source: string | null = null;
-                      let unassigned = false;
-                      if (workerTyped) { title = workerTyped; }
-                      else if (inClient) { title = inClient; source = "From clock-in site"; }
-                      else if (outClient) { title = outClient; source = "From clock-out site"; }
-                      else if (planned) { title = planned; source = "Planned job"; }
-                      else if (inSupplier && (outSupplier || !e.clock_out)) { title = "Material run"; }
-                      else { title = "Unassigned"; unassigned = true; source = "Needs assignment"; }
-
-                      const titleLc = title.toLowerCase();
-                      const plannedLc = planned?.toLowerCase() ?? null;
-                      const matchesTitleOrPlanned = (label: string | null | undefined) => {
-                        if (!label) return false;
-                        const l = label.trim().toLowerCase();
-                        return l === titleLc || (plannedLc !== null && l === plannedLc);
-                      };
-                      const inLabel = (e.geo_status === "verified" || e.geo_status === "supplier") ? inSite?.label ?? null : null;
-                      const outLabel = (e.clock_out_geo_status === "verified" || e.clock_out_geo_status === "supplier") ? outSite?.label ?? null : null;
-                      const hideInTag = matchesTitleOrPlanned(inLabel);
-                      const hideOutTag = matchesTitleOrPlanned(outLabel);
+                      const unassigned = !planned;
+                      const title = planned ?? "Unassigned";
+                      const workerNote = proj && proj.toLowerCase() !== (planned ?? "").toLowerCase() ? proj : null;
                       return (
                       <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-3 sm:px-5 py-3">
                         <div className="min-w-0 space-y-1.5">
@@ -510,54 +483,51 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                               {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
                             </div>
                           )}
-                          {source && (
-                            <div className="text-[11px] text-muted-foreground">{source}</div>
+                          {workerNote && (
+                            <div className="text-[11px] text-muted-foreground truncate">Worker note: {workerNote}</div>
                           )}
 
-                          {(!hideInTag || (e.clock_out && !hideOutTag)) && (
-                            <div className="mt-2 pt-2 border-t border-border/50 flex flex-col gap-1">
-                              {!hideInTag && (
-                                <GeoTagEditor
-                                  entry={e}
-                                  field="in"
-                                  variant="plain"
-                                  sites={sitesQ.data ?? []}
-                                  onUpdate={async (status, jobSiteId) => {
-                                    try {
-                                      const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
-                                      updateToken(r.token);
-                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                      toast.success("In tag updated");
-                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                  }}
-                                  onUpdatePlanned={async (jobSiteId) => {
-                                    try {
-                                      const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                      updateToken(r.token);
-                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                      toast.success("Planned job updated");
-                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                  }}
-                                />
-                              )}
-                              {e.clock_out && !hideOutTag && (
-                                <GeoTagEditor
-                                  entry={e}
-                                  field="out"
-                                  variant="plain"
-                                  sites={sitesQ.data ?? []}
-                                  onUpdate={async (status, jobSiteId) => {
-                                    try {
-                                      const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
-                                      updateToken(r.token);
-                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                      toast.success("Out tag updated");
-                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                  }}
-                                />
-                              )}
-                            </div>
-                          )}
+                          <div className="mt-2 pt-2 border-t border-border/50 flex flex-col gap-1">
+                            <GeoTagEditor
+                              entry={e}
+                              field="in"
+                              variant="plain"
+                              sites={sitesQ.data ?? []}
+                              onUpdate={async (status, jobSiteId) => {
+                                try {
+                                  const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
+                                  updateToken(r.token);
+                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                  toast.success("In tag updated");
+                                } catch (err: any) { toast.error(err?.message || "Failed"); }
+                              }}
+                              onUpdatePlanned={async (jobSiteId) => {
+                                try {
+                                  const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                  updateToken(r.token);
+                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                  toast.success("Planned job updated");
+                                } catch (err: any) { toast.error(err?.message || "Failed"); }
+                              }}
+                            />
+                            {e.clock_out && (
+                              <GeoTagEditor
+                                entry={e}
+                                field="out"
+                                variant="plain"
+                                sites={sitesQ.data ?? []}
+                                onUpdate={async (status, jobSiteId) => {
+                                  try {
+                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("Out tag updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                              />
+                            )}
+                          </div>
+
                         </div>
                         <div className="flex items-start gap-0 sm:gap-0.5 -mr-1 sm:mr-0">
                           {!e.clock_out && (
