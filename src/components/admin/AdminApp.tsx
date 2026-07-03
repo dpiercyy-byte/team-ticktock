@@ -1098,7 +1098,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
               </Button>
               <Popover open={calOpen} onOpenChange={setCalOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="shrink-0">
+                  <Button variant="default" size="icon" className="shrink-0">
                     <CalendarIcon className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
