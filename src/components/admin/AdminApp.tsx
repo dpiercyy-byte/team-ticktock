@@ -1235,7 +1235,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                 <div className="flex items-center justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Total owed</p>
-                    <p className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</p>
+                    <p className="tabular-nums font-bold text-lg">{fmtMoney(s.total)}</p>
                   </div>
                   {s.total > 0 || isPaid ? (
                     <Button
@@ -2340,7 +2340,7 @@ function PendingPayoutsView({ token, updateToken }: { token: string; updateToken
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="tabular-nums font-bold">{fmtMoney(row.total)}</p>
+                    <p className="tabular-nums font-bold text-lg">{fmtMoney(row.total)}</p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Owed</p>
                   </div>
                   <Button
@@ -2493,7 +2493,7 @@ function LifetimePayoutView({ token, updateToken }: { token: string; updateToken
                 </CardContent>
                 <div className="flex items-baseline justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
                   <span className="text-sm font-semibold">Total earned</span>
-                  <span className="tabular-nums font-bold text-base">{fmtMoney(s.total)}</span>
+                  <span className="tabular-nums font-bold text-lg">{fmtMoney(s.total)}</span>
                 </div>
               </Card>
             );
