@@ -46,6 +46,7 @@ function LedgerSync() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [markClosed, setMarkClosed] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [log, setLog] = useState<Array<{ file: string; ok: boolean; msg: string }>>([]);
 
   const [selectedJobId, setSelectedJobId] = useState<string>("");
