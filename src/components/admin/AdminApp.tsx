@@ -787,7 +787,7 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
                      {initials(w.name)}
                    </div>
                    <div className="min-w-0 flex-1">
-                     <p className="font-semibold truncate leading-tight">{w.name}</p>
+                     <p className="font-bold text-lg truncate leading-tight">{w.name}</p>
                      <p className="text-xs text-muted-foreground">${Number(w.hourly_rate).toFixed(2)}/hr</p>
                    </div>
                  </div>
