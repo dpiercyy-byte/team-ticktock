@@ -1092,10 +1092,6 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
               </Button>
               <div className="flex-1 text-center min-w-0">
                 <div className="text-sm font-semibold truncate">{weekRangeLabel(week)}</div>
-                {(() => {
-                  const rel = relativeWeekLabel(week);
-                  return rel ? <Badge variant="secondary" className="mt-0.5 text-xs">{rel}</Badge> : null;
-                })()}
               </div>
               <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeek(addDaysISO(week, 7))}>
                 <ChevronRight className="h-4 w-4" />
@@ -1123,33 +1119,25 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                   />
                 </PopoverContent>
               </Popover>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="shrink-0">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={downloadCsv}>
+                    <Download className="h-4 w-4 mr-2" /> Time entries CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={downloadPayoutCsv}>
+                    <Download className="h-4 w-4 mr-2" /> Payout CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:ml-auto">
-              <Button variant="outline" onClick={downloadCsv} className="flex-1 sm:flex-none">
-                <Download className="h-4 w-4 mr-2" /><span className="hidden xs:inline">Time entries </span>CSV
-              </Button>
-              <Button onClick={downloadPayoutCsv} className="flex-1 sm:flex-none">
-                <Download className="h-4 w-4 mr-2" />Payout CSV
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "This week", val: startOfWeekISO() },
-              { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
-            ].map((chip) => (
-              <Button
-                key={chip.label}
-                variant={week === chip.val ? "default" : "outline"}
-                size="sm"
-                onClick={() => setWeek(chip.val)}
-              >
-                {chip.label}
-              </Button>
-            ))}
           </div>
         </div>
+
 
       {pq.isLoading ? (
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent></Card>
