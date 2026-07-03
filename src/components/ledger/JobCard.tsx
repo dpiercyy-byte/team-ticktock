@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { LedgerJob, fmtMoney, fmtPct, fmtDate, totalExpenses, isAdminSession, useDeleteLedgerJob, useUpdateLedgerJob } from "@/lib/ledger-client";
-import { MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+import {
+  LedgerJob, fmtMoney, fmtPct, fmtDate, totalExpenses, isAdminSession,
+  useDeleteLedgerJob, useUpdateLedgerJob,
+  useSetJobSheet, usePushJobToSheet, usePullJobFromSheet,
+} from "@/lib/ledger-client";
+import {
+  MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp,
+  CheckCircle2, Sheet as SheetIcon, ExternalLink, Upload, Download, Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
