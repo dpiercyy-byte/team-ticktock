@@ -312,7 +312,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           <CardContent className="text-sm space-y-1">
             {flagQ.data.slice(0, 5).map((f: any) => (
               <p key={f.id}>
-                <span className="font-medium">{f.workers?.name}</span> · {fmtDate(f.clock_in)}
+                <span className="font-bold text-lg">{f.workers?.name}</span> · {fmtDate(f.clock_in)}
                 {" · "}
                 {f.clock_out ? `${diffHours(f.clock_in, f.clock_out).toFixed(1)} hrs` : "still clocked in"}
               </p>
