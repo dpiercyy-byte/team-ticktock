@@ -52,10 +52,18 @@ function isDateVal(v: unknown): boolean {
 
 function addressFromFilename(filename: string): string {
   let name = filename.replace(/\.(xlsx|xlsm)$/i, "");
-  name = name.replace(/^\s*(DONE|ACTIVE)\s*-\s*/i, "");
+  name = name.replace(/^\s*(DONE|CLOSED|COMPLETE|ACTIVE)\s*-\s*/i, "");
   name = name.replace(/\s*\(\d+\)\s*$/, "");
   name = name.replace(/\s+/g, " ");
   return name.trim();
+}
+
+export function filenameSignalsClosed(filename: string): boolean {
+  return /^\s*(DONE|CLOSED|COMPLETE)\b/i.test(filename);
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function cellAt(ws: XLSX.WorkSheet, addr: string): unknown {
