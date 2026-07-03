@@ -1,24 +1,19 @@
-## Make entry title reflect verified job site from clock-in or clock-out
+## Unify worker-name typography across admin tabs
 
-Change the primary title on each entry row in the admin **Entries** list so it shows the actual verified client job site the worker was physically at — either at clock-in or clock-out — instead of the free-text `project` field.
+Adopt the **Payout > Weekly** card treatment (`font-bold text-lg`) as the canonical style for every worker-name render in the admin UI. Apply it consistently in cards; in dropdown items use the same weight/family (`font-bold`) at the size that fits the trigger.
 
-### Title resolution (in order)
+### Changes in `src/components/admin/AdminApp.tsx`
 
-1. If clock-in resolved to a **verified client site** → use that site's label.
-2. Else if clock-out resolved to a **verified client site** → use that site's label.
-3. Else fall back to `e.project` if present.
-4. Else `"General"`.
+| Location | Line | Current | New |
+|---|---|---|---|
+| Payout > Weekly card name | 1177 | `font-bold text-lg` | unchanged (canonical) |
+| Payout > Lifetime card name | 2472 | `font-semibold text-base` | `font-bold text-lg` |
+| Workers tab card name | 790 | `font-semibold` | `font-bold text-lg` |
+| Entries worker-select items | 343 | `font-bold text-sm` | `font-bold text-lg` |
+| Receipts worker-filter select items | 1535 | (default) | wrap in `<span className="font-bold text-lg">` |
+| Flagged-entries worker name | 315 | `font-medium` | `font-bold text-lg` |
+| Reimbursement dialog titles | 1201, 1259, 844, 863 | default | leave (Dialog title component already has its own scale — outside "worker name" list context) |
 
-Supplier / off-site / no-gps tags are never promoted to the title — they stay in the GPS audit footer only (unchanged).
-
-### File
-
-`src/components/admin/AdminApp.tsx` (~line 442–446): replace the `{e.project ?? "General"}` span with a small helper that picks from:
-
-- `e.geo_status === "verified"` → `e.job_sites?.label`
-- `e.clock_out_geo_status === "verified"` → `e.clock_out_site?.label`
-- else `e.project` / `"General"`
-
-Everything else — chips (`manual`, `flagged`, planned-job arrow), offsite reason note, time strip, action buttons, and the GPS audit footer with both `GeoTagEditor` instances — stays exactly as it is.
+All existing layout, truncation (`truncate`), and container widths stay the same. Only the class strings on the name element change.
 
 No schema, server-function, or worker-side changes.

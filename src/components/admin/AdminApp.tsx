@@ -312,7 +312,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           <CardContent className="text-sm space-y-1">
             {flagQ.data.slice(0, 5).map((f: any) => (
               <p key={f.id}>
-                <span className="font-medium">{f.workers?.name}</span> · {fmtDate(f.clock_in)}
+                <span className="font-bold text-lg">{f.workers?.name}</span> · {fmtDate(f.clock_in)}
                 {" · "}
                 {f.clock_out ? `${diffHours(f.clock_in, f.clock_out).toFixed(1)} hrs` : "still clocked in"}
               </p>
@@ -340,7 +340,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
             })()}
           </SelectTrigger>
           <SelectContent>
-            {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
+            {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-lg">{w.name}</span></SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -787,7 +787,7 @@ function WorkersTab({ token, updateToken }: { token: string; updateToken: (t: st
                      {initials(w.name)}
                    </div>
                    <div className="min-w-0 flex-1">
-                     <p className="font-semibold truncate leading-tight">{w.name}</p>
+                     <p className="font-bold text-lg truncate leading-tight">{w.name}</p>
                      <p className="text-xs text-muted-foreground">${Number(w.hourly_rate).toFixed(2)}/hr</p>
                    </div>
                  </div>
@@ -1532,7 +1532,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             <SelectContent>
               <SelectItem value="all">All workers</SelectItem>
               <SelectItem value="__admin__">Admin</SelectItem>
-              {workers.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              {workers.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-lg">{w.name}</span></SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -2469,7 +2469,7 @@ function LifetimePayoutView({ token, updateToken }: { token: string; updateToken
                   <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
                     {initials || "?"}
                   </span>
-                  <p className="font-semibold text-base truncate">{s.name}</p>
+                  <p className="font-bold text-lg truncate">{s.name}</p>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-3 pt-0 pb-4">
                   <div className="flex items-baseline justify-between gap-3 text-sm">
