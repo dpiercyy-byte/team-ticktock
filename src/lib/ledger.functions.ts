@@ -77,6 +77,7 @@ export const uploadLedgerJobXlsx = createServerFn({ method: "POST" })
     token: z.string(),
     filename: z.string().min(1).max(200),
     base64: z.string().min(1),
+    markClosed: z.boolean().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     requireAdminOnly(data.token);
@@ -89,6 +90,10 @@ export const uploadLedgerJobXlsx = createServerFn({ method: "POST" })
       parsed = parseLedgerJobXlsx(bytes, data.filename);
     } catch (e) {
       throw new Response(`Failed to parse xlsx: ${(e as Error).message}`, { status: 400 });
+    }
+
+    if (data.markClosed && !parsed.finish_date) {
+      parsed.finish_date = parsed.start_date ?? new Date().toISOString().slice(0, 10);
     }
 
     // Try to auto-link to a Clockwise job_site by address prefix match
