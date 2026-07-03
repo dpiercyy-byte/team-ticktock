@@ -453,7 +453,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                   <span className="font-semibold text-base text-foreground truncate max-w-[240px]">
                                     {(e.geo_status === "verified" && e.job_sites?.label)
                                       || (e.clock_out_geo_status === "verified" && e.clock_out_site?.label)
-                                      || e.project
                                       || "General"}
                                   </span>
                                 )}
