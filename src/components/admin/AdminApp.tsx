@@ -442,7 +442,10 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             {/* Primary title: billed job */}
                             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                               <span className="font-semibold text-base text-foreground truncate max-w-[240px]">
-                                {e.project ?? "General"}
+                                {(e.geo_status === "verified" && e.job_sites?.label)
+                                  || (e.clock_out_geo_status === "verified" && e.clock_out_site?.label)
+                                  || e.project
+                                  || "General"}
                               </span>
                               {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                               {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
