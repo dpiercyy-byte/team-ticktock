@@ -51,6 +51,11 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("ledger_jobs").update(clean as never).eq("id", data.id).select("*").single();
     if (error) throw error;
+    if ((row as any)?.sheet_id && !(row as any)?.finish_date) {
+      import("./ledger-sheet-export.server")
+        .then((m) => m.pushJobToSheet(data.id).catch(() => {}))
+        .catch(() => {});
+    }
     return row;
   });
 
