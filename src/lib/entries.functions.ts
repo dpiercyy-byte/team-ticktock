@@ -302,17 +302,30 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, clock_out_geo_status, clock_out_job_site_id, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label), clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, clock_out_geo_status, clock_out_job_site_id, assigned_job_site_ids, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label), clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
-
-
 
     if (data.from) q = q.gte("clock_in", data.from);
     if (data.to) q = q.lte("clock_in", data.to);
     const { data: rows, error } = await q;
     if (error) throw error;
-    return { ...refreshed, entries: rows ?? [] };
+
+    // Hydrate assigned site labels in stack order
+    const allIds = Array.from(new Set((rows ?? []).flatMap((r: any) => r.assigned_job_site_ids ?? [])));
+    let siteMap = new Map<string, { id: string; label: string }>();
+    if (allIds.length) {
+      const { data: sites } = await supabaseAdmin.from("job_sites").select("id, label").in("id", allIds);
+      siteMap = new Map((sites ?? []).map((s: any) => [s.id, { id: s.id, label: s.label }]));
+    }
+    const entries = (rows ?? []).map((r: any) => ({
+      ...r,
+      assigned_sites: (r.assigned_job_site_ids ?? [])
+        .map((id: string) => siteMap.get(id))
+        .filter(Boolean),
+    }));
+    return { ...refreshed, entries };
   });
+
 
 async function checkOverlap(workerId: string, clockInISO: string, clockOutISO: string | null, excludeId?: string) {
   // Overlap if existing.clock_in < newOut AND (existing.clock_out IS NULL OR existing.clock_out > newIn)
