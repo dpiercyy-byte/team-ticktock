@@ -49,7 +49,7 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
     }
     if (Object.keys(clean).length === 0) throw new Response("No fields", { status: 400 });
     const { data: row, error } = await supabaseAdmin
-      .from("ledger_jobs").update(clean).eq("id", data.id).select("*").single();
+      .from("ledger_jobs").update(clean as never).eq("id", data.id).select("*").single();
     if (error) throw error;
     return row;
   });
