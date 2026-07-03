@@ -327,14 +327,14 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       <div className="w-full">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Worker</p>
         <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-          <SelectTrigger className="w-full h-12 bg-gray-100 rounded-lg border-0 shadow-none px-4 text-lg font-bold gap-3 focus:ring-2 focus:ring-ring">
+          <SelectTrigger className="w-full h-12 bg-primary text-primary-foreground rounded-lg border-0 shadow-none px-4 text-lg font-bold gap-3 focus:ring-2 focus:ring-ring hover:bg-primary/90 [&>svg]:text-primary-foreground">
             {(() => {
               const w = wq.data?.find((x: any) => x.id === workerId);
               if (!w) return <SelectValue placeholder="Select worker" />;
               const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
               return (
                 <>
-                  <span className="h-8 w-8 shrink-0 rounded-full bg-slate-900 text-white inline-flex items-center justify-center text-sm font-semibold">
+                  <span className="h-8 w-8 shrink-0 rounded-full bg-white text-primary inline-flex items-center justify-center text-sm font-semibold">
                     {initials || "?"}
                   </span>
                   <SelectValue placeholder="Select worker" />
@@ -1519,7 +1519,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         <div className="flex-1 min-w-[140px]">
           <Label className="text-xs">Worker</Label>
           <Select value={workerId} onValueChange={setWorkerId}>
-            <SelectTrigger className="mt-1.5 h-11 bg-gray-100 border-0 shadow-none rounded-lg px-3 font-semibold focus:ring-2 focus:ring-ring"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1.5 h-11 bg-primary text-primary-foreground border-0 shadow-none rounded-lg px-3 font-semibold focus:ring-2 focus:ring-ring hover:bg-primary/90 [&>svg]:text-primary-foreground"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All workers</SelectItem>
               <SelectItem value="__admin__">Admin</SelectItem>
