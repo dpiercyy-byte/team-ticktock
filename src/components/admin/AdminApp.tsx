@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
   Sparkles, RefreshCw, Sheet, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
-  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ChevronDown,
+  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ChevronDown, ArrowLeft,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -171,6 +171,13 @@ function AdminDashboard({ token, updateToken, onLogout }: {
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
+            <Link
+              to="/apps"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Apps</span>
+            </Link>
+            <div className="h-6 w-px bg-border shrink-0" />
             <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                  style={{ background: "var(--gradient-primary)" }}>
               <Clock className="h-5 w-5 text-primary-foreground" />
