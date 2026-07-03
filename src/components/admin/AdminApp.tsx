@@ -322,31 +322,29 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       )}
 
       <div className="flex flex-wrap items-end gap-3 justify-between">
-        <Card className="flex-1 min-w-[180px]">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Worker</p>
-            <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-              <SelectTrigger className="w-full mt-1 h-auto border-none bg-transparent shadow-none p-0 text-xl font-bold gap-2 focus:ring-0">
-                {(() => {
-                  const w = wq.data?.find((x: any) => x.id === workerId);
-                  if (!w) return <SelectValue placeholder="Select worker" />;
-                  const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-                  return (
-                    <>
-                      <span className="h-8 w-8 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
-                        {initials || "?"}
-                      </span>
-                      <SelectValue placeholder="Select worker" />
-                    </>
-                  );
-                })()}
-              </SelectTrigger>
-              <SelectContent>
-                {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
+        <div className="flex-1 min-w-[180px]">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5 block">Worker</Label>
+          <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+            <SelectTrigger className="w-full h-12 bg-muted border border-border rounded-lg px-3 text-xl font-bold gap-3 focus:ring-1 focus:ring-ring">
+              {(() => {
+                const w = wq.data?.find((x: any) => x.id === workerId);
+                if (!w) return <SelectValue placeholder="Select worker" />;
+                const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+                return (
+                  <>
+                    <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
+                      {initials || "?"}
+                    </span>
+                    <SelectValue placeholder="Select worker" />
+                  </>
+                );
+              })()}
+            </SelectTrigger>
+            <SelectContent>
+              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-lg">{w.name}</span></SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <Button onClick={() => setAdding(true)} disabled={!workerId} className="shrink-0">
           <Plus className="h-4 w-4 mr-2" /> Add entry
         </Button>
