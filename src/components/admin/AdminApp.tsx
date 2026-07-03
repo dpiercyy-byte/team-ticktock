@@ -1519,7 +1519,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         <div className="flex-1 min-w-[140px]">
           <Label className="text-xs">Worker</Label>
           <Select value={workerId} onValueChange={setWorkerId}>
-            <SelectTrigger className="mt-1.5 h-11 bg-gray-100 border-0 shadow-none rounded-lg px-3 font-semibold focus:ring-2 focus:ring-ring"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1.5 h-11 bg-primary text-primary-foreground border-0 shadow-none rounded-lg px-3 font-semibold focus:ring-2 focus:ring-ring hover:bg-primary/90 [&>svg]:text-primary-foreground"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All workers</SelectItem>
               <SelectItem value="__admin__">Admin</SelectItem>
