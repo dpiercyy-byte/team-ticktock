@@ -353,7 +353,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           </Button>
           <div className="flex-1 text-center min-w-0">
             <div className="text-sm font-semibold truncate">{weekRangeLabel(weekStart)}</div>
-            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
+            <div className="mt-1 flex flex-col items-center gap-1.5">
               {(() => {
                 const rel = relativeWeekLabel(weekStart);
                 return rel ? <Badge variant="secondary" className="text-xs">{rel}</Badge> : null;
