@@ -325,6 +325,7 @@ export type Database = {
       }
       time_entries: {
         Row: {
+          assigned_job_site_ids: string[]
           clock_in: string
           clock_in_lat: number | null
           clock_in_lng: number | null
@@ -346,6 +347,7 @@ export type Database = {
           worker_id: string
         }
         Insert: {
+          assigned_job_site_ids?: string[]
           clock_in: string
           clock_in_lat?: number | null
           clock_in_lng?: number | null
@@ -367,6 +369,7 @@ export type Database = {
           worker_id: string
         }
         Update: {
+          assigned_job_site_ids?: string[]
           clock_in?: string
           clock_in_lat?: number | null
           clock_in_lng?: number | null

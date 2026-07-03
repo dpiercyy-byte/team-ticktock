@@ -302,17 +302,30 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, clock_out_geo_status, clock_out_job_site_id, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label), clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, clock_out_geo_status, clock_out_job_site_id, assigned_job_site_ids, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label), clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
-
-
 
     if (data.from) q = q.gte("clock_in", data.from);
     if (data.to) q = q.lte("clock_in", data.to);
     const { data: rows, error } = await q;
     if (error) throw error;
-    return { ...refreshed, entries: rows ?? [] };
+
+    // Hydrate assigned site labels in stack order
+    const allIds = Array.from(new Set((rows ?? []).flatMap((r: any) => r.assigned_job_site_ids ?? [])));
+    let siteMap = new Map<string, { id: string; label: string }>();
+    if (allIds.length) {
+      const { data: sites } = await supabaseAdmin.from("job_sites").select("id, label").in("id", allIds);
+      siteMap = new Map((sites ?? []).map((s: any) => [s.id, { id: s.id, label: s.label }]));
+    }
+    const entries = (rows ?? []).map((r: any) => ({
+      ...r,
+      assigned_sites: (r.assigned_job_site_ids ?? [])
+        .map((id: string) => siteMap.get(id))
+        .filter(Boolean),
+    }));
+    return { ...refreshed, entries };
   });
+
 
 async function checkOverlap(workerId: string, clockInISO: string, clockOutISO: string | null, excludeId?: string) {
   // Overlap if existing.clock_in < newOut AND (existing.clock_out IS NULL OR existing.clock_out > newIn)
@@ -330,11 +343,13 @@ async function checkOverlap(workerId: string, clockInISO: string, clockOutISO: s
 }
 
 export const adminAddEntry = createServerFn({ method: "POST" })
+
   .inputValidator((d) => adminBase.extend({
     workerId: z.string().uuid(),
     clockIn: z.string(),
     clockOut: z.string(),
     project: z.string().trim().max(100).optional(),
+    assignedJobSiteIds: z.array(z.string().uuid()).max(5).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
@@ -342,6 +357,7 @@ export const adminAddEntry = createServerFn({ method: "POST" })
       throw new Response("Clock out must be after clock in", { status: 400 });
     if (await checkOverlap(data.workerId, data.clockIn, data.clockOut))
       throw new Response("Entry overlaps an existing one", { status: 400 });
+    const assignedIds = await validateAssignedSites(data.assignedJobSiteIds);
     const flagged = new Date(data.clockOut).getTime() - new Date(data.clockIn).getTime() > FOURTEEN_HOURS_MS;
     const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: data.workerId,
@@ -350,6 +366,7 @@ export const adminAddEntry = createServerFn({ method: "POST" })
       project: data.project || null,
       created_by: "admin",
       flagged_review: flagged,
+      assigned_job_site_ids: assignedIds,
     }).select("id").single();
     if (error) throw error;
     await logAudit({
@@ -357,10 +374,24 @@ export const adminAddEntry = createServerFn({ method: "POST" })
       action: "entry_create",
       entityType: "time_entry",
       entityId: inserted?.id,
-      after: { worker_id: data.workerId, clock_in: data.clockIn, clock_out: data.clockOut, project: data.project ?? null, flagged_review: flagged },
+      after: { worker_id: data.workerId, clock_in: data.clockIn, clock_out: data.clockOut, project: data.project ?? null, flagged_review: flagged, assigned_job_site_ids: assignedIds },
     });
     return refreshed;
   });
+
+async function validateAssignedSites(ids?: string[]): Promise<string[]> {
+  if (!ids || ids.length === 0) return [];
+  const unique = Array.from(new Set(ids));
+  const { data: found } = await supabaseAdmin.from("job_sites")
+    .select("id, archived_at").in("id", unique);
+  const okSet = new Set((found ?? []).filter((s: any) => !s.archived_at).map((s: any) => s.id));
+  const ordered = ids.filter((id) => okSet.has(id));
+  // preserve order and dedupe
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of ordered) { if (!seen.has(id)) { seen.add(id); out.push(id); } }
+  return out;
+}
 
 export const adminEditEntry = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
@@ -368,11 +399,12 @@ export const adminEditEntry = createServerFn({ method: "POST" })
     clockIn: z.string(),
     clockOut: z.string().nullable(),
     project: z.string().trim().max(100).nullable(),
+    assignedJobSiteIds: z.array(z.string().uuid()).max(5).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: row, error: e1 } = await supabaseAdmin
-      .from("time_entries").select("worker_id, clock_in, clock_out, project, flagged_review").eq("id", data.entryId).single();
+      .from("time_entries").select("worker_id, clock_in, clock_out, project, flagged_review, assigned_job_site_ids").eq("id", data.entryId).single();
     if (e1) throw e1;
     if (data.clockOut && new Date(data.clockOut) <= new Date(data.clockIn))
       throw new Response("Clock out must be after clock in", { status: 400 });
@@ -381,8 +413,11 @@ export const adminEditEntry = createServerFn({ method: "POST" })
     const flagged = data.clockOut
       ? new Date(data.clockOut).getTime() - new Date(data.clockIn).getTime() > FOURTEEN_HOURS_MS
       : false;
+    const assignedIds = data.assignedJobSiteIds !== undefined
+      ? await validateAssignedSites(data.assignedJobSiteIds)
+      : (row.assigned_job_site_ids ?? []);
     const { error } = await supabaseAdmin.from("time_entries")
-      .update({ clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged })
+      .update({ clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, assigned_job_site_ids: assignedIds })
       .eq("id", data.entryId);
     if (error) throw error;
     await logAudit({
@@ -390,11 +425,12 @@ export const adminEditEntry = createServerFn({ method: "POST" })
       action: "entry_edit",
       entityType: "time_entry",
       entityId: data.entryId,
-      before: { clock_in: row.clock_in, clock_out: row.clock_out, project: row.project, flagged_review: row.flagged_review },
-      after: { clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged },
+      before: { clock_in: row.clock_in, clock_out: row.clock_out, project: row.project, flagged_review: row.flagged_review, assigned_job_site_ids: row.assigned_job_site_ids ?? [] },
+      after: { clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, assigned_job_site_ids: assignedIds },
     });
     return refreshed;
   });
+
 
 export const adminDeleteEntry = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({ entryId: z.string().uuid() }).parse(d))

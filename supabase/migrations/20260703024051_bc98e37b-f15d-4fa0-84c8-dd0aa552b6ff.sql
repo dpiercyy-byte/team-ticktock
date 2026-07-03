@@ -1,0 +1,1 @@
+ALTER TABLE public.time_entries ADD COLUMN IF NOT EXISTS assigned_job_site_ids uuid[] NOT NULL DEFAULT '{}';
