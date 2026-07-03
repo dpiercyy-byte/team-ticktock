@@ -118,10 +118,11 @@ export function AdminApp() {
 
 function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
   const login = useServerFn(adminLogin);
+  const navigate = useNavigate();
   const [pw, setPw] = useState("");
   const m = useMutation({
     mutationFn: () => login({ data: { password: pw } }),
-    onSuccess: (r) => onLogin(r.token),
+    onSuccess: (r) => { onLogin(r.token); navigate({ to: "/apps" }); },
     onError: () => { toast.error("Invalid password"); setPw(""); },
   });
   return (
