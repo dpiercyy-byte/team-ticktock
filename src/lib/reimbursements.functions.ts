@@ -286,11 +286,11 @@ export const workerListActiveSites = createServerFn({ method: "POST" })
 
 export const workerSubmitReimbursement = createServerFn({ method: "POST" })
   .inputValidator((d) => workerBase.extend({
-    description: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(200).optional(),
     amount: z.number().min(0).max(100000),
     receiptUrl: z.string().url().nullable().optional(),
     receiptMime: z.string().max(100).nullable().optional(),
-    jobSiteId: z.string().uuid().nullable().optional(),
+    jobSiteId: z.string().uuid(),
   }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
@@ -298,11 +298,11 @@ export const workerSubmitReimbursement = createServerFn({ method: "POST" })
     const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: wid,
       week_start: weekStart,
-      description: data.description,
+      description: data.description?.trim() || "Receipt",
       amount: data.amount,
       receipt_url: data.receiptUrl ?? null,
       receipt_mime: data.receiptMime ?? null,
-      parsed_job_site_id: data.jobSiteId ?? null,
+      parsed_job_site_id: data.jobSiteId,
     }).select("id").single();
     if (error) throw error;
     if (inserted?.id && data.receiptUrl) {

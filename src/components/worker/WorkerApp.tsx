@@ -606,11 +606,11 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
   const submit = useMutation({
     mutationFn: () => submitFn({ data: {
       token,
-      description: desc.trim(),
+      description: desc.trim() || undefined,
       amount: parseFloat(amt) || 0,
       receiptUrl: receipt?.url ?? null,
       receiptMime: receipt?.mime ?? null,
-      jobSiteId: jobSiteId || null,
+      jobSiteId,
     } }),
     onSuccess: () => {
       toast.success("Reimbursement submitted");
@@ -715,7 +715,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
               />
             </div>
             <div>
-              <Label htmlFor="r-desc" className="text-xs">Description</Label>
+              <Label htmlFor="r-desc" className="text-xs">Description (optional)</Label>
               <Textarea
                 id="r-desc" value={desc} onChange={(e) => setDesc(e.target.value)}
                 placeholder="e.g. Screws from Home Depot"
@@ -723,11 +723,10 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
               />
             </div>
             <div>
-              <Label className="text-xs">Job (optional)</Label>
-              <Select value={jobSiteId || "none"} onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}>
-                <SelectTrigger className="mt-1.5 h-11 text-base"><SelectValue placeholder="—" /></SelectTrigger>
+              <Label className="text-xs">Job</Label>
+              <Select value={jobSiteId} onValueChange={setJobSiteId}>
+                <SelectTrigger className="mt-1.5 h-11 text-base"><SelectValue placeholder="Select a job" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">— None —</SelectItem>
                   {clientSites.length > 0 && (
                     <SelectGroup>
                       <SelectLabel>Client jobs</SelectLabel>
@@ -770,7 +769,7 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
               onClick={() => submit.mutate()}
-              disabled={!desc.trim() || !amt || parseFloat(amt) <= 0 || uploading || submit.isPending}
+              disabled={!jobSiteId || !amt || parseFloat(amt) <= 0 || uploading || submit.isPending}
             >
               {submit.isPending ? "Submitting…" : "Submit"}
             </Button>
