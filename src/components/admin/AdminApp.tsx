@@ -3218,6 +3218,52 @@ function reasonLabel(code: string | null | undefined) {
 function GeoTagEditor({
   entry, sites, onUpdate, onUpdatePlanned, field = "in", variant = "badge",
 }: {
+  // placeholder anchor
+}: never;
+function _unused() {}
+function AssignJobButton({ sites, currentId, onAssign }: {
+  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
+  currentId: string | null;
+  onAssign: (jobSiteId: string | null) => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const clientSites = sites.filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-warning/15 text-warning hover:bg-warning/25"
+        >
+          Assign job
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-1 max-h-72 overflow-y-auto" align="start">
+        <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Client job</div>
+        {clientSites.length === 0 && (
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">No active jobs</div>
+        )}
+        {clientSites.map((s) => {
+          const active = currentId === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={async () => { setOpen(false); await onAssign(s.id); }}
+              className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${active ? "bg-secondary" : ""}`}
+            >
+              <Building2 className="h-3 w-3 text-primary" />
+              <span className="truncate">{s.label}</span>
+            </button>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type __GeoTagEditorProps = {
   entry: any;
   field?: "in" | "out";
   variant?: "badge" | "plain";
