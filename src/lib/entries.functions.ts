@@ -343,17 +343,7 @@ async function checkOverlap(workerId: string, clockInISO: string, clockOutISO: s
 }
 
 export const adminAddEntry = createServerFn({ method: "POST" })
-  .inputValidator((d) => adminBase.extend({
-    workerId: z.string().uuid(),
-    clockIn: z.string(),
-    clockOut: z.string(),
-    project: z.string().trim().max(100).optional(),
-  }).parse(d))
-  .handler(async ({ data }) => {
-    const refreshed = requireAdmin(data.token);
-    if (new Date(data.clockOut) <= new Date(data.clockIn))
-      throw new Response("Clock out must be after clock in", { status: 400 });
-export const adminAddEntry = createServerFn({ method: "POST" })
+
   .inputValidator((d) => adminBase.extend({
     workerId: z.string().uuid(),
     clockIn: z.string(),
