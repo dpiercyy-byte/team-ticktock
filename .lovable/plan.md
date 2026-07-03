@@ -1,58 +1,48 @@
+
 ## Goal
 
-Let admins set the primary "billed job" title on any time entry from the Edit dialog, and support assigning **multiple active job sites** to a single entry so the title stacks them (e.g. worker who visited two sites in one day).
+Replace the current "one shared sheet with every job" export with **one Google Sheet per active job**. The sheet is the source of truth: edits made in the sheet flow back into that job in the app, and edits made in the app push up to the sheet. Closed jobs are left alone.
 
-## Data model
+## How it works
 
-Add a new column on `time_entries`:
+1. On each active job card (Ledger → Active), add a **Google Sheet** field showing the linked sheet URL, plus two buttons: **Sync now** and **Open sheet**.
+2. When admin pastes a sheet URL and hits Sync, the app wipes that sheet and writes only that one job's data into fixed tabs: `Summary`, `Payments`, `Expenses`, `Price Log`.
+3. A **Pull from sheet** action (and a background cron every 5 min) reads those same tabs back and overwrites the job's fields in the app — the sheet wins on any conflict.
+4. Closing a job (setting Finish Date) stops future syncs for that job so its historical sheet is frozen.
+5. The old "one master sheet" sync on the `/ledger/sync` page is removed — that page becomes upload-only plus a short note pointing to per-job sheets.
 
-- `assigned_job_site_ids uuid[] not null default '{}'` — ordered list of active job sites the admin has manually billed this entry to.
+## What changes
 
-No destructive changes. The existing `job_site_id`, `clock_out_site_id`, `planned_job_site_id`, and `project` fields stay intact and continue to drive the GPS-audit footer + fallback title.
+### Database
+- New column `ledger_jobs.sheet_id text` (parsed from URL) and `sheet_last_sync_at timestamptz`.
+- Drop `app_settings.ledger_export_sheet_id` / `ledger_export_last_sync_at` usage (leave columns, just stop reading).
 
-## Title resolution (new precedence)
+### Server functions (`src/lib/ledger-sheet-export.functions.ts`)
+- Replace `runLedgerSheetExport` with:
+  - `setJobSheet({ jobId, url })` — parse & save sheet ID on the job.
+  - `pushJobToSheet({ jobId })` — write one job's Summary/Payments/Expenses/PriceLog tabs.
+  - `pullJobFromSheet({ jobId })` — read those tabs, update the job row and its JSON logs. Sheet values overwrite app values; rows deleted in the sheet are deleted in the app.
+- New server route `src/routes/api/public/hooks/ledger-sheet-pull.ts` — iterates every active job with a `sheet_id` and runs `pullJobFromSheet`. Scheduled via `pg_cron` every 5 minutes.
 
-Primary title in the entry card becomes:
+### UI
+- `src/components/ledger/JobCard.tsx` (active jobs): add "Google Sheet" row with URL input + Sync/Pull/Open buttons and "last synced" timestamp.
+- `src/routes/ledger/sync.tsx`: remove the `GoogleSheetsCard` (master-sheet sync). Keep spreadsheet upload.
+- Auto-push: any admin edit that mutates a job (add payment, add expense, edit price log, edit totals) triggers `pushJobToSheet` in the background if the job has a `sheet_id`.
 
-1. If `assigned_job_site_ids` is non-empty → render each site's label as its own line, stacked top-to-bottom (with a subtle divider between them).
-2. Else → current fallback: verified in-site → verified out-site → `project` → "General".
+## Tab layout (per job)
 
-## Edit dialog changes (`EntryDialog`)
+```text
+Summary       A/B key-value: Address, Client, Start Date, Lead Source,
+              Total Price, Gross Cash, Gross w/ HST, Finish Materials,
+              Building Materials, Subs, Labor, Net, Margin,
+              Payments Received, Balance
+Payments      Date | Amount | Method
+Expenses      Date | Vendor | Category | Amount
+Price Log     Date | Amount | Has HST | Comment
+```
 
-Add an **"Assigned job sites"** section above the Project field:
-
-- Multi-select chooser populated from active job sites (`sitesQ.data`).
-- Shows selected sites as removable pills in the order chosen (order = stack order).
-- "+ Add job site" dropdown to append another.
-- Empty selection = fall back to auto-derived title.
-
-Pass `assignedJobSiteIds: string[]` through `onSubmit` → `adminEditEntry` (and `adminAddEntry` for consistency).
-
-## Server function updates
-
-`src/lib/entries.functions.ts`:
-
-- Extend `adminEditEntry` and `adminAddEntry` input validators with optional `assignedJobSiteIds: z.array(z.string().uuid()).max(5)`.
-- Persist to the new column. Validate each id exists and is active.
-- Update `adminListEntries` select to include `assigned_job_site_ids` and hydrate labels via a lookup map (or a joined view) so the client gets `assigned_sites: {id,label}[]` in stack order.
-
-## UI rendering (`AdminApp.tsx` entry card, ~line 446)
-
-Replace the single-line title span with:
-
-- If `e.assigned_sites?.length` → `<div className="flex flex-col gap-0.5">` of `<span className="font-semibold text-base leading-tight">` per site.
-- Else keep existing single-line fallback.
-
-Badges (`manual`, `flagged`, planned `→`) render to the right of the top line only.
+Editing any cell in these tabs and waiting up to 5 min (or clicking Pull) updates the job in the app.
 
 ## Out of scope
-
-- No changes to worker-facing clock-in flow.
-- No change to GPS audit footer, geo tagging, or payout math (payouts remain worker-level, not per-site split).
-- No auto-assignment from GPS; assignment is admin-driven only.
-
-## Files touched
-
-- `supabase` migration: add column + backfill empty array.
-- `src/lib/entries.functions.ts`: schema + list/edit/add handlers.
-- `src/components/admin/AdminApp.tsx`: `EntryDialog` multi-select + title render block.
+- Closed jobs keep their existing individual sheets frozen (no sync).
+- No historical migration of the old master sheet — admin re-links sheets per active job.
