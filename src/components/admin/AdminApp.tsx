@@ -425,10 +425,8 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
                       : "border-l-[3px] border-l-transparent"}
                   >
-                    <div className="px-4 sm:px-5 py-2 bg-secondary flex justify-between text-sm">
-
+                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
-                      <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
                     {items.map((e: any) => (
                       <div key={e.id} className="px-4 sm:px-5 py-3">
