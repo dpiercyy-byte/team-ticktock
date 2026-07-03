@@ -19,14 +19,19 @@ export function JobCard({ job }: { job: LedgerJob }) {
   const [open, setOpen] = useState(false);
   const [leadSource, setLeadSource] = useState(job.lead_source || "unknown");
   const [paymentsReceived, setPaymentsReceived] = useState(String(job.payments_received || 0));
+  const [sheetUrl, setSheetUrl] = useState(job.sheet_id || "");
 
   const update = useUpdateLedgerJob();
   const del = useDeleteLedgerJob();
+  const setSheet = useSetJobSheet();
+  const pushSheet = usePushJobToSheet();
+  const pullSheet = usePullJobFromSheet();
   const admin = isAdminSession();
 
   const balance = (job.total_price || 0) - (job.payments_received || 0);
   const expenses = totalExpenses(job);
   const isClosed = !!job.finish_date;
+  const sheetHref = job.sheet_id ? `https://docs.google.com/spreadsheets/d/${job.sheet_id}/edit` : null;
 
   return (
     <div className="pill-card p-5 md:p-6 fade-up">
