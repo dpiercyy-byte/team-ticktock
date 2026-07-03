@@ -348,67 +348,48 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       </Card>
 
       {/* Week navigator */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1 text-center min-w-0">
-            <div className="text-sm font-semibold truncate">{weekRangeLabel(weekStart)}</div>
-            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
-              {(() => {
-                const rel = relativeWeekLabel(weekStart);
-                return rel ? <Badge variant="secondary" className="text-xs">{rel}</Badge> : null;
-              })()}
-              {statusStyles && (
-                <span className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${statusStyles.pill}`}>
-                  ● {statusStyles.label}
-                </span>
-              )}
-            </div>
-          </div>
-          <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" className="shrink-0">
-                <CalendarIcon className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
-              <Calendar
-                mode="single"
-                selected={new Date(weekStart + "T00:00:00")}
-                onSelect={(d) => {
-                  if (!d) return;
-                  const x = new Date(d);
-                  x.setDate(x.getDate() - x.getDay());
-                  const pad = (n: number) => String(n).padStart(2, "0");
-                  setWeekStart(`${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`);
-                  setCalOpen(false);
-                }}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+      <div className="flex items-center gap-2 min-w-0">
+        <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 text-center min-w-0 flex flex-col items-center gap-1">
+          <div className="text-sm font-semibold truncate">{weekRangeLabel(weekStart)}</div>
+          {(() => {
+            const rel = relativeWeekLabel(weekStart);
+            return rel ? <Badge variant="secondary" className="text-xs">{rel}</Badge> : null;
+          })()}
+          {statusStyles && (
+            <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full ${statusStyles.pill}`}>
+              ● {statusStyles.label}
+            </span>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "This week", val: startOfWeekISO() },
-            { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
-          ].map((chip) => (
-            <Button
-              key={chip.label}
-              variant={weekStart === chip.val ? "default" : "outline"}
-              size="sm"
-              onClick={() => setWeekStart(chip.val)}
-            >
-              {chip.label}
+        <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Popover open={calOpen} onOpenChange={setCalOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="shrink-0">
+              <CalendarIcon className="h-4 w-4" />
             </Button>
-          ))}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
+            <Calendar
+              mode="single"
+              selected={new Date(weekStart + "T00:00:00")}
+              onSelect={(d) => {
+                if (!d) return;
+                const x = new Date(d);
+                x.setDate(x.getDate() - x.getDay());
+                const pad = (n: number) => String(n).padStart(2, "0");
+                setWeekStart(`${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`);
+                setCalOpen(false);
+              }}
+              initialFocus
+              className="pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -417,6 +398,15 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         <Stat label="Reimb" value={fmtMoney(weekReimb)} />
         <Stat label="Total" value={fmtMoney(weekTotal)} />
       </div>
+
+      <Button
+        variant="secondary"
+        className="w-full"
+        onClick={() => setAdding(true)}
+        disabled={!workerId}
+      >
+        <Plus className="h-4 w-4 mr-2" /> Add entry
+      </Button>
 
       <Card>
         <CardContent className="p-0">
