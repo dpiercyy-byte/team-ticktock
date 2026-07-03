@@ -659,7 +659,7 @@ function EntryDialog({ open, onClose, title, projectsEnabled, initial, allowOpen
   open: boolean; onClose: () => void; title: string; projectsEnabled: boolean;
   initial?: { clockIn: string; clockOut?: string | null; project?: string | null; assignedJobSiteIds?: string[] };
   allowOpenEnd?: boolean;
-  sites?: { id: string; label: string; archived_at?: string | null }[];
+  sites?: { id: string; label: string; kind?: string; archived_at?: string | null }[];
   onSubmit: (v: { clockIn: string; clockOut: string; project?: string; assignedJobSiteIds: string[] }) => void;
 }) {
   const [ci, setCi] = useState(toLocalInput(initial?.clockIn) || toLocalInput(new Date().toISOString()));
