@@ -67,6 +67,11 @@ export function JobCard({ job }: { job: LedgerJob }) {
           {open ? <><ChevronUp className="w-4 h-4 mr-1" /> Hide details</> : <><ChevronDown className="w-4 h-4 mr-1" /> Show details</>}
         </Button>
         <div className="flex items-center gap-1">
+          {admin && (
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="w-4 h-4 mr-1" /> Edit
+            </Button>
+          )}
           {admin && !isClosed && (
             <Button
               variant="ghost"
