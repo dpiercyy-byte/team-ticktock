@@ -25,7 +25,7 @@ import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
   Sparkles, RefreshCw, Sheet, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
-  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert,
+  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ArrowDown, ArrowUp,
 } from "lucide-react";
 import {
   parseReceipt, updateParsedReceipt, getSheetSettings, updateSheetSettings, backfillSheet, parseUnprocessed,
@@ -321,99 +321,75 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         </Card>
       )}
 
-      <div className="flex flex-wrap items-end gap-3 justify-between">
-        <Card className="flex-1 min-w-[180px]">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Worker</p>
-            <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-              <SelectTrigger className="w-full mt-1 h-auto border-none bg-transparent shadow-none p-0 text-xl font-bold gap-2 focus:ring-0">
-                {(() => {
-                  const w = wq.data?.find((x: any) => x.id === workerId);
-                  if (!w) return <SelectValue placeholder="Select worker" />;
-                  const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-                  return (
-                    <>
-                      <span className="h-8 w-8 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
-                        {initials || "?"}
-                      </span>
-                      <SelectValue placeholder="Select worker" />
-                    </>
-                  );
-                })()}
-              </SelectTrigger>
-              <SelectContent>
-                {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-        <Button onClick={() => setAdding(true)} disabled={!workerId} className="shrink-0">
-          <Plus className="h-4 w-4 mr-2" /> Add entry
-        </Button>
-      </div>
+      <Card className="w-full">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Worker</p>
+          <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+            <SelectTrigger className="w-full mt-1 h-auto border-none bg-transparent shadow-none p-0 text-xl font-bold gap-2 focus:ring-0">
+              {(() => {
+                const w = wq.data?.find((x: any) => x.id === workerId);
+                if (!w) return <SelectValue placeholder="Select worker" />;
+                const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+                return (
+                  <>
+                    <span className="h-8 w-8 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
+                      {initials || "?"}
+                    </span>
+                    <SelectValue placeholder="Select worker" />
+                  </>
+                );
+              })()}
+            </SelectTrigger>
+            <SelectContent>
+              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Week navigator */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1 text-center min-w-0">
-            <div className="text-sm font-semibold truncate">{weekRangeLabel(weekStart)}</div>
-            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
-              {(() => {
-                const rel = relativeWeekLabel(weekStart);
-                return rel ? <Badge variant="secondary" className="text-xs">{rel}</Badge> : null;
-              })()}
-              {statusStyles && (
-                <span className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${statusStyles.pill}`}>
-                  ● {statusStyles.label}
-                </span>
-              )}
-            </div>
-          </div>
-          <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" className="shrink-0">
-                <CalendarIcon className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
-              <Calendar
-                mode="single"
-                selected={new Date(weekStart + "T00:00:00")}
-                onSelect={(d) => {
-                  if (!d) return;
-                  const x = new Date(d);
-                  x.setDate(x.getDate() - x.getDay());
-                  const pad = (n: number) => String(n).padStart(2, "0");
-                  setWeekStart(`${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`);
-                  setCalOpen(false);
-                }}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+      <div className="flex items-center gap-2 min-w-0">
+        <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 text-center min-w-0 flex flex-col items-center gap-1">
+          <div className="text-sm font-semibold truncate">{weekRangeLabel(weekStart)}</div>
+          {(() => {
+            const rel = relativeWeekLabel(weekStart);
+            return rel ? <Badge variant="secondary" className="text-xs">{rel}</Badge> : null;
+          })()}
+          {statusStyles && (
+            <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full ${statusStyles.pill}`}>
+              ● {statusStyles.label}
+            </span>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "This week", val: startOfWeekISO() },
-            { label: "Last week", val: addDaysISO(startOfWeekISO(), -7) },
-          ].map((chip) => (
-            <Button
-              key={chip.label}
-              variant={weekStart === chip.val ? "default" : "outline"}
-              size="sm"
-              onClick={() => setWeekStart(chip.val)}
-            >
-              {chip.label}
+        <Button variant="outline" size="icon" className="shrink-0" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Popover open={calOpen} onOpenChange={setCalOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="shrink-0">
+              <CalendarIcon className="h-4 w-4" />
             </Button>
-          ))}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
+            <Calendar
+              mode="single"
+              selected={new Date(weekStart + "T00:00:00")}
+              onSelect={(d) => {
+                if (!d) return;
+                const x = new Date(d);
+                x.setDate(x.getDate() - x.getDay());
+                const pad = (n: number) => String(n).padStart(2, "0");
+                setWeekStart(`${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`);
+                setCalOpen(false);
+              }}
+              initialFocus
+              className="pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -422,6 +398,15 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         <Stat label="Reimb" value={fmtMoney(weekReimb)} />
         <Stat label="Total" value={fmtMoney(weekTotal)} />
       </div>
+
+      <Button
+        variant="secondary"
+        className="w-full"
+        onClick={() => setAdding(true)}
+        disabled={!workerId}
+      >
+        <Plus className="h-4 w-4 mr-2" /> Add entry
+      </Button>
 
       <Card>
         <CardContent className="p-0">
@@ -445,74 +430,14 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
                       <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
-                    {items.map((e: any) => (
-                      <div key={e.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium tabular-nums text-sm sm:text-base">
-                            {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                            <span className="ml-2 sm:ml-3 text-muted-foreground text-xs sm:text-sm">
-                              {e.clock_out ? `${diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs` : ""}
-                            </span>
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1.5 items-center">
-                            <span className="truncate max-w-[160px]">{e.project ?? "General"}</span>
-                            {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
-                            {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
-                            <GeoTagEditor
-                              entry={e}
-                              field="in"
-                              sites={sitesQ.data ?? []}
-                              onUpdate={async (status, jobSiteId) => {
-                                try {
-                                  const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
-                                  updateToken(r.token);
-                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                  toast.success("In tag updated");
-                                } catch (err: any) { toast.error(err?.message || "Failed"); }
-                              }}
-                              onUpdatePlanned={async (jobSiteId) => {
-                                try {
-                                  const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                  updateToken(r.token);
-                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                  toast.success("Planned job updated");
-                                } catch (err: any) { toast.error(err?.message || "Failed"); }
-                              }}
-                            />
-                            {e.clock_out && (
-                              <GeoTagEditor
-                                entry={e}
-                                field="out"
-                                sites={sitesQ.data ?? []}
-                                onUpdate={async (status, jobSiteId) => {
-                                  try {
-                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("Out tag updated");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                              />
-                            )}
-                            {e.planned_job?.label && (
-                              <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
-                                → {e.planned_job.label}
-                              </Badge>
-                            )}
-
-                            {e.offsite_reason_code && (
-                              <span
-                                className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
-                                title={e.offsite_reason_note || undefined}
-                              >
-                                · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
-                              </span>
-                            )}
-
-                          </p>
-
-                        </div>
-                        <div className="flex gap-0.5 shrink-0">
+                    {items.map((e: any) => {
+                      const inSiteLabel = e.geo_status === "verified" || e.geo_status === "supplier"
+                        ? e.job_sites?.label ?? null
+                        : null;
+                      const hideInTag = !!(inSiteLabel && e.project && inSiteLabel.trim().toLowerCase() === String(e.project).trim().toLowerCase());
+                      return (
+                      <div key={e.id} className="relative px-4 sm:px-5 py-3 pr-24">
+                        <div className="absolute top-1.5 right-1.5 flex gap-0.5">
                           {!e.clock_out && (
                             <Button variant="ghost" size="icon" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
                               <PowerOff className="h-4 w-4 text-warning" />
@@ -525,8 +450,74 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
+                        <div className="min-w-0">
+                          <p className="font-medium tabular-nums text-sm sm:text-base">
+                            {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
+                            <span className="truncate max-w-[200px] font-medium text-foreground">{e.project ?? "General"}</span>
+                            {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
+                            {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
+                            {e.planned_job?.label && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
+                                → {e.planned_job.label}
+                              </Badge>
+                            )}
+                            {e.offsite_reason_code && (
+                              <span
+                                className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
+                                title={e.offsite_reason_note || undefined}
+                              >
+                                · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
+                              </span>
+                            )}
+                          </p>
+                          <div className="mt-1.5 flex flex-col gap-1">
+                            {!hideInTag && (
+                              <GeoTagEditor
+                                entry={e}
+                                field="in"
+                                variant="plain"
+                                sites={sitesQ.data ?? []}
+                                onUpdate={async (status, jobSiteId) => {
+                                  try {
+                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("In tag updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                                onUpdatePlanned={async (jobSiteId) => {
+                                  try {
+                                    const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("Planned job updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                              />
+                            )}
+                            {e.clock_out && (
+                              <GeoTagEditor
+                                entry={e}
+                                field="out"
+                                variant="plain"
+                                sites={sitesQ.data ?? []}
+                                onUpdate={async (status, jobSiteId) => {
+                                  try {
+                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("Out tag updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -3175,10 +3166,11 @@ function reasonLabel(code: string | null | undefined) {
 }
 
 function GeoTagEditor({
-  entry, sites, onUpdate, onUpdatePlanned, field = "in",
+  entry, sites, onUpdate, onUpdatePlanned, field = "in", variant = "badge",
 }: {
   entry: any;
   field?: "in" | "out";
+  variant?: "badge" | "plain";
   sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
   onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
@@ -3192,28 +3184,46 @@ function GeoTagEditor({
       : entry.job_sites?.label ?? null;
   const prefix = field === "out" ? "Out: " : "In: ";
 
-  const trigger =
-    status === "verified" && siteLabel ? (
-      <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
-        <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
-      </Badge>
-    ) : status === "supplier" && siteLabel ? (
-      <Badge variant="outline" className="h-4 text-[10px] border-primary text-primary cursor-pointer hover:bg-primary/10">
-        <Truck className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
-      </Badge>
-    ) : status === "off_site" ? (
-      <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
-        <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}Off-site
-      </Badge>
-    ) : status === "no_gps" ? (
-      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
-        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}No GPS
-      </Badge>
-    ) : (
-      <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
-        <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}Set tag
-      </Badge>
+  let trigger: React.ReactNode;
+  if (variant === "plain") {
+    const DirIcon = field === "out" ? ArrowUp : ArrowDown;
+    const dirClass = field === "out" ? "text-destructive" : "text-success";
+    const text =
+      status === "verified" && siteLabel ? siteLabel :
+      status === "supplier" && siteLabel ? siteLabel :
+      status === "off_site" ? "Off-site" :
+      status === "no_gps" ? "No GPS" :
+      "Set tag";
+    trigger = (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+        <DirIcon className={`h-3.5 w-3.5 shrink-0 ${dirClass}`} />
+        <span className="truncate">{text}</span>
+      </span>
     );
+  } else {
+    trigger =
+      status === "verified" && siteLabel ? (
+        <Badge variant="outline" className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10">
+          <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
+        </Badge>
+      ) : status === "supplier" && siteLabel ? (
+        <Badge variant="outline" className="h-4 text-[10px] border-primary text-primary cursor-pointer hover:bg-primary/10">
+          <Truck className="h-2.5 w-2.5 mr-0.5" />{prefix}{siteLabel}
+        </Badge>
+      ) : status === "off_site" ? (
+        <Badge variant="outline" className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10">
+          <MapPin className="h-2.5 w-2.5 mr-0.5" />{prefix}Off-site
+        </Badge>
+      ) : status === "no_gps" ? (
+        <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+          <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}No GPS
+        </Badge>
+      ) : (
+        <Badge variant="outline" className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary">
+          <MapPinOff className="h-2.5 w-2.5 mr-0.5" />{prefix}Set tag
+        </Badge>
+      );
+  }
 
   const pick = async (s: GeoStatus, jid: string | null) => {
     setOpen(false);
