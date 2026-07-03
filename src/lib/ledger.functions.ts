@@ -32,6 +32,29 @@ export const listLedgerJobs = createServerFn({ method: "POST" })
     return rows ?? [];
   });
 
+export const createLedgerJob = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    address: z.string().min(1).max(300),
+    client_name: z.string().max(200).optional().nullable(),
+    start_date: z.string().optional().nullable(),
+    lead_source: z.string().max(100).optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    requireAdminOnly(data.token);
+    const record = {
+      address: data.address.trim(),
+      client_name: data.client_name?.trim() || null,
+      start_date: data.start_date || new Date().toISOString().slice(0, 10),
+      finish_date: null as string | null,
+      lead_source: data.lead_source?.trim() || "unknown",
+    };
+    const { data: row, error } = await supabaseAdmin
+      .from("ledger_jobs").insert(record).select("*").single();
+    if (error) throw error;
+    return row;
+  });
+
 const JobPatch = z.object({
   lead_source: z.string().optional(),
   payments_received: z.number().optional(),

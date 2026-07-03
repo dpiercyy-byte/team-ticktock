@@ -9,6 +9,7 @@ import {
   updateLedgerJob,
   deleteLedgerJob,
   uploadLedgerJobXlsx,
+  createLedgerJob,
 } from "@/lib/ledger.functions";
 import {
   setJobSheet,
@@ -98,6 +99,19 @@ export function useDeleteLedgerJob() {
       const token = getSessionToken();
       if (!token) throw new Error("Not signed in");
       return fn({ data: { token, id } });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
+  });
+}
+
+export function useCreateLedgerJob() {
+  const fn = useServerFn(createLedgerJob);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { address: string; client_name?: string | null; start_date?: string | null }) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return fn({ data: { token, ...input } });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
   });
