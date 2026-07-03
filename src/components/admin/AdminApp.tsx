@@ -449,12 +449,23 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-medium tabular-nums text-sm sm:text-base">
-                            {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
-                            <span className="truncate max-w-[200px] font-medium text-foreground">{e.project ?? "General"}</span>
+                        <div className="min-w-0 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold tabular-nums text-sm sm:text-base">
+                              {fmtTime(e.clock_in)} → {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
+                            </span>
+                            {e.clock_out ? (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary tabular-nums">
+                                {diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs
+                              </span>
+                            ) : (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-success/15 text-success">
+                                active
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-2 gap-y-1 items-center">
+                            <span className="truncate max-w-[240px] text-base font-semibold text-foreground">{e.project ?? "General"}</span>
                             {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
                             {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
                             {e.planned_job?.label && (
@@ -470,49 +481,51 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
                               </span>
                             )}
-                          </p>
-                          <div className="mt-1.5 flex flex-col gap-1">
-                            {!hideInTag && (
-                              <GeoTagEditor
-                                entry={e}
-                                field="in"
-                                variant="plain"
-                                sites={sitesQ.data ?? []}
-                                onUpdate={async (status, jobSiteId) => {
-                                  try {
-                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("In tag updated");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                                onUpdatePlanned={async (jobSiteId) => {
-                                  try {
-                                    const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("Planned job updated");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                              />
-                            )}
-                            {e.clock_out && (
-                              <GeoTagEditor
-                                entry={e}
-                                field="out"
-                                variant="plain"
-                                sites={sitesQ.data ?? []}
-                                onUpdate={async (status, jobSiteId) => {
-                                  try {
-                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
-                                    updateToken(r.token);
-                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("Out tag updated");
-                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                }}
-                              />
-                            )}
                           </div>
+                          {(!hideInTag || e.clock_out) && (
+                            <div className="mt-2 pt-2 border-t border-border/50 flex flex-col gap-1">
+                              {!hideInTag && (
+                                <GeoTagEditor
+                                  entry={e}
+                                  field="in"
+                                  variant="plain"
+                                  sites={sitesQ.data ?? []}
+                                  onUpdate={async (status, jobSiteId) => {
+                                    try {
+                                      const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("In tag updated");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                  onUpdatePlanned={async (jobSiteId) => {
+                                    try {
+                                      const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("Planned job updated");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                />
+                              )}
+                              {e.clock_out && (
+                                <GeoTagEditor
+                                  entry={e}
+                                  field="out"
+                                  variant="plain"
+                                  sites={sitesQ.data ?? []}
+                                  onUpdate={async (status, jobSiteId) => {
+                                    try {
+                                      const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("Out tag updated");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       );
