@@ -13,6 +13,7 @@ import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as AppsRouteImport } from './routes/apps'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LedgerIndexRouteImport } from './routes/ledger/index'
 import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
 
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LedgerIndexRoute = LedgerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LedgerRoute,
+} as any)
 const ApiPublicHooksSheetExportRoute =
   ApiPublicHooksSheetExportRouteImport.update({
     id: '/api/public/hooks/sheet-export',
@@ -53,7 +59,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/apps': typeof AppsRoute
-  '/ledger': typeof LedgerRoute
+  '/ledger': typeof LedgerRouteWithChildren
+  '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
@@ -61,7 +68,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/apps': typeof AppsRoute
-  '/ledger': typeof LedgerRoute
+  '/ledger': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
@@ -70,7 +77,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/apps': typeof AppsRoute
-  '/ledger': typeof LedgerRoute
+  '/ledger': typeof LedgerRouteWithChildren
+  '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
@@ -81,6 +89,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/apps'
     | '/ledger'
+    | '/ledger/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
   fileRoutesByTo: FileRoutesByTo
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/apps'
     | '/ledger'
+    | '/ledger/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
   fileRoutesById: FileRoutesById
@@ -105,7 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AppsRoute: typeof AppsRoute
-  LedgerRoute: typeof LedgerRoute
+  LedgerRoute: typeof LedgerRouteWithChildren
   ApiPublicHooksAutoClockoutRoute: typeof ApiPublicHooksAutoClockoutRoute
   ApiPublicHooksSheetExportRoute: typeof ApiPublicHooksSheetExportRoute
 }
@@ -140,6 +150,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ledger/': {
+      id: '/ledger/'
+      path: '/'
+      fullPath: '/ledger/'
+      preLoaderRoute: typeof LedgerIndexRouteImport
+      parentRoute: typeof LedgerRoute
+    }
     '/api/public/hooks/sheet-export': {
       id: '/api/public/hooks/sheet-export'
       path: '/api/public/hooks/sheet-export'
@@ -157,11 +174,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface LedgerRouteChildren {
+  LedgerIndexRoute: typeof LedgerIndexRoute
+}
+
+const LedgerRouteChildren: LedgerRouteChildren = {
+  LedgerIndexRoute: LedgerIndexRoute,
+}
+
+const LedgerRouteWithChildren =
+  LedgerRoute._addFileChildren(LedgerRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AppsRoute: AppsRoute,
-  LedgerRoute: LedgerRoute,
+  LedgerRoute: LedgerRouteWithChildren,
   ApiPublicHooksAutoClockoutRoute: ApiPublicHooksAutoClockoutRoute,
   ApiPublicHooksSheetExportRoute: ApiPublicHooksSheetExportRoute,
 }
