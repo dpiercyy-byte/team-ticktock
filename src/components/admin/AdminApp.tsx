@@ -91,9 +91,24 @@ export function AdminApp() {
     if (!t) { setHydrated(true); return; }
     verify({ data: { token: t } })
       .then((r) => { setAdminToken(r.token); setTokenState(r.token); })
-      .catch(() => { clearAdminToken(); })
+      .catch(() => { clearAdminToken(); setTokenState(null); })
       .finally(() => setHydrated(true));
   }, [verify]);
+
+  // Prevent blank screen when a serverFn rejects with a Response (e.g. 401 session expired).
+  useEffect(() => {
+    const onRej = (e: PromiseRejectionEvent) => {
+      const r = e.reason;
+      if (r instanceof Response && (r.status === 401 || r.status === 403)) {
+        e.preventDefault();
+        clearAdminToken();
+        setTokenState(null);
+        toast.info("Session expired. Please sign in again.");
+      }
+    };
+    window.addEventListener("unhandledrejection", onRej);
+    return () => window.removeEventListener("unhandledrejection", onRej);
+  }, []);
 
   // Inactivity logout
   useEffect(() => {
