@@ -18,6 +18,7 @@ const LEAD_OPTIONS = ["referral", "repeat", "designer", "website", "unknown"];
 
 export function JobCard({ job }: { job: LedgerJob }) {
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [leadSource, setLeadSource] = useState(job.lead_source || "unknown");
   const [paymentsReceived, setPaymentsReceived] = useState(String(job.payments_received || 0));
   const [sheetUrl, setSheetUrl] = useState(job.sheet_id || "");
