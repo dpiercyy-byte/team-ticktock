@@ -428,84 +428,100 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
                     {items.map((e: any) => (
-                      <div key={e.id} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium tabular-nums text-sm sm:text-base">
-                            {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                            <span className="ml-2 sm:ml-3 text-muted-foreground text-xs sm:text-sm">
-                              {e.clock_out ? `${diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs` : ""}
-                            </span>
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1.5 items-center">
-                            <span className="truncate max-w-[160px]">{e.project ?? "General"}</span>
-                            {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
-                            {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
-                            <GeoTagEditor
-                              entry={e}
-                              field="in"
-                              sites={sitesQ.data ?? []}
-                              onUpdate={async (status, jobSiteId) => {
-                                try {
-                                  const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
-                                  updateToken(r.token);
-                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                  toast.success("In tag updated");
-                                } catch (err: any) { toast.error(err?.message || "Failed"); }
-                              }}
-                              onUpdatePlanned={async (jobSiteId) => {
-                                try {
-                                  const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                  updateToken(r.token);
-                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                  toast.success("Planned job updated");
-                                } catch (err: any) { toast.error(err?.message || "Failed"); }
-                              }}
-                            />
-                            {e.clock_out && (
+                      <div key={e.id} className="px-4 sm:px-5 py-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            {/* Time strip */}
+                            <p className="font-medium tabular-nums text-sm sm:text-base">
+                              {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
+                              <span className="ml-2 sm:ml-3 text-muted-foreground text-xs sm:text-sm">
+                                {e.clock_out ? `${diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs` : ""}
+                              </span>
+                            </p>
+
+                            {/* Primary title: billed job */}
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-base text-foreground truncate max-w-[240px]">
+                                {e.project ?? "General"}
+                              </span>
+                              {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
+                              {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
+                              {e.planned_job?.label && (
+                                <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
+                                  → {e.planned_job.label}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {e.offsite_reason_code && (
+                              <p
+                                className="text-[11px] text-muted-foreground italic mt-1 truncate max-w-full"
+                                title={e.offsite_reason_note || undefined}
+                              >
+                                {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-0.5 shrink-0">
+                            {!e.clock_out && (
+                              <Button variant="ghost" size="icon" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
+                                <PowerOff className="h-4 w-4 text-warning" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setConfirmDel(e.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Footer: raw GPS audit timeline */}
+                        <div className="mt-2.5 pt-2 border-t border-dashed border-border">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">GPS audit</div>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
                               <GeoTagEditor
                                 entry={e}
-                                field="out"
+                                field="in"
                                 sites={sitesQ.data ?? []}
                                 onUpdate={async (status, jobSiteId) => {
                                   try {
-                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
+                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
                                     updateToken(r.token);
                                     qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                    toast.success("Out tag updated");
+                                    toast.success("In tag updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                                onUpdatePlanned={async (jobSiteId) => {
+                                  try {
+                                    const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("Planned job updated");
                                   } catch (err: any) { toast.error(err?.message || "Failed"); }
                                 }}
                               />
+                            </div>
+                            {e.clock_out && (
+                              <div className="flex items-center gap-1.5">
+                                <GeoTagEditor
+                                  entry={e}
+                                  field="out"
+                                  sites={sitesQ.data ?? []}
+                                  onUpdate={async (status, jobSiteId) => {
+                                    try {
+                                      const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "out" } });
+                                      updateToken(r.token);
+                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                      toast.success("Out tag updated");
+                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                  }}
+                                />
+                              </div>
                             )}
-                            {e.planned_job?.label && (
-                              <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
-                                → {e.planned_job.label}
-                              </Badge>
-                            )}
-
-                            {e.offsite_reason_code && (
-                              <span
-                                className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
-                                title={e.offsite_reason_note || undefined}
-                              >
-                                · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
-                              </span>
-                            )}
-
-                          </p>
-
-                        </div>
-                        <div className="flex gap-0.5 shrink-0">
-                          {!e.clock_out && (
-                            <Button variant="ghost" size="icon" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
-                              <PowerOff className="h-4 w-4 text-warning" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setConfirmDel(e.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
