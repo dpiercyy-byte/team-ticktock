@@ -55,12 +55,44 @@ export const createLedgerJob = createServerFn({ method: "POST" })
     return row;
   });
 
+const LogEntry = z.object({
+  date: z.string().nullable().optional(),
+  amount: z.number(),
+  comment: z.string().optional(),
+  category: z.string().optional(),
+  vendor: z.string().optional(),
+  method: z.string().optional(),
+  has_hst: z.boolean().optional(),
+});
+
 const JobPatch = z.object({
+  // meta — always editable
   lead_source: z.string().optional(),
   payments_received: z.number().optional(),
   finish_date: z.string().nullable().optional(),
   linked_job_site_id: z.string().uuid().nullable().optional(),
+  // content — blocked when sheet-linked
+  address: z.string().min(1).max(300).optional(),
+  client_name: z.string().nullable().optional(),
+  start_date: z.string().nullable().optional(),
+  total_price: z.number().optional(),
+  gross_cash: z.number().optional(),
+  gross_with_hst: z.number().optional(),
+  finish_materials: z.number().optional(),
+  building_materials: z.number().optional(),
+  subs: z.number().optional(),
+  labor: z.number().optional(),
+  price_log: z.array(LogEntry).optional(),
+  expense_log: z.array(LogEntry).optional(),
+  payments_log: z.array(LogEntry).optional(),
 });
+
+const CONTENT_FIELDS = new Set([
+  "address", "client_name", "start_date",
+  "total_price", "gross_cash", "gross_with_hst",
+  "finish_materials", "building_materials", "subs", "labor",
+  "price_log", "expense_log", "payments_log",
+]);
 
 export const updateLedgerJob = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ token: z.string(), id: z.string().uuid(), patch: JobPatch }).parse(d))
@@ -71,6 +103,32 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
       if (v !== undefined) clean[k] = v;
     }
     if (Object.keys(clean).length === 0) throw new Response("No fields", { status: 400 });
+
+    // Sheet-linked jobs: sheet is source of truth for content fields.
+    const touchesContent = Object.keys(clean).some((k) => CONTENT_FIELDS.has(k));
+    if (touchesContent) {
+      const { data: current } = await supabaseAdmin
+        .from("ledger_jobs").select("sheet_id").eq("id", data.id).maybeSingle();
+      if ((current as any)?.sheet_id) {
+        throw new Response("This job is linked to a Google Sheet. Edit the sheet directly, or unlink it first.", { status: 409 });
+      }
+    }
+
+    // Recompute net + profit_margin when totals/costs change.
+    const recomputeKeys = ["total_price", "finish_materials", "building_materials", "subs", "labor"];
+    if (recomputeKeys.some((k) => k in clean)) {
+      const { data: cur } = await supabaseAdmin
+        .from("ledger_jobs")
+        .select("total_price, finish_materials, building_materials, subs, labor")
+        .eq("id", data.id).maybeSingle();
+      const merged = { ...(cur as any), ...clean } as Record<string, number>;
+      const totalP = Number(merged.total_price) || 0;
+      const exp = (Number(merged.finish_materials) || 0) + (Number(merged.building_materials) || 0)
+        + (Number(merged.subs) || 0) + (Number(merged.labor) || 0);
+      (clean as any).net = totalP - exp;
+      (clean as any).profit_margin = totalP > 0 ? (totalP - exp) / totalP : 0;
+    }
+
     const { data: row, error } = await supabaseAdmin
       .from("ledger_jobs").update(clean as never).eq("id", data.id).select("*").single();
     if (error) throw error;
