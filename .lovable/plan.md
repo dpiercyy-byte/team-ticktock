@@ -1,57 +1,39 @@
-## What determines Active vs Closed
+## Worker selector
 
-The parser reads cell **C3** of the spreadsheet as `finish_date`. If C3 is empty → job is Active. If C3 has a date → job is Closed. That's the only rule.
+Drop the `Card` wrapper around the Worker `Select` in `EntriesTab` (`src/components/admin/AdminApp.tsx` ~L324–L348). Replace with a plain full-width `SelectTrigger` styled as an input:
 
-Your uploads landed in Active because C3 was blank on those workbooks, even though the filenames said "DONE". The current parser strips `DONE -` / `ACTIVE -` from the filename for the address but never uses that signal to set the finish date.
+- Container: `w-full h-14 rounded-xl bg-muted/60 hover:bg-muted px-3` (soft gray, no border, no shadow — clearly not a stat card).
+- Left: avatar circle (unchanged initials, `bg-background` so it pops against the gray field).
+- Middle: two-line stack — tiny uppercase "Worker" label in `text-muted-foreground`, worker name in `font-semibold text-base`.
+- Right: `ChevronDown` icon in muted color (kept from shadcn default) to signal it's an interactive picker.
+- Empty state: same shell, placeholder text "Select worker".
 
-## Plan
+Result: reads as an input control, not a KPI tile — visually distinct from the four Hours/Wages/Reimb/Total stat cards directly below it.
 
-### 1. Fix Active/Closed detection on upload
+## Shift Ticket entry rows
 
-In `src/lib/ledger-xlsx.ts`:
-- Detect a `DONE` / `CLOSED` / `COMPLETE` prefix in the filename before it's stripped.
-- If detected AND C3 is empty, set `finish_date` to `start_date` (C2) as a fallback, or to today if C2 is also empty.
+Restructure each entry inside the day group (`src/components/admin/AdminApp.tsx` ~L433–L520) into a three-zone ticket:
 
-In `src/routes/ledger/sync.tsx`:
-- Add a checkbox above the upload button: **"Mark uploaded jobs as closed"** (default off). When on, the client sends a flag with each upload.
-- Extend `uploadLedgerJobXlsx` in `src/lib/ledger.functions.ts` to accept `markClosed?: boolean` and force `finish_date` when set.
-- Add a small **"Mark closed"** action to each JobCard on the Active tab so any misclassified job can be fixed in one click (uses existing `updateLedgerJob`).
+**Row 1 — Time & duration**
+- Left: `7:55 AM → 3:52 PM` in `font-semibold tabular-nums` (arrow replaces the current en dash).
+- Immediately right of the time: hours pill `7.96 hrs` styled `text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary` (skip when still clocked in — show `active` chip in `--success` instead).
+- Top-right action icons (pencil/trash/force-out) stay pinned via the existing `absolute top-1.5 right-1.5`.
 
-### 2. Remove Reset All Jobs
+**Row 2 — Job site (primary)**
+- `e.project ?? "General"` promoted to `text-base font-semibold text-foreground`, single line with truncation.
+- Inline chips remain to the right at small size: `manual`, `flagged`, planned-job `→ label`, offsite reason. Wrap allowed.
 
-Delete the entire "Reset all jobs" card from `src/routes/ledger/sync.tsx`. Change the grid from 2 columns to a single centered upload card. Leave `resetLedgerJobs`/`useResetLedgerJobs` in place unused (harmless) or remove them — I'll remove them to keep the file clean.
+**Row 3 — Audit locations (bottom, muted)**
+- New footer block separated by `mt-2 pt-2 border-t border-border/50`.
+- Two lines, each `text-xs text-muted-foreground/80`:
+  - `In:` prefix + green `ArrowDown` icon (h-3 w-3) + address text.
+  - `Out:` prefix + red `ArrowUp` icon + address text (omit whole line if not clocked out).
+- Existing "hide In line when it matches the job site" rule from the previous pass is preserved.
+- Clicking either line still opens the `GeoTagEditor` popover — keep `variant="plain"` but update its internals to render as `In: <address>` / `Out: <address>` with the small colored arrow, muted text, no hover background, so the whole line reads as a subtle audit trail.
 
-### 3. Google Sheets sync (mirrors Clockwise pattern)
-
-Reuse the existing Google Sheets connector (`GOOGLE_SHEETS_API_KEY` is already linked). Add:
-
-**Schema** — one migration adding two columns to `app_settings`:
-- `ledger_export_sheet_id text`
-- `ledger_export_last_sync_at timestamptz`
-
-**Server** — `src/lib/ledger-sheet-export.functions.ts` + `.server.ts` matching the Clockwise export shape:
-- `getLedgerExportSettings` / `updateLedgerExportSettings` / `runLedgerSheetExportFn`
-- Full overwrite of these tabs on every sync:
-  - `Active Jobs` — address, client, start date, total price, gross cash, gross+HST, materials, subs, labor, net, margin, payments received, lead source
-  - `Closed Jobs` — same columns + finish date
-  - `Payments Log` — address, date, amount, method
-  - `Expenses Log` — address, date, vendor, category, amount
-  - `Price Log` — address, date, amount, has HST, comment
-- Freeze header row, bold headers, autosize columns (reuse `formatTab` helper pattern).
-
-**UI** — new "Google Sheets sync" card on the Sync tab (admin only), identical layout to the Clockwise settings card:
-- Input for sheet URL/ID with Save
-- "Sync now" button showing last sync timestamp
-- Connector-ready check hidden until sheet ID is set
+No other layout, tabs, filters, or business logic change.
 
 ### Technical notes
-
-- The DONE-filename detection: `^\s*(DONE|CLOSED|COMPLETE)\b` — case-insensitive, checked before the address is normalized.
-- The sync endpoint follows the exact same gateway wrapper (`gw()`), `ensureTabsAndClear`, `writeTab`, `formatTab` helpers as `sheet-export.server.ts` — I'll factor them into a shared `sheets-gateway.server.ts` so both exports use one implementation.
-- Address is used as the row key in the log tabs (not tab-per-job — that would explode).
-- No changes to `ledger_jobs` schema needed for the sync itself.
-
-### Out of scope
-
-- Automatic scheduled sync (can add pg_cron hook later if you want).
-- Two-way sync from Sheets back into Ledger.
+- All colors via existing tokens (`--muted`, `--primary`, `--success`, `--destructive`, `--border`) — no hardcoded hex.
+- Duration pill formula unchanged: `diffHours(clock_in, clock_out).toFixed(2)`.
+- `GeoTagEditor` plain variant gets a small refactor so the prefix (`In:` / `Out:`) is rendered by the trigger itself, keeping the popover behavior intact.
