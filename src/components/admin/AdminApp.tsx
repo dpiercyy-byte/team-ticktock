@@ -1532,7 +1532,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
             <SelectContent>
               <SelectItem value="all">All workers</SelectItem>
               <SelectItem value="__admin__">Admin</SelectItem>
-              {workers.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              {workers.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-lg">{w.name}</span></SelectItem>)}
             </SelectContent>
           </Select>
         </div>
