@@ -20,6 +20,8 @@ export type Database = {
           google_sheet_id: string | null
           google_sheet_tab: string | null
           id: number
+          ledger_export_last_sync_at: string | null
+          ledger_export_sheet_id: string | null
           project_tracking_enabled: boolean
           sheet_sync_enabled: boolean
           show_pay_estimates: boolean
@@ -31,6 +33,8 @@ export type Database = {
           google_sheet_id?: string | null
           google_sheet_tab?: string | null
           id?: number
+          ledger_export_last_sync_at?: string | null
+          ledger_export_sheet_id?: string | null
           project_tracking_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
@@ -42,6 +46,8 @@ export type Database = {
           google_sheet_id?: string | null
           google_sheet_tab?: string | null
           id?: number
+          ledger_export_last_sync_at?: string | null
+          ledger_export_sheet_id?: string | null
           project_tracking_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
