@@ -25,7 +25,7 @@ import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
   Sparkles, RefreshCw, Sheet, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
-  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ArrowDown, ArrowUp, ArrowRight,
+  Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ArrowDown, ArrowUp,
 } from "lucide-react";
 import {
   parseReceipt, updateParsedReceipt, getSheetSettings, updateSheetSettings, backfillSheet, parseUnprocessed,
@@ -321,30 +321,31 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
         </Card>
       )}
 
-      <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-        <SelectTrigger className="w-full h-16 rounded-xl bg-muted/60 hover:bg-muted border-none shadow-none px-3 gap-3 focus:ring-0 [&>svg]:opacity-60">
-          {(() => {
-            const w = wq.data?.find((x: any) => x.id === workerId);
-            const initials = w ? w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() : "?";
-            return (
-              <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                <span className="h-10 w-10 shrink-0 rounded-full bg-background text-foreground inline-flex items-center justify-center text-sm font-semibold shadow-sm">
-                  {w ? initials : "?"}
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Worker</span>
-                  <span className="font-semibold text-base truncate leading-tight mt-1">
-                    {w ? w.name : "Select worker"}
-                  </span>
-                </div>
-              </div>
-            );
-          })()}
-        </SelectTrigger>
-        <SelectContent>
-          {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
-        </SelectContent>
-      </Select>
+      <Card className="w-full">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Worker</p>
+          <Select value={workerId ?? ""} onValueChange={setWorkerId}>
+            <SelectTrigger className="w-full mt-1 h-auto border-none bg-transparent shadow-none p-0 text-xl font-bold gap-2 focus:ring-0">
+              {(() => {
+                const w = wq.data?.find((x: any) => x.id === workerId);
+                if (!w) return <SelectValue placeholder="Select worker" />;
+                const initials = w.name.split(/\s+/).map((p: string) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+                return (
+                  <>
+                    <span className="h-8 w-8 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-sm font-semibold">
+                      {initials || "?"}
+                    </span>
+                    <SelectValue placeholder="Select worker" />
+                  </>
+                );
+              })()}
+            </SelectTrigger>
+            <SelectContent>
+              {wq.data?.map(w => <SelectItem key={w.id} value={w.id}><span className="font-bold text-sm">{w.name}</span></SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Week navigator */}
       <div className="flex items-center gap-2 min-w-0">
@@ -416,6 +417,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
           ) : (
             <div className="divide-y divide-border">
               {Object.entries(byDate).map(([date, items]) => {
+                const dayHours = items.reduce((s, e) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0), 0);
                 return (
                   <div
                     key={date}
@@ -423,93 +425,78 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
                       : "border-l-[3px] border-l-transparent"}
                   >
-                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm">
+                    <div className="px-4 sm:px-5 py-2 bg-secondary flex justify-between text-sm">
+
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
+                      <span className="text-muted-foreground tabular-nums">{fmtHours(dayHours)}</span>
                     </div>
                     {items.map((e: any) => {
-                      const planned = e.planned_job?.label ?? null;
-                      const proj = e.project?.trim() || null;
-                      const unassigned = !planned;
-                      const title = planned ?? "Unassigned";
-                      const workerNote = proj && proj.toLowerCase() !== (planned ?? "").toLowerCase() ? proj : null;
+                      const inSiteLabel = e.geo_status === "verified" || e.geo_status === "supplier"
+                        ? e.job_sites?.label ?? null
+                        : null;
+                      const hideInTag = !!(inSiteLabel && e.project && inSiteLabel.trim().toLowerCase() === String(e.project).trim().toLowerCase());
                       return (
-                      <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-3 sm:px-5 py-3">
-                        <div className="min-w-0 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-nowrap min-w-0">
-                            <span className="shrink-0 inline-flex items-center gap-1 font-semibold tabular-nums text-sm sm:text-base">
-                              {fmtTime(e.clock_in)}
-                              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                              {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                            </span>
-                            {e.clock_out ? (
-                              <span className="shrink-0 whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary tabular-nums">
-                                {diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs
-                              </span>
-                            ) : (
-                              <span className="shrink-0 whitespace-nowrap text-xs font-medium px-2 py-0.5 rounded-full bg-success/15 text-success">
-                                active
+                      <div key={e.id} className="relative px-4 sm:px-5 py-3 pr-24">
+                        <div className="absolute top-1.5 right-1.5 flex gap-0.5">
+                          {!e.clock_out && (
+                            <Button variant="ghost" size="icon" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
+                              <PowerOff className="h-4 w-4 text-warning" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setConfirmDel(e.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium tabular-nums text-sm sm:text-base">
+                            {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
+                            <span className="truncate max-w-[200px] font-medium text-foreground">{e.project ?? "General"}</span>
+                            {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
+                            {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
+                            {e.planned_job?.label && (
+                              <Badge variant="outline" className="h-4 text-[10px] border-primary/40 text-primary">
+                                → {e.planned_job.label}
+                              </Badge>
+                            )}
+                            {e.offsite_reason_code && (
+                              <span
+                                className="text-[11px] text-muted-foreground italic truncate max-w-[180px]"
+                                title={e.offsite_reason_note || undefined}
+                              >
+                                · {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
                               </span>
                             )}
-                          </div>
-                          <div className="flex items-center gap-2 min-w-0">
-                            {unassigned && <span className="h-2 w-2 shrink-0 rounded-full bg-warning inline-block" />}
-                            <span className={`flex-1 min-w-0 truncate text-base font-semibold ${unassigned ? "text-muted-foreground italic" : "text-foreground"}`}>{title}</span>
-                          </div>
-                          {(unassigned || e.created_by === "admin" || e.flagged_review) && (
-                            <div className="flex flex-wrap gap-x-2 gap-y-1 items-center">
-                              {unassigned && (
-                                <AssignJobButton
-                                  sites={sitesQ.data ?? []}
-                                  currentId={e.planned_job_site_id ?? null}
-                                  onAssign={async (jobSiteId) => {
-                                    try {
-                                      const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                      updateToken(r.token);
-                                      qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                      toast.success("Job assigned");
-                                    } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                  }}
-                                />
-                              )}
-                              {e.created_by === "admin" && <Badge variant="outline" className="h-4 text-[10px]">manual</Badge>}
-                              {e.flagged_review && <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">flagged</Badge>}
-                            </div>
-                          )}
-                          {e.offsite_reason_code && (
-                            <div
-                              className="text-[11px] text-muted-foreground italic truncate"
-                              title={e.offsite_reason_note || undefined}
-                            >
-                              {reasonLabel(e.offsite_reason_code)}{e.offsite_reason_note ? `: ${e.offsite_reason_note}` : ""}
-                            </div>
-                          )}
-                          {workerNote && (
-                            <div className="text-[11px] text-muted-foreground truncate">Worker note: {workerNote}</div>
-                          )}
-
-                          <div className="mt-2 pt-2 border-t border-border/50 flex flex-col gap-1">
-                            <GeoTagEditor
-                              entry={e}
-                              field="in"
-                              variant="plain"
-                              sites={sitesQ.data ?? []}
-                              onUpdate={async (status, jobSiteId) => {
-                                try {
-                                  const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
-                                  updateToken(r.token);
-                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                  toast.success("In tag updated");
-                                } catch (err: any) { toast.error(err?.message || "Failed"); }
-                              }}
-                              onUpdatePlanned={async (jobSiteId) => {
-                                try {
-                                  const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
-                                  updateToken(r.token);
-                                  qc.invalidateQueries({ queryKey: ["entries", workerId] });
-                                  toast.success("Planned job updated");
-                                } catch (err: any) { toast.error(err?.message || "Failed"); }
-                              }}
-                            />
+                          </p>
+                          <div className="mt-1.5 flex flex-col gap-1">
+                            {!hideInTag && (
+                              <GeoTagEditor
+                                entry={e}
+                                field="in"
+                                variant="plain"
+                                sites={sitesQ.data ?? []}
+                                onUpdate={async (status, jobSiteId) => {
+                                  try {
+                                    const r = await updGeo({ data: { token, entryId: e.id, status, jobSiteId, field: "in" } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("In tag updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                                onUpdatePlanned={async (jobSiteId) => {
+                                  try {
+                                    const r = await updPlanned({ data: { token, entryId: e.id, jobSiteId } });
+                                    updateToken(r.token);
+                                    qc.invalidateQueries({ queryKey: ["entries", workerId] });
+                                    toast.success("Planned job updated");
+                                  } catch (err: any) { toast.error(err?.message || "Failed"); }
+                                }}
+                              />
+                            )}
                             {e.clock_out && (
                               <GeoTagEditor
                                 entry={e}
@@ -527,20 +514,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                               />
                             )}
                           </div>
-
-                        </div>
-                        <div className="flex items-start gap-0 sm:gap-0.5 -mr-1 sm:mr-0">
-                          {!e.clock_out && (
-                            <Button variant="ghost" className="h-8 w-8 p-0" title="Force clock out" onClick={() => setConfirmForce(e.id)}>
-                              <PowerOff className="h-4 w-4 text-warning" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditing(e)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => setConfirmDel(e.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
                         </div>
                       </div>
                       );
@@ -3192,47 +3165,6 @@ function reasonLabel(code: string | null | undefined) {
   return REASON_LABELS[code] ?? code;
 }
 
-function AssignJobButton({ sites, currentId, onAssign }: {
-  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
-  currentId: string | null;
-  onAssign: (jobSiteId: string | null) => void | Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const clientSites = sites.filter((s) => !s.archived_at && (s.kind ?? "client") === "client");
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-warning/15 text-warning hover:bg-warning/25"
-        >
-          Assign job
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56 p-1 max-h-72 overflow-y-auto" align="start">
-        <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Client job</div>
-        {clientSites.length === 0 && (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">No active jobs</div>
-        )}
-        {clientSites.map((s) => {
-          const active = currentId === s.id;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={async () => { setOpen(false); await onAssign(s.id); }}
-              className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${active ? "bg-secondary" : ""}`}
-            >
-              <Building2 className="h-3 w-3 text-primary" />
-              <span className="truncate">{s.label}</span>
-            </button>
-          );
-        })}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 function GeoTagEditor({
   entry, sites, onUpdate, onUpdatePlanned, field = "in", variant = "badge",
 }: {
@@ -3244,8 +3176,6 @@ function GeoTagEditor({
   onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
-
-
 
   const status: GeoStatus | null = (field === "out" ? entry.clock_out_geo_status : entry.geo_status) ?? null;
   const siteLabel: string | null =
@@ -3265,10 +3195,9 @@ function GeoTagEditor({
       status === "no_gps" ? "No GPS" :
       "Set tag";
     trigger = (
-      <span className="flex items-center gap-1.5 min-w-0 max-w-full text-xs text-gray-500 hover:text-foreground cursor-pointer">
-        <DirIcon className={`h-3 w-3 shrink-0 ${dirClass}`} />
-        <span className="shrink-0 font-medium">{field === "out" ? "Out:" : "In:"}</span>
-        <span className="min-w-0 flex-1 truncate">{text}</span>
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+        <DirIcon className={`h-3.5 w-3.5 shrink-0 ${dirClass}`} />
+        <span className="truncate">{text}</span>
       </span>
     );
   } else {
@@ -3309,7 +3238,7 @@ function GeoTagEditor({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className="flex min-w-0 max-w-full" aria-label="Edit geo tag">{trigger}</button>
+        <button type="button" className="inline-flex" aria-label="Edit geo tag">{trigger}</button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-1 max-h-80 overflow-y-auto" align="start">
         {entry.offsite_reason_code && (

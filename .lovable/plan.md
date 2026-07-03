@@ -1,43 +1,57 @@
-## Goal
+## What determines Active vs Closed
 
-Make the shift ticket's bold title strictly reflect the **assigned job site** (the project being billed), and always show the raw GPS punch locations in the footer audit timeline — regardless of whether they match the title.
+The parser reads cell **C3** of the spreadsheet as `finish_date`. If C3 is empty → job is Active. If C3 has a date → job is Closed. That's the only rule.
 
-## Changes (all in `src/components/admin/AdminApp.tsx`, entry card around L429–L560)
+Your uploads landed in Active because C3 was blank on those workbooks, even though the filenames said "DONE". The current parser strips `DONE -` / `ACTIVE -` from the filename for the address but never uses that signal to set the finish date.
 
-### 1. Rewrite the title resolver
+## Plan
 
-Replace the current priority chain (worker-typed → clock-in client site → clock-out client site → planned → "Material run" → "Unassigned") with a strict assigned-job-only rule:
+### 1. Fix Active/Closed detection on upload
 
-- `title = planned_job.label` when the entry has a `planned_job_site_id`.
-- Otherwise `title = "Unassigned"` and `unassigned = true`.
-- Drop `workerTyped`, `inClient`, `outClient`, `inSupplier`, `outSupplier`, and "Material run" branches from title selection. (The typed `project` field and supplier context can still surface as a small muted hint under the title — see step 2 — but never as the bold title.)
+In `src/lib/ledger-xlsx.ts`:
+- Detect a `DONE` / `CLOSED` / `COMPLETE` prefix in the filename before it's stripped.
+- If detected AND C3 is empty, set `finish_date` to `start_date` (C2) as a fallback, or to today if C2 is also empty.
 
-Result: a shift clocked in at a supplier no longer shows the supplier as the title; if no job is assigned it reads **Unassigned** with the existing `AssignJobButton`.
+In `src/routes/ledger/sync.tsx`:
+- Add a checkbox above the upload button: **"Mark uploaded jobs as closed"** (default off). When on, the client sends a flag with each upload.
+- Extend `uploadLedgerJobXlsx` in `src/lib/ledger.functions.ts` to accept `markClosed?: boolean` and force `finish_date` when set.
+- Add a small **"Mark closed"** action to each JobCard on the Active tab so any misclassified job can be fixed in one click (uses existing `updateLedgerJob`).
 
-### 2. Source hint
+### 2. Remove Reset All Jobs
 
-- Remove the "From clock-in site" / "From clock-out site" / "Planned job" source line, since the title is now unambiguous.
-- Keep a muted hint only when useful: if worker typed a `project` value different from the assigned job's label, render it as `text-[11px] text-muted-foreground` under the title ("Worker note: {project}"). Otherwise render nothing.
+Delete the entire "Reset all jobs" card from `src/routes/ledger/sync.tsx`. Change the grid from 2 columns to a single centered upload card. Leave `resetLedgerJobs`/`useResetLedgerJobs` in place unused (harmless) or remove them — I'll remove them to keep the file clean.
 
-### 3. Always render the audit footer
+### 3. Google Sheets sync (mirrors Clockwise pattern)
 
-- Delete `hideInTag`, `hideOutTag`, and the `matchesTitleOrPlanned` helper.
-- The footer block always renders when the entry has any punch data: always show the **In** row; show the **Out** row whenever `e.clock_out` exists.
-- Container keeps `mt-2 pt-2 border-t border-border/50 flex flex-col gap-1`.
+Reuse the existing Google Sheets connector (`GOOGLE_SHEETS_API_KEY` is already linked). Add:
 
-### 4. Muted footer styling
+**Schema** — one migration adding two columns to `app_settings`:
+- `ledger_export_sheet_id text`
+- `ledger_export_last_sync_at timestamptz`
 
-In the `plain` branch of `GeoTagEditor` (around L3285–L3310):
+**Server** — `src/lib/ledger-sheet-export.functions.ts` + `.server.ts` matching the Clockwise export shape:
+- `getLedgerExportSettings` / `updateLedgerExportSettings` / `runLedgerSheetExportFn`
+- Full overwrite of these tabs on every sync:
+  - `Active Jobs` — address, client, start date, total price, gross cash, gross+HST, materials, subs, labor, net, margin, payments received, lead source
+  - `Closed Jobs` — same columns + finish date
+  - `Payments Log` — address, date, amount, method
+  - `Expenses Log` — address, date, vendor, category, amount
+  - `Price Log` — address, date, amount, has HST, comment
+- Freeze header row, bold headers, autosize columns (reuse `formatTab` helper pattern).
 
-- Change the trigger text color from the current `text-muted-foreground` to `text-xs text-gray-500` on both the `In:` / `Out:` prefix and the address span.
-- Keep the green down-arrow (In) and red up-arrow (Out) icons and the existing `min-w-0 truncate` layout so long addresses still ellipsize.
+**UI** — new "Google Sheets sync" card on the Sync tab (admin only), identical layout to the Clockwise settings card:
+- Input for sheet URL/ID with Save
+- "Sync now" button showing last sync timestamp
+- Connector-ready check hidden until sheet ID is set
 
-## Out of scope
+### Technical notes
 
-- No DB or server-function changes. `time_entries.project` and `planned_job_site_id` semantics stay the same; only the client-side display rule changes.
-- No changes to the worker app, geo resolver, or clock-in flow.
-- Desktop layout inherits the same rules — assigned job title, always-visible audit — with no separate breakpoint work.
+- The DONE-filename detection: `^\s*(DONE|CLOSED|COMPLETE)\b` — case-insensitive, checked before the address is normalized.
+- The sync endpoint follows the exact same gateway wrapper (`gw()`), `ensureTabsAndClear`, `writeTab`, `formatTab` helpers as `sheet-export.server.ts` — I'll factor them into a shared `sheets-gateway.server.ts` so both exports use one implementation.
+- Address is used as the row key in the log tabs (not tab-per-job — that would explode).
+- No changes to `ledger_jobs` schema needed for the sync itself.
 
-## Files touched
+### Out of scope
 
-- `src/components/admin/AdminApp.tsx` — entry card resolver + JSX (L429–L560) and the `plain` variant of `GeoTagEditor` (L3285–L3310).
+- Automatic scheduled sync (can add pg_cron hook later if you want).
+- Two-way sync from Sheets back into Ledger.
