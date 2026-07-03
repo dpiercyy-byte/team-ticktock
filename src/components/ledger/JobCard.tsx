@@ -210,6 +210,7 @@ export function JobCard({ job }: { job: LedgerJob }) {
           {job.payments_log?.length > 0 && <LogTable title="Payments" rows={job.payments_log.map((p) => [fmtDate(p.date), fmtMoney(p.amount), p.method])} headers={["Date", "Amount", "Method"]} />}
         </div>
       )}
+      {admin && <EditJobDialog job={job} open={editOpen} onOpenChange={setEditOpen} />}
     </div>
   );
 }
