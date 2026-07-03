@@ -3268,7 +3268,7 @@ function GeoTagEditor({
 }) {
   const [open, setOpen] = useState(false);
 
-  const [open, setOpen] = useState(false);
+
 
   const status: GeoStatus | null = (field === "out" ? entry.clock_out_geo_status : entry.geo_status) ?? null;
   const siteLabel: string | null =
