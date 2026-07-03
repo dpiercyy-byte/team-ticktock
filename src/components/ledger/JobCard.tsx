@@ -6,11 +6,12 @@ import {
 } from "@/lib/ledger-client";
 import {
   MapPin, User, Calendar, TrendingUp, DollarSign, Trash2, ChevronDown, ChevronUp,
-  CheckCircle2, Sheet as SheetIcon, ExternalLink, Upload, Download, Loader2,
+  CheckCircle2, Sheet as SheetIcon, ExternalLink, Upload, Download, Loader2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EditJobDialog } from "@/components/ledger/EditJobDialog";
 import { toast } from "sonner";
 
 const LEAD_OPTIONS = ["referral", "repeat", "designer", "website", "unknown"];
