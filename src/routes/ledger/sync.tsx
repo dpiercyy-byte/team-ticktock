@@ -51,13 +51,10 @@ function LedgerSync() {
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [sheetUrl, setSheetUrl] = useState<string>("");
 
-  const { activeJobs, closedJobs } = useMemo(() => {
-    const list = (jobs ?? []) as LedgerJob[];
-    return {
-      activeJobs: list.filter((j) => !j.finish_date),
-      closedJobs: list.filter((j) => !!j.finish_date),
-    };
-  }, [jobs]);
+  const activeJobs = useMemo(
+    () => ((jobs ?? []) as LedgerJob[]).filter((j) => !j.finish_date),
+    [jobs],
+  );
 
   const selectedJob = useMemo(
     () => (jobs ?? []).find((j) => j.id === selectedJobId) ?? null,
