@@ -87,7 +87,10 @@ export function parseLedgerJobXlsx(fileBytes: ArrayBuffer | Uint8Array, filename
   const address = addressFromFilename(filename);
   const client_name = cellAt(ws, "C1") ? String(cellAt(ws, "C1")) : null;
   const start_date = parseDate(cellAt(ws, "C2"));
-  const finish_date = parseDate(cellAt(ws, "C3"));
+  let finish_date = parseDate(cellAt(ws, "C3"));
+  if (!finish_date && filenameSignalsClosed(filename)) {
+    finish_date = start_date ?? todayIso();
+  }
   const profit_margin = num(cellAt(ws, "F3"));
   const total_price = num(cellAt(ws, "B6"));
   const finish_materials = num(cellAt(ws, "E6"));
