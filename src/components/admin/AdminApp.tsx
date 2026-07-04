@@ -440,8 +440,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
             <div className="divide-y divide-border">
               {Object.entries(byDate).map(([date, items]) => {
                 const dayHours = items.reduce((s, e) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0), 0);
-                const workerRate = wq.data?.find((w: any) => w.id === workerId)?.hourly_rate ?? 0;
-                const dayWages = dayHours * workerRate;
                 return (
                   <div
                     key={date}
@@ -449,13 +447,8 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
                       : "border-l-[3px] border-l-transparent"}
                   >
-                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm flex items-center justify-between">
+                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
-                      <span className="tabular-nums">
-                        {dayHours.toFixed(2)} hrs
-                        <span className="mx-1.5 text-muted-foreground">·</span>
-                        <span className="text-emerald-600 font-semibold">{fmtMoney(dayWages)}</span>
-                      </span>
                     </div>
                     {items.map((e: any) => (
                       <div key={e.id} className="px-4 sm:px-5 py-3">
