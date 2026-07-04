@@ -500,12 +500,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       <section className="border-t border-border bg-card rounded-t-2xl px-6 py-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Today</p>
-          <div className="flex items-center gap-2">
-            <p className="text-2xl font-bold tabular-nums">{fmtHours(todayDisplay)}</p>
-            {rate > 0 && (
-              <p className="text-lg font-semibold tabular-nums text-emerald-600">{fmtMoney(todayDisplay * rate)}</p>
-            )}
-          </div>
+          <p className="text-2xl font-bold tabular-nums">{fmtHours(todayDisplay)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">This Week</p>
