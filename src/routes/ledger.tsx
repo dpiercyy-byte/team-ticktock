@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { LedgerHeader } from "@/components/ledger/LedgerHeader";
+import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import { getSessionToken } from "@/lib/ledger-client";
 
 export const Route = createFileRoute("/ledger")({
@@ -20,6 +21,7 @@ function LedgerLayout() {
   }, [navigate]);
   return (
     <div className="ledger-scope grain min-h-screen">
+      <AppSwitcherBar />
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-6">
         <LedgerHeader />
         <Outlet />
