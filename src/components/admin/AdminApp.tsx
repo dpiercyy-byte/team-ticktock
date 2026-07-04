@@ -447,8 +447,19 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                       ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
                       : "border-l-[3px] border-l-transparent"}
                   >
-                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm">
+                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm flex items-center justify-between">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-primary font-semibold tabular-nums">{fmtHours(dayHours)}</span>
+                        {(() => {
+                          const worker = wq.data?.find((w: any) => w.id === workerId);
+                          const rate = Number(worker?.hourly_rate ?? 0);
+                          if (rate > 0) {
+                            return <span className="text-success font-semibold tabular-nums">{fmtMoney(dayHours * rate)}</span>;
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </div>
                     {items.map((e: any) => (
                       <div key={e.id} className="px-4 sm:px-5 py-3">
