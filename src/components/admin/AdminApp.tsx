@@ -468,9 +468,6 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                             {/* Time strip */}
                             <p className="font-medium tabular-nums text-sm sm:text-base">
                               {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
-                              <span className="ml-2 sm:ml-3 text-primary font-medium text-xs sm:text-sm">
-                                {e.clock_out ? `${diffHours(e.clock_in, e.clock_out).toFixed(2)} hrs` : ""}
-                              </span>
                             </p>
 
                             {/* Primary title: assigned/billed job(s) */}
