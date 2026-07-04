@@ -1,68 +1,33 @@
+## Goal
+Show the worker’s estimated daily wages next to the daily hours total in the admin Time Entries list, styled in green.
 
-## Where we are today
+## Change
+In `src/components/admin/AdminApp.tsx` (`EntriesTab`), inside the per-date grouping loop:
 
-Looking at your diagram vs. what's already built:
+1. Read the selected worker’s `hourly_rate` from `wq.data`.
+2. Compute `dayWages = dayHours * hourly_rate`.
+3. Render both `dayHours` and `dayWages` in the grey date header (`bg-secondary`), with the dollar amount in green font (`text-emerald-600 font-semibold`).
 
-**Already done (Phase 1 / MVP):**
-- Ledger jobs module (active/closed tabs, xlsx import)
-- Google Sheets integration (link, push, pull, 5-min auto-pull)
-- Clockwise time tracking + GPS verification
-- Receipts + reimbursements
-- Workers, payouts, audit log
-- Supabase as central DB
+### Before
+```tsx
+<div className="px-4 sm:px-5 py-2 bg-secondary text-sm">
+  <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
+</div>
+```
 
-**Diagram items NOT built yet:**
-- CRM / Leads pipeline (New → Estimate → Sent → Won/Lost)
-- Joist estimate import → auto-create Ledger job
-- Auto-pull Clockwise hours into a job's labor cost
-- Auto-categorize expenses / remind on missing receipts
-- Executive dashboards (profitability, cash flow, top expenses)
-- Editable job card (we planned this — not yet built)
-- Client follow-up automations
+### After
+```tsx
+<div className="px-4 sm:px-5 py-2 bg-secondary text-sm flex items-center justify-between">
+  <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
+  <span className="tabular-nums">
+    {dayHours.toFixed(2)} hrs · <span className="text-emerald-600 font-semibold">{fmtMoney(dayWages)}</span>
+  </span>
+</div>
+```
 
-## Proposed next steps, in order
+## Verification
+- Open admin → Time Entries tab, pick a worker with entries.
+- Each date group header should show hours + green dollar amount.
+- If rate is 0 or missing, show `$0.00`.
 
-### Step 1 — Finish the Edit Job Dialog (already planned, ~1 change)
-Ship the previously-approved edit dialog for active job cards. Unblocks manual data cleanup before we add more automation on top.
-
-### Step 2 — Clockwise → Ledger labor auto-sync
-Aggregate `time_entries` per `linked_job_site_id` and write the total into the linked `ledger_jobs.labor` field on a schedule (reuse the existing 5-min cron or a nightly job). Fulfills diagram item "Auto-pull time entries from Clockwise into job records."
-
-### Step 3 — Executive Dashboard v1
-You already have `ExecutiveDashboard.tsx` scaffolded. Fill it with:
-- Total revenue vs. expenses vs. profit (from `ledger_jobs`)
-- Outstanding payments (`total_price - payments_received` for active jobs)
-- Top expense categories (finish/building materials, subs, labor)
-- Job profitability leaderboard
-Covers diagram sections 5 & 6.
-
-### Step 4 — Joist bridge (manual for now)
-Since Joist has no API, add an **"Import from Joist"** flow:
-- Paste-or-upload the Joist estimate PDF/CSV
-- Parse client name, address, line-item total
-- Prefill a new Ledger job in "Won" state
-Later we can add a Zapier/email-parser webhook at `/api/public/hooks/joist-estimate-accepted` to make it fully automatic. Covers diagram item "Auto-create job when estimate is accepted."
-
-### Step 5 — CRM / Leads pipeline
-New `leads` table with status enum (new/contacted/estimating/sent/won/lost) and a Kanban view under `/ledger/leads`. Converting a "Won" lead creates a Ledger job (and is the natural landing spot for the Joist import from Step 4).
-
-### Step 6 — Expense hygiene automations
-- Nightly check: `time_entries` on a job with no matching receipts that week → notify admin
-- Auto-categorize receipts by vendor keyword → `finish_materials` / `building_materials` / `subs`
-
-### Step 7 (Phase 3) — Client portal & follow-ups
-Public per-job link where clients can see progress, outstanding balance, and pay. Automated email nudges for overdue invoices.
-
-## What I need from you to move forward
-
-Same asks as the diagram's "Information I need from you" box:
-1. A screenshot of your current Google Sheets job template (tabs + key columns)
-2. A sample Joist estimate export (PDF or CSV)
-3. Must-have vs. nice-to-have priority ranking of Steps 2–7
-4. Any branding/design preferences for the dashboard
-
-## Recommendation
-
-Approve **Steps 1 → 2 → 3** as the next build sprint — they compound (edit → sync → visualize) and give you a working profitability view before we tackle the bigger Joist/CRM work.
-
-Which step should I start with, and can you share the Joist export sample + sheet template screenshot?
+No new dependencies. No backend changes.
