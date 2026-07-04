@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
