@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import {
   Clock, LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
@@ -140,7 +141,7 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
   const [pw, setPw] = useState("");
   const m = useMutation({
     mutationFn: () => login({ data: { password: pw } }),
-    onSuccess: (r) => { onLogin(r.token); navigate({ to: "/apps" }); },
+    onSuccess: (r) => { onLogin(r.token); navigate({ to: "/admin" }); },
     onError: () => { toast.error("Invalid password"); setPw(""); },
   });
   return (
@@ -183,16 +184,10 @@ function AdminDashboard({ token, updateToken, onLogout }: {
 }) {
   return (
     <div className="min-h-dvh bg-background">
+      <AppSwitcherBar onLogout={onLogout} />
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Link
-              to="/apps"
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Apps</span>
-            </Link>
-            <div className="h-6 w-px bg-border shrink-0" />
             <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                  style={{ background: "var(--gradient-primary)" }}>
               <Clock className="h-5 w-5 text-primary-foreground" />
@@ -202,11 +197,9 @@ function AdminDashboard({ token, updateToken, onLogout }: {
               <p className="text-xs text-muted-foreground hidden sm:block">Session expires after 30 min idle</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={onLogout} className="shrink-0">
-            <LogOut className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Sign out</span>
-          </Button>
         </div>
       </header>
+
 
       <div className="max-w-6xl mx-auto p-4 sm:p-6">
         <Tabs defaultValue="entries">
