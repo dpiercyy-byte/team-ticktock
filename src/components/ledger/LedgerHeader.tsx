@@ -13,13 +13,6 @@ export function LedgerHeader() {
   return (
     <div className="pill-card p-4 md:p-5 mb-6 flex items-center justify-between gap-3 flex-wrap fade-up">
       <div className="flex items-center gap-3">
-        <Link
-          to="/apps"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" /> Apps
-        </Link>
-        <div className="h-6 w-px bg-slate-200" />
         <div>
           <div className="text-xs uppercase tracking-wider text-slate-500">Clockwise</div>
           <div className="display text-xl md:text-2xl text-slate-900 -mt-0.5">Ledger</div>
