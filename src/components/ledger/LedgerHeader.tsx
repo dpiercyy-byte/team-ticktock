@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Briefcase, CheckCircle2, RefreshCw, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Briefcase, CheckCircle2, RefreshCw } from "lucide-react";
 
 const tabs = [
   { to: "/ledger", label: "Executive", icon: LayoutDashboard, exact: true },
