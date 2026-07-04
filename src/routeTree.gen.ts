@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LedgerRouteImport } from './routes/ledger'
-import { Route as AppsRouteImport } from './routes/apps'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LedgerIndexRouteImport } from './routes/ledger/index'
@@ -24,11 +23,6 @@ import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/pub
 const LedgerRoute = LedgerRouteImport.update({
   id: '/ledger',
   path: '/ledger',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppsRoute = AppsRouteImport.update({
-  id: '/apps',
-  path: '/apps',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -83,7 +77,6 @@ const ApiPublicHooksAutoClockoutRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/apps': typeof AppsRoute
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/active': typeof LedgerActiveRoute
   '/ledger/closed': typeof LedgerClosedRoute
@@ -96,7 +89,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/apps': typeof AppsRoute
   '/ledger/active': typeof LedgerActiveRoute
   '/ledger/closed': typeof LedgerClosedRoute
   '/ledger/sync': typeof LedgerSyncRoute
@@ -109,7 +101,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/apps': typeof AppsRoute
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/active': typeof LedgerActiveRoute
   '/ledger/closed': typeof LedgerClosedRoute
@@ -124,7 +115,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/apps'
     | '/ledger'
     | '/ledger/active'
     | '/ledger/closed'
@@ -137,7 +127,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
-    | '/apps'
     | '/ledger/active'
     | '/ledger/closed'
     | '/ledger/sync'
@@ -149,7 +138,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/apps'
     | '/ledger'
     | '/ledger/active'
     | '/ledger/closed'
@@ -163,7 +151,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  AppsRoute: typeof AppsRoute
   LedgerRoute: typeof LedgerRouteWithChildren
   ApiPublicHooksAutoClockoutRoute: typeof ApiPublicHooksAutoClockoutRoute
   ApiPublicHooksLedgerSheetPullRoute: typeof ApiPublicHooksLedgerSheetPullRoute
@@ -177,13 +164,6 @@ declare module '@tanstack/react-router' {
       path: '/ledger'
       fullPath: '/ledger'
       preLoaderRoute: typeof LedgerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/apps': {
-      id: '/apps'
-      path: '/apps'
-      fullPath: '/apps'
-      preLoaderRoute: typeof AppsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -272,7 +252,6 @@ const LedgerRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  AppsRoute: AppsRoute,
   LedgerRoute: LedgerRouteWithChildren,
   ApiPublicHooksAutoClockoutRoute: ApiPublicHooksAutoClockoutRoute,
   ApiPublicHooksLedgerSheetPullRoute: ApiPublicHooksLedgerSheetPullRoute,
