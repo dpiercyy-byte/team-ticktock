@@ -193,7 +193,6 @@ function AdminDashboard({ token, updateToken, onLogout }: {
               <Clock className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-bold truncate">Clockwise Admin</h1>
               <p className="text-xs text-muted-foreground hidden sm:block">Session expires after 30 min idle</p>
             </div>
           </div>
