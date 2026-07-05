@@ -17,13 +17,13 @@ export function AppSwitcherBar({ onLogout }: { onLogout?: () => void }) {
   };
 
   const base =
-    "flex-1 flex items-center justify-center gap-2 h-11 sm:h-12 text-sm sm:text-base font-semibold transition-colors";
-  const active = "bg-slate-900 text-white";
-  const inactive = "bg-white text-slate-600 hover:bg-slate-50";
+    "flex-1 flex items-center justify-center gap-2 h-10 sm:h-11 text-sm sm:text-base font-semibold transition-colors rounded-full";
+  const active = "bg-primary text-primary-foreground shadow-sm";
+  const inactive = "bg-secondary text-secondary-foreground hover:bg-muted";
 
   return (
-    <div className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white">
-      <div className="flex items-stretch w-full">
+    <div className="sticky top-0 z-40 w-full border-b border-border bg-background">
+      <div className="flex items-center gap-2 w-full px-2 sm:px-3 py-2">
         <Link to={clockwiseTo} className={`${base} ${!isLedger ? active : inactive}`}>
           <Clock className="w-4 h-4" />
           Clockwise
@@ -35,7 +35,7 @@ export function AppSwitcherBar({ onLogout }: { onLogout?: () => void }) {
         <button
           onClick={handleLogout}
           aria-label="Sign out"
-          className="shrink-0 h-11 sm:h-12 px-3 sm:px-4 inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-l border-slate-200 text-sm font-medium transition-colors"
+          className="shrink-0 h-10 sm:h-11 px-3 sm:px-4 inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full text-sm font-medium transition-colors"
         >
           <LogOut className="w-4 h-4" />
           <span className="hidden sm:inline">Sign out</span>
