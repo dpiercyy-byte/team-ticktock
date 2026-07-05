@@ -185,22 +185,7 @@ function AdminDashboard({ token, updateToken, onLogout }: {
   return (
     <div className="min-h-dvh bg-background">
       <AppSwitcherBar onLogout={onLogout} />
-      <header className="border-b border-border bg-card">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                 style={{ background: "var(--gradient-primary)" }}>
-              <Clock className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground hidden sm:block">Session expires after 30 min idle</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-
-      <div className="max-w-6xl mx-auto p-4 sm:p-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3">
         <Tabs defaultValue="entries">
           <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 overflow-x-auto">
             <TabsList className="mx-4 sm:mx-0 w-max sm:w-auto">
