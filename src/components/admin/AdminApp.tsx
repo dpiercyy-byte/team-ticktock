@@ -644,17 +644,12 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
 function Stat({ label, value, variant }: { label: string; value: string; variant?: "default" | "total" }) {
   const isTotal = variant === "total";
   return (
-    <Card className={isTotal ? "border-primary/20" : undefined}>
+    <Card className={isTotal ? "border-l-4 border-l-[var(--success)]" : undefined}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
-          {isTotal && (
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary">
-              <DollarSign className="w-3 h-3" />
-            </span>
-          )}
         </div>
-        <p className={`text-2xl font-bold tabular-nums mt-1 ${isTotal ? "text-primary" : ""}`}>{value}</p>
+        <p className={`text-2xl font-bold tabular-nums mt-1 ${isTotal ? "text-success" : ""}`}>{value}</p>
       </CardContent>
     </Card>
   );
