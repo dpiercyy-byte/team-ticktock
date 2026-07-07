@@ -1,20 +1,35 @@
 ## Goal
-Soften the AppSwitcherBar toggle strip and remove the redundant "Clockwise Admin" header label.
+1. Replace the "Reimb" label with "Reimburse" in the time-entries stat row.
+2. Make the "Total" stat card visually dominant over Hours / Wages / Reimburse without breaking the calm, unified card style.
 
 ## Changes
 
-### 1. AppSwitcherBar visual refresh (`src/components/AppSwitcherBar.tsx`)
-- Replace hardcoded `bg-slate-900` / `bg-white` with design-system semantic tokens
-- Active half: `bg-primary text-primary-foreground` (soft medium-blue instead of harsh black)
-- Inactive half: `bg-secondary text-secondary-foreground` (subtle gray-blue instead of flat white)
-- Reduce height: from `h-11 sm:h-12` to `h-10 sm:h-11`
-- Add rounded corners inside a padded container: wrap each half in `rounded-lg` or `rounded-full` pills with a small gap, giving a segmented-control feel instead of a solid bar
-- Outer wrapper: keep `sticky top-0` but switch from `border-b border-slate-200 bg-white` to `bg-background border-b border-border` so it respects the theme
-- Sign-out button: soften from `border-l border-slate-200` to `border-l border-border`, keep it subtle
+### 1. Label copy change
+File: `src/components/admin/AdminApp.tsx` (line ~402)
+```tsx
+<Stat label="Reimburse" value={fmtMoney(weekReimb)} />
+```
 
-### 2. Remove "Clockwise Admin" header (`src/components/admin/AdminApp.tsx`)
-- Delete the `<h1 className="font-bold truncate">Clockwise Admin</h1>` element inside the dashboard header
-- Keep the icon, session-expiry subtitle, and the rest of the header layout intact
+### 2. "Total" card visual emphasis — choose one direction
 
-## Result
-The strip feels lighter, the active state uses the project's blue instead of black, edges are rounder/pill-shaped, and the admin page loses the duplicate "Clockwise" label since the strip already communicates the app name.
+All options keep the same card component, padding, and border radius so the grid stays balanced. Only the **Total** card receives the treatment.
+
+**Option A: Primary-tinted value (default recommendation)**
+- Render the Total value in `text-primary`.
+- Add a small `DollarSign` or `Sigma` icon in a `bg-primary/10 text-primary` chip beside the label.
+- Keeps the card surface identical; the eye is drawn to the blue number.
+
+**Option B: Soft left accent bar**
+- Add a `border-l-4 border-primary` class to the Total card.
+- Slightly tint the card background with `bg-primary/[0.03]`.
+- Label stays muted; value stays default foreground. The accent bar signals "this is the summary."
+
+**Option C: Elevated summary card**
+- Apply a subtle shadow (`shadow-sm` or `shadow-md`) and a very light primary background tint.
+- Increase the value size from `text-2xl` to `text-3xl` on the Total card only.
+- Most prominent of the three, but still within the existing color system.
+
+## Implementation notes
+- The `Stat` component currently takes only `label` and `value`. To support the chosen option we will extend it with an optional `variant?: 'default' | 'total'` prop (or optional `icon` / `accent` props) and pass `variant="total"` only on the last `<Stat>`.
+- No changes to data logic, layout grid, or other cards.
+- After you pick an option, I will implement it and run the typecheck.
