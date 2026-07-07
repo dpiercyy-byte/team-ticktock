@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import {
-  LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound, DollarSign,
+  LogOut, Plus, Trash2, Pencil, Download, AlertTriangle, KeyRound,
   Paperclip, Upload, X, FileText, MapPin, MapPinOff, Archive, ArchiveRestore, Search, Truck, Building2, PowerOff,
   Sparkles, RefreshCw, Sheet, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
   Phone, Mail, Home as HomeIcon, User as UserIcon, ShieldAlert, ChevronDown, ArrowLeft,
