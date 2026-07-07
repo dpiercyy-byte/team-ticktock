@@ -1,35 +1,33 @@
-## Goal
-1. Replace the "Reimb" label with "Reimburse" in the time-entries stat row.
-2. Make the "Total" stat card visually dominant over Hours / Wages / Reimburse without breaking the calm, unified card style.
+## Plan
 
-## Changes
+### What we’ll change
+In the admin **Time Entries** tab, each shift currently shows only its clock-in → clock-out range. We’ll add the computed duration (e.g. `8.25 hrs`) directly beside that time strip, so admins can scan hours per shift without reading the day header.
 
-### 1. Label copy change
-File: `src/components/admin/AdminApp.tsx` (line ~402)
-```tsx
-<Stat label="Reimburse" value={fmtMoney(weekReimb)} />
+### Where
+- File: `src/components/admin/AdminApp.tsx`
+- Component: `EntriesTab` → entry row rendering inside the daily grouped list.
+
+### How
+1. Compute per-entry hours with the existing `diffHours(e.clock_in, e.clock_out)` helper.
+2. For entries that are still active (`!e.clock_out`), show `active` or `—` instead of a duration.
+3. Insert the duration on the same line as the clock-in/clock-out time, separated by a subtle divider or muted text so it doesn’t compete with the time range.
+4. Keep the day-level total in the date header unchanged — it still provides the daily rollup.
+
+### Visual treatment options
+Choose one of the following for the duration display:
+
+**A. Muted inline pill (recommended)**
 ```
+08:00 – 16:15  ·  8.25 hrs
+```
+Duration uses `text-muted-foreground` with a middle dot separator. Low visual weight, easy to scan.
 
-### 2. "Total" card visual emphasis — choose one direction
+**B. Right-aligned badge**
+Duration sits in a small `Badge` at the right end of the time strip, using the same muted style as the day header total.
 
-All options keep the same card component, padding, and border radius so the grid stays balanced. Only the **Total** card receives the treatment.
+### Scope
+- No data model or server changes.
+- No changes to the day header total or pay estimate.
+- Typecheck and preview verification after edit.
 
-**Option A: Primary-tinted value (default recommendation)**
-- Render the Total value in `text-primary`.
-- Add a small `DollarSign` or `Sigma` icon in a `bg-primary/10 text-primary` chip beside the label.
-- Keeps the card surface identical; the eye is drawn to the blue number.
-
-**Option B: Soft left accent bar**
-- Add a `border-l-4 border-primary` class to the Total card.
-- Slightly tint the card background with `bg-primary/[0.03]`.
-- Label stays muted; value stays default foreground. The accent bar signals "this is the summary."
-
-**Option C: Elevated summary card**
-- Apply a subtle shadow (`shadow-sm` or `shadow-md`) and a very light primary background tint.
-- Increase the value size from `text-2xl` to `text-3xl` on the Total card only.
-- Most prominent of the three, but still within the existing color system.
-
-## Implementation notes
-- The `Stat` component currently takes only `label` and `value`. To support the chosen option we will extend it with an optional `variant?: 'default' | 'total'` prop (or optional `icon` / `accent` props) and pass `variant="total"` only on the last `<Stat>`.
-- No changes to data logic, layout grid, or other cards.
-- After you pick an option, I will implement it and run the typecheck.
+Which visual treatment do you prefer, A or B?
