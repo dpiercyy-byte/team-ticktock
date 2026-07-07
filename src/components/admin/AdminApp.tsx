@@ -443,8 +443,11 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             {/* Time strip */}
-                            <p className="font-medium tabular-nums text-sm sm:text-base">
+                            <p className="font-medium tabular-nums text-sm sm:text-base flex items-center gap-2">
                               {fmtTime(e.clock_in)} – {e.clock_out ? fmtTime(e.clock_out) : <span className="text-success">active</span>}
+                              {e.clock_out && (
+                                <span className="text-xs text-muted-foreground font-normal">· {fmtHours(diffHours(e.clock_in, e.clock_out))}</span>
+                              )}
                             </p>
 
                             {/* Primary title: assigned/billed job(s) */}
