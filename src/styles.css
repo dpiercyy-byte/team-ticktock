@@ -167,6 +167,11 @@
   }
 }
 
+/* Allow nested horizontal scrollers inside a swipeable tab container to still scroll horizontally. */
+[data-swipe-ignore] {
+  touch-action: pan-x pan-y !important;
+}
+
 /* ================================================================
  * LEDGER APP — scoped visual style (from ledger-app repo)
  * All rules below apply only inside .ledger-scope.

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SwipeableTabs } from "@/components/ui/swipeable-tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -179,34 +180,38 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
   );
 }
 
+const ADMIN_TABS = ["entries", "payouts", "receipts", "workers", "sites", "audit", "settings"] as const;
+
 function AdminDashboard({ token, updateToken, onLogout }: {
   token: string; updateToken: (t: string) => void; onLogout: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState("entries");
   return (
     <div className="min-h-dvh bg-background">
       <AppSwitcherBar onLogout={onLogout} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3">
-        <Tabs defaultValue="entries">
-          <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 overflow-x-auto">
-            <TabsList className="mx-4 sm:mx-0 w-max sm:w-auto">
-              <TabsTrigger value="entries">Time Entries</TabsTrigger>
-            <TabsTrigger value="payouts">Payout</TabsTrigger>
-              <TabsTrigger value="receipts">Receipts</TabsTrigger>
-              <TabsTrigger value="workers">Workers</TabsTrigger>
-              <TabsTrigger value="sites">Job Sites</TabsTrigger>
-              <TabsTrigger value="audit">Audit Log</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="entries"><EntriesTab token={token} updateToken={updateToken} /></TabsContent>
-          <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
-          <TabsContent value="receipts"><ReceiptsTab token={token} updateToken={updateToken} /></TabsContent>
-          <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
-          <TabsContent value="sites"><JobSitesTab token={token} updateToken={updateToken} /></TabsContent>
-          <TabsContent value="audit"><AuditTab token={token} updateToken={updateToken} /></TabsContent>
-          <TabsContent value="settings"><SettingsTab token={token} updateToken={updateToken} /></TabsContent>
-        </Tabs>
-
+        <SwipeableTabs tabs={[...ADMIN_TABS]} value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6">
+              <TabsList className="mx-4 sm:mx-0 flex-wrap h-auto min-h-9">
+                <TabsTrigger value="entries">Time Entries</TabsTrigger>
+                <TabsTrigger value="payouts">Payout</TabsTrigger>
+                <TabsTrigger value="receipts">Receipts</TabsTrigger>
+                <TabsTrigger value="workers">Workers</TabsTrigger>
+                <TabsTrigger value="sites">Job Sites</TabsTrigger>
+                <TabsTrigger value="audit">Audit Log</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="entries"><EntriesTab token={token} updateToken={updateToken} /></TabsContent>
+            <TabsContent value="payouts"><PayoutsTab token={token} updateToken={updateToken} /></TabsContent>
+            <TabsContent value="receipts"><ReceiptsTab token={token} updateToken={updateToken} /></TabsContent>
+            <TabsContent value="workers"><WorkersTab token={token} updateToken={updateToken} /></TabsContent>
+            <TabsContent value="sites"><JobSitesTab token={token} updateToken={updateToken} /></TabsContent>
+            <TabsContent value="audit"><AuditTab token={token} updateToken={updateToken} /></TabsContent>
+            <TabsContent value="settings"><SettingsTab token={token} updateToken={updateToken} /></TabsContent>
+          </Tabs>
+        </SwipeableTabs>
       </div>
     </div>
   );

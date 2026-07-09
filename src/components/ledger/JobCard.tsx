@@ -238,7 +238,7 @@ function LogTable({ title, rows, headers }: { title: string; rows: Array<Array<s
   return (
     <div>
       <h4 className="display text-sm text-slate-700 mb-2">{title}</h4>
-      <div className="overflow-x-auto rounded-lg border border-slate-100">
+      <div data-swipe-ignore className="overflow-x-auto rounded-lg border border-slate-100">
         <table className="w-full text-xs">
           <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider">
             <tr>{headers.map((h) => <th key={h} className="text-left px-2 py-1.5 font-medium">{h}</th>)}</tr>
