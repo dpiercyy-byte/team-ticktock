@@ -9,10 +9,7 @@ const LEDGER_TABS = ["/ledger", "/ledger/active", "/ledger/closed", "/ledger/syn
 
 export const Route = createFileRoute("/ledger")({
   head: () => ({
-    meta: [
-      { title: "Ledger — Clockwise" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Ledger — Clockwise" }, { name: "robots", content: "noindex" }],
   }),
   component: LedgerLayout,
 });

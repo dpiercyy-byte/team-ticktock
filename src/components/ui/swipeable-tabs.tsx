@@ -20,11 +20,7 @@ function isInsideHorizontalScroller(target: HTMLElement): boolean {
   return false;
 }
 
-export function useSwipeableTabs<T>({
-  items,
-  current,
-  onChange,
-}: UseSwipeableTabsOptions<T>) {
+export function useSwipeableTabs<T>({ items, current, onChange }: UseSwipeableTabsOptions<T>) {
   const ignoreSwipe = useRef(false);
 
   const switchItem = useCallback(
@@ -36,7 +32,7 @@ export function useSwipeableTabs<T>({
         onChange(items[newIdx]);
       }
     },
-    [items, current, onChange]
+    [items, current, onChange],
   );
 
   return useSwipeable({
