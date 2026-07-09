@@ -17,8 +17,8 @@ export function AppSwitcherBar({ onLogout }: { onLogout?: () => void }) {
   };
 
   const base =
-    "flex-1 flex items-center justify-center gap-2 h-10 sm:h-11 text-sm sm:text-base font-semibold transition-colors rounded-full";
-  const active = "bg-primary text-primary-foreground shadow-sm";
+    "flex-1 flex items-center justify-center gap-2 h-10 sm:h-11 text-sm sm:text-base font-semibold transition-colors rounded-xl";
+  const active = "bg-slate-900 text-white shadow-sm";
   const inactive = "bg-secondary text-secondary-foreground hover:bg-muted";
 
   return (
