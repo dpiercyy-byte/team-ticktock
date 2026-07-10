@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/
 import { useEffect } from "react";
 import { LedgerHeader } from "@/components/ledger/LedgerHeader";
 import { AppSwitcherBar } from "@/components/AppSwitcherBar";
-import { useSwipeableTabs } from "@/components/ui/swipeable-tabs";
+import { useSwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
 import { getSessionToken } from "@/lib/ledger-client";
 
 const LEDGER_TABS = ["/ledger", "/ledger/active", "/ledger/closed", "/ledger/sync"] as const;
