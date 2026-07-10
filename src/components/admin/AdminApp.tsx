@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { SwipeableTabs } from "@/components/ui/swipeable-tabs";
+import { SwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
