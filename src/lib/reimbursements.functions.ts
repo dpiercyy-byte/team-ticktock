@@ -120,8 +120,12 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
     }).select("id").single();
     if (error) throw error;
     if (inserted?.id) {
-      const { runParseForReimbursement } = await import("./receipts.functions");
-      runParseForReimbursement(inserted.id).catch((e) => console.error("parse trigger", e));
+      try {
+        const { runParseForReimbursement } = await import("./receipts.functions");
+        await runParseForReimbursement(inserted.id);
+      } catch (e) {
+        console.error("parse trigger", e);
+      }
     }
     await logAudit({
       actor: { kind: "admin" },
