@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/
 import { useEffect } from "react";
 import { LedgerHeader } from "@/components/ledger/LedgerHeader";
 import { AppSwitcherBar } from "@/components/AppSwitcherBar";
-import { useSwipeableTabs } from "@/components/ui/swipeable-tabs";
+import { useSwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
 import { getSessionToken } from "@/lib/ledger-client";
 
 const LEDGER_TABS = ["/ledger", "/ledger/active", "/ledger/closed", "/ledger/sync"] as const;
@@ -32,7 +32,9 @@ function LedgerLayout() {
       <AppSwitcherBar />
       <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-6">
         <LedgerHeader />
-        <Outlet />
+        <SwipeTabPanel tabKey={location.pathname} tabs={LEDGER_TABS}>
+          <Outlet />
+        </SwipeTabPanel>
       </div>
     </div>
   );

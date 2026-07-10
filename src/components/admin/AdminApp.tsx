@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { SwipeableTabs } from "@/components/ui/swipeable-tabs";
+import { SwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -359,27 +359,29 @@ function AdminDashboard({
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
             </div>
-            <TabsContent value="entries">
-              <EntriesTab token={token} updateToken={updateToken} />
-            </TabsContent>
-            <TabsContent value="payouts">
-              <PayoutsTab token={token} updateToken={updateToken} />
-            </TabsContent>
-            <TabsContent value="receipts">
-              <ReceiptsTab token={token} updateToken={updateToken} />
-            </TabsContent>
-            <TabsContent value="workers">
-              <WorkersTab token={token} updateToken={updateToken} />
-            </TabsContent>
-            <TabsContent value="sites">
-              <JobSitesTab token={token} updateToken={updateToken} />
-            </TabsContent>
-            <TabsContent value="audit">
-              <AuditTab token={token} updateToken={updateToken} />
-            </TabsContent>
-            <TabsContent value="settings">
-              <SettingsTab token={token} updateToken={updateToken} />
-            </TabsContent>
+            <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
+              <TabsContent value="entries">
+                <EntriesTab token={token} updateToken={updateToken} />
+              </TabsContent>
+              <TabsContent value="payouts">
+                <PayoutsTab token={token} updateToken={updateToken} />
+              </TabsContent>
+              <TabsContent value="receipts">
+                <ReceiptsTab token={token} updateToken={updateToken} />
+              </TabsContent>
+              <TabsContent value="workers">
+                <WorkersTab token={token} updateToken={updateToken} />
+              </TabsContent>
+              <TabsContent value="sites">
+                <JobSitesTab token={token} updateToken={updateToken} />
+              </TabsContent>
+              <TabsContent value="audit">
+                <AuditTab token={token} updateToken={updateToken} />
+              </TabsContent>
+              <TabsContent value="settings">
+                <SettingsTab token={token} updateToken={updateToken} />
+              </TabsContent>
+            </SwipeTabPanel>
           </Tabs>
         </SwipeableTabs>
       </div>

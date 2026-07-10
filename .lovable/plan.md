@@ -1,59 +1,40 @@
-# Fix stuck "scanning" receipts
+## Goal
+Replace the abrupt tab swap with a smooth slide/fade transition when swiping between tabs on mobile (both Clockwise admin and Ledger).
 
-## Root cause
+## Approach
 
-In `src/lib/reimbursements.functions.ts` there are three submit paths (worker submit, admin submit, worker-admin submit). Each triggers the AI parse like this:
+Use a lightweight CSS-based transition keyed on the active tab/route, so the outgoing panel slides/fades out and the incoming one slides in from the swipe direction. No new heavy dependency — Framer Motion is not needed; we can use CSS `@keyframes` already in `src/styles.css` plus a directional class toggled by the swipe handler.
 
-```ts
-runParseForReimbursement(inserted.id).catch((e) => console.error(...));
-```
+### 1. Track swipe direction
+Extend `useSwipeableTabs` in `src/components/ui/swipeable-tabs.tsx` to expose the last transition direction (`"left" | "right"`) alongside the current value. When `onChange` fires from a swipe, record which way it went; when the change comes from a tab click, default to a neutral fade.
 
-No `await`. On Cloudflare Workers (our runtime), any promise still pending when the handler returns is terminated — background work only survives via `ctx.waitUntil`, which isn't wired up here. So:
+### 2. Animated panel wrapper
+Add a `SwipeTabPanel` component (same file) that:
+- Accepts a `key` (active tab id) and `direction`.
+- Wraps children in a div that applies one of two new keyframe animations (`slide-in-left`, `slide-in-right`) on mount, plus a subtle fade. Re-mounts on key change so the animation replays.
+- Duration ~220ms, `cubic-bezier(0.4, 0, 0.2, 1)` to match existing motion tokens.
 
-- AI parse never finishes → `parse_status` stays `pending` → UI shows "Scanning…" indefinitely.
-- `syncRow(...)` (Google Sheets append) runs inside the same function, so the new row never reaches the sheet either.
-- Manual "Rescan" calls `parseReceipt`, which awaits properly, so it works.
+Add the keyframes to `src/styles.css` (alongside existing `slide-in-right` — we'll add `slide-in-left` and reuse the fade timing).
 
-## Fix (two layers, both small)
+### 3. Wire it in
+- **Clockwise admin** (`src/components/admin/AdminApp.tsx`): wrap each `TabsContent` body (or a single wrapper around the switched content) with `SwipeTabPanel` keyed on the active tab value.
+- **Ledger** (`src/routes/ledger.tsx`): wrap `<Outlet />` in `SwipeTabPanel` keyed on `location.pathname`, using the direction from `useSwipeableTabs`.
 
-### 1. Await the parse in the submit handlers — primary fix
-
-Change the three call sites in `src/lib/reimbursements.functions.ts` from fire-and-forget to `await`. Wrap in try/catch so a parse failure never blocks the reimbursement submission itself (the row is already inserted; parse failure just sets `parse_status: "failed"` inside `runParseForReimbursement`).
-
-```ts
-try {
-  const { runParseForReimbursement } = await import("./receipts.functions");
-  await runParseForReimbursement(inserted.id);
-} catch (e) {
-  console.error("parse trigger", e);
-}
-```
-
-Cost: submit response takes ~1–4s longer while Gemini parses and Sheets sync runs. Benefit: by the time the client refetches, `parse_status` is `ok` (or `failed`) and the Sheet row exists. This matches how manual "Rescan" already works reliably.
-
-### 2. Client-side status poll — safety net
-
-Even with (1), a very slow Gemini response or a transient Sheets error could still leave a row in `pending`. Add a lightweight poll in the receipts list / reimbursement card UI:
-
-- When a row's `parse_status === "pending"`, invalidate the receipts query every ~4s (max ~6 retries / ~25s) via `queryClient.invalidateQueries`.
-- Stop polling as soon as the row flips to `ok` or `failed`.
-- No new endpoint needed — the existing list query already returns `parse_status`.
-
-This makes the UI self-heal without the user pressing "Rescan".
+### 4. Respect reduced motion
+Guard the animation with `@media (prefers-reduced-motion: reduce)` in `styles.css` so it collapses to an instant change for users who opt out.
 
 ## Files touched
+- `src/components/ui/swipeable-tabs.tsx` — expose direction, add `SwipeTabPanel`.
+- `src/styles.css` — add `slide-in-left` keyframe + reduced-motion guard.
+- `src/components/admin/AdminApp.tsx` — wrap tab content with `SwipeTabPanel`.
+- `src/routes/ledger.tsx` — wrap `<Outlet />` with `SwipeTabPanel`.
 
-- `src/lib/reimbursements.functions.ts` — three call sites: worker submit (~line 123), admin submit (~line 194), worker-admin submit (~line 321). Change fire-and-forget to awaited try/catch.
-- One UI file that renders the receipts list with the "Scanning…" badge (likely the Receipts tab in `src/components/admin/AdminApp.tsx` or a dedicated receipts component) — add the pending-row polling effect.
-
-## What we're intentionally NOT changing
-
-- `runParseForReimbursement` itself — it already awaits Gemini and the Sheets sync correctly.
-- The `parseReceipt` server function — manual rescan keeps working as-is.
-- The Google Sheets sync logic — once the parse actually completes, the existing `syncRow` call handles the append.
+## Not changing
+- Tab structure, routes, or swipe boundaries (`data-swipe-ignore` scrollers stay as-is).
+- Desktop behavior — the same subtle transition applies on click but is short enough to feel snappy.
 
 ## Verification
-
-- Submit a new receipt as a worker → within a few seconds the card shows parsed vendor/total, not "Scanning…".
-- Check the linked Google Sheet → the new row appears without a manual rescan.
-- Simulate a Gemini failure (bad image) → row flips to `failed`, not stuck on `pending`.
+- On mobile viewport, swipe left/right between Clockwise tabs → new tab slides in from the swipe direction.
+- Same in Ledger.
+- Clicking a tab → gentle fade, no jarring jump.
+- With reduced-motion enabled at the OS level → instant swap, no animation.
