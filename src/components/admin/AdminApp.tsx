@@ -360,25 +360,25 @@ function AdminDashboard({
               </TabsList>
             </div>
             <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
-              <TabsContent value="entries" forceMount={activeTab === "entries" ? true : undefined} hidden={activeTab !== "entries"}>
+              <TabsContent value="entries">
                 <EntriesTab token={token} updateToken={updateToken} />
               </TabsContent>
-              <TabsContent value="payouts" forceMount={activeTab === "payouts" ? true : undefined} hidden={activeTab !== "payouts"}>
+              <TabsContent value="payouts">
                 <PayoutsTab token={token} updateToken={updateToken} />
               </TabsContent>
-              <TabsContent value="receipts" forceMount={activeTab === "receipts" ? true : undefined} hidden={activeTab !== "receipts"}>
+              <TabsContent value="receipts">
                 <ReceiptsTab token={token} updateToken={updateToken} />
               </TabsContent>
-              <TabsContent value="workers" forceMount={activeTab === "workers" ? true : undefined} hidden={activeTab !== "workers"}>
+              <TabsContent value="workers">
                 <WorkersTab token={token} updateToken={updateToken} />
               </TabsContent>
-              <TabsContent value="sites" forceMount={activeTab === "sites" ? true : undefined} hidden={activeTab !== "sites"}>
+              <TabsContent value="sites">
                 <JobSitesTab token={token} updateToken={updateToken} />
               </TabsContent>
-              <TabsContent value="audit" forceMount={activeTab === "audit" ? true : undefined} hidden={activeTab !== "audit"}>
+              <TabsContent value="audit">
                 <AuditTab token={token} updateToken={updateToken} />
               </TabsContent>
-              <TabsContent value="settings" forceMount={activeTab === "settings" ? true : undefined} hidden={activeTab !== "settings"}>
+              <TabsContent value="settings">
                 <SettingsTab token={token} updateToken={updateToken} />
               </TabsContent>
             </SwipeTabPanel>
