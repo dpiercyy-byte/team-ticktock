@@ -2350,6 +2350,10 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         updateToken(r.token);
         return r.items;
       }),
+    refetchInterval: (query) => {
+      const items = (query.state.data as any[] | undefined) ?? [];
+      return items.some((it) => it?.parse_status === "pending") ? 4000 : false;
+    },
   });
 
   const sitesQ = useQuery({
