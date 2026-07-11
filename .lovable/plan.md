@@ -1,40 +1,64 @@
 ## Goal
-Replace the abrupt tab swap with a smooth slide/fade transition when swiping between tabs on mobile (both Clockwise admin and Ledger).
+Replace the current fade+nudge tab transition with a true finger-following carousel: as you drag, the current tab moves with your finger and the neighboring tab peeks in from the edge; release snaps to the next tab (or back) based on distance and velocity.
 
 ## Approach
 
-Use a lightweight CSS-based transition keyed on the active tab/route, so the outgoing panel slides/fades out and the incoming one slides in from the swipe direction. No new heavy dependency — Framer Motion is not needed; we can use CSS `@keyframes` already in `src/styles.css` plus a directional class toggled by the swipe handler.
+Rewrite `src/components/ui/swipeable-tabs.tsx` around a single horizontal track that holds three lanes — previous / current / next — and translates in real time under the finger. No new dependency; `react-swipeable` is replaced with native pointer events so we can read live delta, not just an end gesture.
 
-### 1. Track swipe direction
-Extend `useSwipeableTabs` in `src/components/ui/swipeable-tabs.tsx` to expose the last transition direction (`"left" | "right"`) alongside the current value. When `onChange` fires from a swipe, record which way it went; when the change comes from a tab click, default to a neutral fade.
+### 1. Carousel container
+New `SwipeCarousel` component:
+- Props: `items: readonly string[]`, `current: string`, `onChange(next)`, `renderPanel(key) => ReactNode`.
+- Layout: outer `overflow-hidden`, inner track `flex` with three absolutely-sized lanes at `100%` width each, translated via `transform: translate3d(...)`.
+- Renders only prev / current / next (or nulls at the ends) — cheap, keeps DOM small.
 
-### 2. Animated panel wrapper
-Add a `SwipeTabPanel` component (same file) that:
-- Accepts a `key` (active tab id) and `direction`.
-- Wraps children in a div that applies one of two new keyframe animations (`slide-in-left`, `slide-in-right`) on mount, plus a subtle fade. Re-mounts on key change so the animation replays.
-- Duration ~220ms, `cubic-bezier(0.4, 0, 0.2, 1)` to match existing motion tokens.
+### 2. Live drag tracking
+Native `pointerdown` / `pointermove` / `pointerup` on the track:
+- On `pointerdown`: capture start X/Y, mark axis undecided.
+- On first `pointermove`: if `|dx| > |dy|` and `|dx| > 6px`, lock to horizontal, `setPointerCapture`, disable transitions, prevent vertical scroll hijack. Otherwise release and let the page scroll.
+- While dragging: set `translateX = -currentIndex * width + dx`. Rubber-band (`dx * 0.35`) when at the first tab dragging right or last tab dragging left.
+- Respect `data-swipe-ignore` — if the gesture starts inside one of those scrollers, bail out (same rule that already protects nested horizontal lists).
 
-Add the keyframes to `src/styles.css` (alongside existing `slide-in-right` — we'll add `slide-in-left` and reuse the fade timing).
+### 3. Release physics
+On `pointerup` / `pointercancel`:
+- Commit if `|dx| > width * 0.25` OR `|velocity| > 0.5 px/ms` in a valid direction.
+- Re-enable a short `transform 260ms cubic-bezier(0.22, 1, 0.36, 1)` transition, translate to the committed lane, then call `onChange(nextKey)`.
+- If not committed, animate back to the current lane.
+- After the transition ends, snap the track back to the middle lane (no visible jump) so prev/current/next stay centered for the next drag.
 
-### 3. Wire it in
-- **Clockwise admin** (`src/components/admin/AdminApp.tsx`): wrap each `TabsContent` body (or a single wrapper around the switched content) with `SwipeTabPanel` keyed on the active tab value.
-- **Ledger** (`src/routes/ledger.tsx`): wrap `<Outlet />` in `SwipeTabPanel` keyed on `location.pathname`, using the direction from `useSwipeableTabs`.
+### 4. Click-driven changes
+When `current` changes from outside the drag (tab pill click, route push), animate the track from its current offset to the new lane using the same easing so click and swipe feel identical.
 
-### 4. Respect reduced motion
-Guard the animation with `@media (prefers-reduced-motion: reduce)` in `styles.css` so it collapses to an instant change for users who opt out.
+### 5. Wire-up
+- `src/routes/ledger.tsx`: replace the `useSwipeableTabs` + `SwipeTabPanel` pair with `<SwipeCarousel items={LEDGER_TABS} current={location.pathname} onChange={(to) => navigate({ to })} renderPanel={(key) => key === location.pathname ? <Outlet /> : null}>`. For non-active lanes we render a lightweight placeholder (empty div) — TanStack owns the actual route content, so only the active lane shows real data; the neighbor lanes show a blurred/blank surface during the drag, which is standard carousel behavior when panels are route-owned.
+- `src/components/admin/AdminApp.tsx`: same swap, but here we control all tab bodies so `renderPanel` returns the real content for prev/current/next — full peek-in effect.
+
+### 6. Ledger caveat & fallback
+Because TanStack Router only mounts the active route, Ledger's neighboring lanes can't show real content mid-drag. Two options:
+- **A (default in this plan):** neighbor lanes render an empty surface (`bg-slate-50`) during drag; content appears when the route commits. Cheap, no route changes.
+- **B (optional, not in this plan unless you want it):** pre-render Ledger sub-tabs as internal components inside `ledger.tsx` instead of child routes, so all three lanes have live content like AdminApp does.
+
+Admin (option A/B not needed — content is already local) gets the full effect either way.
+
+### 7. Styles & accessibility
+- Delete `.swipe-panel--forward` / `--back` keyframes from `src/styles.css`; add a `.swipe-carousel-track` transition class instead.
+- Keep `@media (prefers-reduced-motion: reduce)`: disable the release transition, still allow the drag to follow the finger but snap instantly on release.
+- Preserve `touch-action: pan-y` on the outer container so vertical scroll works until horizontal is locked.
 
 ## Files touched
-- `src/components/ui/swipeable-tabs.tsx` — expose direction, add `SwipeTabPanel`.
-- `src/styles.css` — add `slide-in-left` keyframe + reduced-motion guard.
-- `src/components/admin/AdminApp.tsx` — wrap tab content with `SwipeTabPanel`.
-- `src/routes/ledger.tsx` — wrap `<Outlet />` with `SwipeTabPanel`.
+- `src/components/ui/swipeable-tabs.tsx` — replace with `SwipeCarousel` (pointer-event based, live drag).
+- `src/styles.css` — swap the two swipe keyframes for a single track transition class + reduced-motion guard.
+- `src/components/admin/AdminApp.tsx` — use `SwipeCarousel` with real prev/current/next content.
+- `src/routes/ledger.tsx` — use `SwipeCarousel` with `<Outlet />` in the active lane.
 
 ## Not changing
-- Tab structure, routes, or swipe boundaries (`data-swipe-ignore` scrollers stay as-is).
-- Desktop behavior — the same subtle transition applies on click but is short enough to feel snappy.
+- Tab structure, routes, or `data-swipe-ignore` opt-outs.
+- Desktop click behavior (still animates via the same track, just triggered by click).
+- Any business logic, data fetching, or backend code.
 
 ## Verification
-- On mobile viewport, swipe left/right between Clockwise tabs → new tab slides in from the swipe direction.
-- Same in Ledger.
-- Clicking a tab → gentle fade, no jarring jump.
-- With reduced-motion enabled at the OS level → instant swap, no animation.
+- Drag slowly on mobile: current tab follows finger, next/prev peeks in from the opposite edge.
+- Short flick past ~25% or fast velocity → commits to next tab.
+- Small drag → springs back, no tab change.
+- Drag at first/last tab beyond the edge → rubber-bands, releases back.
+- Vertical scroll inside a tab still works; horizontal scrollers marked `data-swipe-ignore` still scroll horizontally.
+- Reduced-motion OS setting → drag still follows finger, release snaps instantly.
