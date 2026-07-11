@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { SwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
+import { SwipeCarousel } from "@/components/ui/swipeable-tabs";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -341,49 +341,48 @@ function AdminDashboard({
   updateToken: (t: string) => void;
   onLogout: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState("entries");
+  const [activeTab, setActiveTab] = useState<(typeof ADMIN_TABS)[number]>("entries");
+  const renderTab = (key: (typeof ADMIN_TABS)[number]) => {
+    switch (key) {
+      case "entries":
+        return <EntriesTab token={token} updateToken={updateToken} />;
+      case "payouts":
+        return <PayoutsTab token={token} updateToken={updateToken} />;
+      case "receipts":
+        return <ReceiptsTab token={token} updateToken={updateToken} />;
+      case "workers":
+        return <WorkersTab token={token} updateToken={updateToken} />;
+      case "sites":
+        return <JobSitesTab token={token} updateToken={updateToken} />;
+      case "audit":
+        return <AuditTab token={token} updateToken={updateToken} />;
+      case "settings":
+        return <SettingsTab token={token} updateToken={updateToken} />;
+    }
+  };
   return (
     <div className="min-h-dvh bg-background">
       <AppSwitcherBar onLogout={onLogout} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3">
-        <SwipeableTabs tabs={[...ADMIN_TABS]} value={activeTab} onValueChange={setActiveTab}>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6">
-              <TabsList className="mx-4 sm:mx-0 flex-wrap h-auto min-h-9">
-                <TabsTrigger value="entries">Time Entries</TabsTrigger>
-                <TabsTrigger value="payouts">Payout</TabsTrigger>
-                <TabsTrigger value="receipts">Receipts</TabsTrigger>
-                <TabsTrigger value="workers">Workers</TabsTrigger>
-                <TabsTrigger value="sites">Job Sites</TabsTrigger>
-                <TabsTrigger value="audit">Audit Log</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
-            </div>
-            <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
-              <TabsContent value="entries">
-                <EntriesTab token={token} updateToken={updateToken} />
-              </TabsContent>
-              <TabsContent value="payouts">
-                <PayoutsTab token={token} updateToken={updateToken} />
-              </TabsContent>
-              <TabsContent value="receipts">
-                <ReceiptsTab token={token} updateToken={updateToken} />
-              </TabsContent>
-              <TabsContent value="workers">
-                <WorkersTab token={token} updateToken={updateToken} />
-              </TabsContent>
-              <TabsContent value="sites">
-                <JobSitesTab token={token} updateToken={updateToken} />
-              </TabsContent>
-              <TabsContent value="audit">
-                <AuditTab token={token} updateToken={updateToken} />
-              </TabsContent>
-              <TabsContent value="settings">
-                <SettingsTab token={token} updateToken={updateToken} />
-              </TabsContent>
-            </SwipeTabPanel>
-          </Tabs>
-        </SwipeableTabs>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as (typeof ADMIN_TABS)[number])}>
+          <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6">
+            <TabsList className="mx-4 sm:mx-0 flex-wrap h-auto min-h-9">
+              <TabsTrigger value="entries">Time Entries</TabsTrigger>
+              <TabsTrigger value="payouts">Payout</TabsTrigger>
+              <TabsTrigger value="receipts">Receipts</TabsTrigger>
+              <TabsTrigger value="workers">Workers</TabsTrigger>
+              <TabsTrigger value="sites">Job Sites</TabsTrigger>
+              <TabsTrigger value="audit">Audit Log</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+          </div>
+        </Tabs>
+        <SwipeCarousel
+          items={ADMIN_TABS}
+          current={activeTab}
+          onChange={setActiveTab}
+          renderPanel={renderTab}
+        />
       </div>
     </div>
   );
