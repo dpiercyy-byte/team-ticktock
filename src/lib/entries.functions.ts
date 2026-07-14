@@ -60,8 +60,8 @@ export const getWorkerState = createServerFn({ method: "POST" })
 
     let todayHours = 0, weekHours = 0;
     for (const r of weekRows ?? []) {
-      const end = r.clock_out ?? now.toISOString();
-      const h = hoursBetween(r.clock_in, end);
+      if (!r.clock_out) continue; // open entry; live session hours added on client
+      const h = hoursBetween(r.clock_in, r.clock_out);
       weekHours += h;
       if (new Date(r.clock_in) >= dayStart) todayHours += h;
     }
