@@ -158,7 +158,8 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
             <Button
               type="button"
               disabled
-              className="w-full h-[60px] rounded-2xl text-base font-semibold shadow-sm"
+              style={{ background: "var(--gradient-primary)" }}
+              className="w-full h-[60px] rounded-2xl text-base font-semibold text-primary-foreground shadow-sm"
             >
               Continue
             </Button>
