@@ -311,7 +311,8 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
           </div>
           <Button
             type="submit"
-            className="w-full h-[60px] rounded-2xl text-base font-semibold shadow-sm transition-transform active:scale-[0.98]"
+            style={{ background: "var(--gradient-primary)" }}
+            className="w-full h-[60px] rounded-2xl text-base font-semibold text-primary-foreground shadow-sm transition-transform active:scale-[0.98] hover:opacity-95"
             disabled={m.isPending || !pw}
           >
             {m.isPending ? "Signing in…" : "Sign In"}
