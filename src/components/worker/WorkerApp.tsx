@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, X, FileText, Trash2, Paperclip, Banknote,
-  MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2,
+  MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { CameraFilePicker } from "@/components/CameraFilePicker";
 
@@ -111,30 +111,36 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
     onError: () => { toast.error("Invalid PIN"); setPin(""); },
   });
 
+  const selectedName = workers?.find((w) => w.id === workerId)?.name;
+
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl mb-3"
-               style={{ background: "var(--gradient-primary)" }}>
-            <Clock className="h-7 w-7 text-primary-foreground" />
+    <div className="min-h-dvh bg-muted/40 flex flex-col px-6 pt-16 pb-10">
+      <div className="w-full max-w-sm mx-auto flex-1 flex flex-col">
+        <div className="text-center mb-12">
+          <div
+            className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full mb-5 shadow-sm"
+            style={{ background: "var(--gradient-primary)" }}
+          >
+            <Clock className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <h1 className="text-2xl font-bold">Clockwise</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {workerId ? "Enter your PIN" : "Select your name"}
-          </p>
+          <h1 className="text-[28px] font-semibold tracking-tight text-foreground">Clockwise</h1>
+          <p className="text-[15px] text-muted-foreground mt-1.5">Clock in for today's work.</p>
         </div>
 
         {!workerId ? (
-          <Card className="p-4 space-y-4">
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : workers && workers.length > 0 ? (
-              <div>
-                <Label className="text-xs text-muted-foreground">Select your name</Label>
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-1">
+                Your name
+              </Label>
+              {isLoading ? (
+                <div className="h-[60px] rounded-2xl bg-background border border-border/60 flex items-center px-4 text-sm text-muted-foreground">
+                  Loading…
+                </div>
+              ) : workers && workers.length > 0 ? (
                 <Select onValueChange={(val) => setWorkerId(val)}>
-                  <SelectTrigger className="w-full mt-1.5">
-                    <SelectValue placeholder="Choose a worker" />
+                  <SelectTrigger className="w-full h-[60px] rounded-2xl bg-background border border-border/60 px-4 text-base shadow-none data-[placeholder]:text-muted-foreground focus:ring-2 focus:ring-primary/30">
+                    <SelectValue placeholder="Select your name" />
                   </SelectTrigger>
                   <SelectContent>
                     {workers.map((w) => (
@@ -142,51 +148,70 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            ) : (
-              <p className="p-6 text-sm text-muted-foreground text-center">
-                No workers yet. Ask your admin to add you.
-              </p>
-            )}
-          </Card>
-        ) : (
-          <form onSubmit={(e) => { e.preventDefault(); if (pin.length >= 4) m.mutate(); }}
-                className="space-y-4">
-            <div className="text-center text-sm">
-              Signing in as{" "}
-              <span className="font-semibold">
-                {workers?.find(w => w.id === workerId)?.name}
-              </span>
+              ) : (
+                <p className="p-6 text-sm text-muted-foreground text-center rounded-2xl bg-background border border-border/60">
+                  No workers yet. Ask your admin to add you.
+                </p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="pin" className="sr-only">PIN</Label>
+
+            <Button
+              type="button"
+              disabled
+              className="w-full h-[60px] rounded-2xl text-base font-semibold shadow-sm"
+            >
+              Continue
+            </Button>
+
+            <div className="text-center pt-2">
+              <a
+                href="/admin"
+                className="inline-flex items-center gap-1 text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Admin sign in
+                <ChevronRight className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (pin.length >= 4) m.mutate(); }}
+            className="space-y-8"
+          >
+            <div className="space-y-2">
+              <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-1">
+                {selectedName ? `PIN for ${selectedName}` : "PIN"}
+              </Label>
               <Input
                 id="pin" type="password" inputMode="numeric" autoComplete="off"
                 autoFocus maxLength={12}
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-                className="text-center text-2xl tracking-[0.5em] h-14"
+                className="h-[60px] rounded-2xl bg-background border border-border/60 px-4 text-center text-2xl tracking-[0.5em] shadow-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/40"
                 placeholder="••••"
               />
             </div>
-            <Button type="submit" className="w-full h-12 text-base" disabled={pin.length < 4 || m.isPending}>
-              {m.isPending ? "Checking…" : "Sign in"}
+
+            <Button
+              type="submit"
+              className="w-full h-[60px] rounded-2xl text-base font-semibold shadow-sm transition-transform active:scale-[0.98]"
+              disabled={pin.length < 4 || m.isPending}
+            >
+              {m.isPending ? "Signing in…" : "Continue"}
             </Button>
-            <button type="button" onClick={() => { setWorkerId(null); setPin(""); }}
-                    className="w-full text-sm text-muted-foreground hover:text-foreground">
-              ← Choose a different name
-            </button>
+
+            <div className="text-center pt-2 space-y-4">
+              <button
+                type="button"
+                onClick={() => { setWorkerId(null); setPin(""); }}
+                className="inline-flex items-center gap-1 text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Choose a different name
+              </button>
+            </div>
           </form>
         )}
-
-        <div className="text-center">
-          <a
-            href="/admin"
-            className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-5 py-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground active:scale-95"
-          >
-            Admin sign in →
-          </a>
-        </div>
       </div>
     </div>
   );
