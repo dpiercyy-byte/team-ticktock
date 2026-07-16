@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, X, FileText, Trash2, Paperclip, Banknote,
-  MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2,
+  MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { CameraFilePicker } from "@/components/CameraFilePicker";
 
