@@ -274,50 +274,58 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
     },
   });
   return (
-    <div className="min-h-dvh bg-background flex items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
+    <div className="min-h-dvh bg-muted/40 flex flex-col px-6 pt-16 pb-10">
+      <div className="w-full max-w-sm mx-auto flex-1 flex flex-col">
+        <div className="text-center mb-12">
           <div
-            className="inline-flex h-12 w-12 items-center justify-center rounded-xl mb-2"
+            className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full mb-5 shadow-sm"
             style={{ background: "var(--gradient-primary)" }}
           >
-            <KeyRound className="h-6 w-6 text-primary-foreground" />
+            <Clock className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <CardTitle>Admin Sign In</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              m.mutate();
-            }}
-            className="space-y-4"
+          <h1 className="text-[28px] font-semibold tracking-tight text-foreground">Clockwise</h1>
+          <p className="text-[15px] text-muted-foreground mt-1.5">Access management portal.</p>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            m.mutate();
+          }}
+          className="space-y-8"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="pw" className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-1">
+              Password
+            </Label>
+            <Input
+              id="pw"
+              type="password"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              autoFocus
+              placeholder="Enter admin password"
+              className="h-[60px] rounded-2xl bg-background border border-border/60 px-4 text-base shadow-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/40"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full h-[60px] rounded-2xl text-base font-semibold shadow-sm transition-transform active:scale-[0.98]"
+            disabled={m.isPending || !pw}
           >
-            <div>
-              <Label htmlFor="pw">Password</Label>
-              <Input
-                id="pw"
-                type="password"
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                autoFocus
-                className="mt-1.5"
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={m.isPending || !pw}>
-              {m.isPending ? "…" : "Sign in"}
-            </Button>
-            <div className="text-center">
-              <a
-                href="/"
-                className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-5 py-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground active:scale-95"
-              >
-                ← Back to worker app
-              </a>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            {m.isPending ? "Signing in…" : "Sign In"}
+          </Button>
+          <div className="text-center pt-2">
+            <a
+              href="/"
+              className="inline-flex items-center gap-1 text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to worker app
+            </a>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
