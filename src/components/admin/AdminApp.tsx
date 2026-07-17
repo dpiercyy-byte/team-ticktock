@@ -2999,8 +2999,10 @@ function EditParsedDialog({
 
   const save = async () => {
     if (!item) return;
-    if (materialType === "client_billable" && !billableSite) {
-      toast.error("Pick a client to bill");
+    const resolvedBillable =
+      materialType === "client_billable" ? jobSite || billableSite || "" : "";
+    if (materialType === "client_billable" && !resolvedBillable) {
+      toast.error("Pick a job site above to bill this receipt");
       return;
     }
     setSaving(true);
@@ -3018,10 +3020,11 @@ function EditParsedDialog({
           category: category || null,
           jobSiteId: jobSite || null,
           materialType,
-          billableJobSiteId: materialType === "client_billable" ? billableSite || null : null,
+          billableJobSiteId: materialType === "client_billable" ? resolvedBillable : null,
           description: description.trim() ? description.trim() : null,
         },
       });
+
       updateToken(r.token);
       toast.success("Saved");
       onSaved();
