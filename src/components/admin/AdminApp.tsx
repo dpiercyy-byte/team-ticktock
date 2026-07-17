@@ -3179,32 +3179,12 @@ function EditParsedDialog({
                 Client-billable
               </Button>
             </div>
-            {materialType === "client_billable" && (
-              <div>
-                <Label className="text-xs">Bill to client</Label>
-                <Select
-                  value={billableSite || "none"}
-                  onValueChange={(v) => setBillableSite(v === "none" ? "" : v)}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Pick a client job site" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Pick a client —</SelectItem>
-                    {clientSites.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {clientSites.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    No active client job sites. Add one in Job Sites.
-                  </p>
-                )}
-              </div>
+            {materialType === "client_billable" && !jobSite && (
+              <p className="text-[11px] text-amber-700 mt-1">
+                Pick a job site above to bill this receipt to a client.
+              </p>
             )}
+
           </div>
           <div>
             <Label className="text-xs">Note</Label>
