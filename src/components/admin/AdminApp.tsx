@@ -1776,6 +1776,8 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   const [desc, setDesc] = useState("");
   const [amt, setAmt] = useState("");
   const [billableSite, setBillableSite] = useState<string>("none");
+  const [reimbMaterialType, setReimbMaterialType] = useState<"regular" | "client_billable">("regular");
+
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
