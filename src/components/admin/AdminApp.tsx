@@ -1776,6 +1776,8 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   const [desc, setDesc] = useState("");
   const [amt, setAmt] = useState("");
   const [billableSite, setBillableSite] = useState<string>("none");
+  const [reimbMaterialType, setReimbMaterialType] = useState<"regular" | "client_billable">("regular");
+
   const [receipt, setReceipt] = useState<{ url: string; mime: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<{ url: string; mime: string } | null>(null);
@@ -2093,6 +2095,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
               setDesc("");
               setAmt("");
               setBillableSite("none");
+              setReimbMaterialType("regular");
             }
           }}
         >
@@ -2120,19 +2123,59 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                     className="w-[110px]"
                   />
                 </div>
-                <Select value={billableSite} onValueChange={setBillableSite}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Bill to job site (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No billable job site</SelectItem>
-                    {activeSitesForReimb.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="rounded-md border border-border p-3 space-y-2">
+                  <Label className="text-xs">Material type</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={reimbMaterialType === "regular" ? "default" : "outline"}
+                      onClick={() => setReimbMaterialType("regular")}
+                    >
+                      Regular
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={reimbMaterialType === "client_billable" ? "default" : "outline"}
+                      className={
+                        reimbMaterialType === "client_billable"
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          : ""
+                      }
+                      onClick={() => setReimbMaterialType("client_billable")}
+                    >
+                      Client-billable
+                    </Button>
+                  </div>
+                  <div>
+                    <Label className="text-xs">
+                      Job site
+                      {reimbMaterialType === "client_billable" && (
+                        <span className="text-destructive ml-0.5">*</span>
+                      )}
+                    </Label>
+                    <Select value={billableSite} onValueChange={setBillableSite}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue
+                          placeholder={
+                            reimbMaterialType === "client_billable"
+                              ? "Pick a job site"
+                              : "Job site (optional)"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No job site</SelectItem>
+                        {activeSitesForReimb.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {receipt ? (
                     <div className="flex items-center gap-2 rounded-md border border-border p-1.5 pr-2">
@@ -2173,7 +2216,12 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                   <Button
                     className="ml-auto"
                     onClick={async () => {
+                      if (reimbMaterialType === "client_billable" && billableSite === "none") {
+                        toast.error("Pick a job site to bill");
+                        return;
+                      }
                       try {
+                        const siteId = billableSite === "none" ? null : billableSite;
                         const r = await reimbAdd({
                           data: {
                             token,
@@ -2183,7 +2231,10 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                             amount: parseFloat(amt) || 0,
                             receiptUrl: receipt?.url ?? null,
                             receiptMime: receipt?.mime ?? null,
-                            billableJobSiteId: billableSite === "none" ? null : billableSite,
+                            materialType: reimbMaterialType,
+                            billableJobSiteId:
+                              reimbMaterialType === "client_billable" ? siteId : null,
+                            parsedJobSiteId: siteId,
                           },
                         });
                         updateToken(r.token);
@@ -2191,18 +2242,25 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                         setAmt("");
                         setReceipt(null);
                         setBillableSite("none");
+                        setReimbMaterialType("regular");
                         qc.invalidateQueries({ queryKey: ["reimb", reimbFor!.id, week] });
                         qc.invalidateQueries({ queryKey: ["payout", week] });
                       } catch (e: any) {
                         toast.error(e?.message || "Failed");
                       }
                     }}
-                    disabled={!desc.trim() || !amt || uploading}
+                    disabled={
+                      !desc.trim() ||
+                      !amt ||
+                      uploading ||
+                      (reimbMaterialType === "client_billable" && billableSite === "none")
+                    }
                   >
                     Add
                   </Button>
                 </div>
               </div>
+
               <div className="border border-border rounded-md divide-y divide-border max-h-72 overflow-auto">
                 {rq.data?.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground text-center">
@@ -2941,8 +2999,10 @@ function EditParsedDialog({
 
   const save = async () => {
     if (!item) return;
-    if (materialType === "client_billable" && !billableSite) {
-      toast.error("Pick a client to bill");
+    const resolvedBillable =
+      materialType === "client_billable" ? jobSite || billableSite || "" : "";
+    if (materialType === "client_billable" && !resolvedBillable) {
+      toast.error("Pick a job site above to bill this receipt");
       return;
     }
     setSaving(true);
@@ -2960,10 +3020,11 @@ function EditParsedDialog({
           category: category || null,
           jobSiteId: jobSite || null,
           materialType,
-          billableJobSiteId: materialType === "client_billable" ? billableSite || null : null,
+          billableJobSiteId: materialType === "client_billable" ? resolvedBillable : null,
           description: description.trim() ? description.trim() : null,
         },
       });
+
       updateToken(r.token);
       toast.success("Saved");
       onSaved();
@@ -3121,32 +3182,12 @@ function EditParsedDialog({
                 Client-billable
               </Button>
             </div>
-            {materialType === "client_billable" && (
-              <div>
-                <Label className="text-xs">Bill to client</Label>
-                <Select
-                  value={billableSite || "none"}
-                  onValueChange={(v) => setBillableSite(v === "none" ? "" : v)}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Pick a client job site" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Pick a client —</SelectItem>
-                    {clientSites.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {clientSites.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    No active client job sites. Add one in Job Sites.
-                  </p>
-                )}
-              </div>
+            {materialType === "client_billable" && !jobSite && (
+              <p className="text-[11px] text-amber-700 mt-1">
+                Pick a job site above to bill this receipt to a client.
+              </p>
             )}
+
           </div>
           <div>
             <Label className="text-xs">Note</Label>
