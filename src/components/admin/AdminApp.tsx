@@ -3311,6 +3311,10 @@ function AdminAddReceiptsDialog({
       toast.error("Add at least one file");
       return;
     }
+    if (materialType === "client_billable" && !jobSiteId) {
+      toast.error("Pick a job site for client-billable receipts");
+      return;
+    }
 
     setBusy(true);
     setProgress({ done: 0, total: files.length });
