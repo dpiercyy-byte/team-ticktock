@@ -3266,6 +3266,7 @@ function AdminAddReceiptsDialog({
       setDescription("");
       setFiles([]);
       setJobSiteId("");
+      setMaterialType("regular");
       setProgress(null);
       setBusy(false);
       setWeekStart(currentWeekStartISOClient());
