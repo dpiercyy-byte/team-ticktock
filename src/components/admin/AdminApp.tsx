@@ -359,17 +359,28 @@ function AdminDashboard({
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3">
         <SwipeableTabs tabs={[...ADMIN_TABS]} value={activeTab} onValueChange={setActiveTab}>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6">
-              <TabsList className="mx-4 sm:mx-0 flex-wrap h-auto min-h-9">
-                <TabsTrigger value="entries">Time Entries</TabsTrigger>
-                <TabsTrigger value="payouts">Payout</TabsTrigger>
-                <TabsTrigger value="receipts">Receipts</TabsTrigger>
-                <TabsTrigger value="workers">Workers</TabsTrigger>
-                <TabsTrigger value="sites">Job Sites</TabsTrigger>
-                <TabsTrigger value="audit">Audit Log</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
+            <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 border-b border-border">
+              <TabsList className="mx-4 sm:mx-0 flex-nowrap overflow-x-auto whitespace-nowrap h-auto min-h-0 bg-transparent p-0 gap-1 rounded-none justify-start w-full">
+                {[
+                  ["entries", "Time Entries"],
+                  ["payouts", "Payout"],
+                  ["receipts", "Receipts"],
+                  ["workers", "Workers"],
+                  ["sites", "Job Sites"],
+                  ["audit", "Audit Log"],
+                  ["settings", "Settings"],
+                ].map(([v, label]) => (
+                  <TabsTrigger
+                    key={v}
+                    value={v}
+                    className="rounded-none bg-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground border-b-2 border-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary data-[state=active]:border-primary transition-colors"
+                  >
+                    {label}
+                  </TabsTrigger>
+                ))}
               </TabsList>
             </div>
+
             <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
               <TabsContent value="entries">
                 <EntriesTab token={token} updateToken={updateToken} />
