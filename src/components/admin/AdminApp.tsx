@@ -2703,7 +2703,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           {filtered.length} receipt{filtered.length === 1 ? "" : "s"} · Total:{" "}
           <span className="font-semibold text-foreground">{fmtMoney(totalAmt)}</span>
         </span>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {unparsedCount > 0 && (
             <Button
               variant="ghost"
@@ -2716,6 +2716,15 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
               {busyId === "ALL" ? "Scanning…" : `Scan ${unparsedCount}`}
             </Button>
           )}
+          <button
+            type="button"
+            onClick={() => setAdminAddOpen(true)}
+            aria-label="Add receipts"
+            className="inline-flex items-center gap-1 h-8 px-3 rounded-full bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/15 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add
+          </button>
           <Button
             variant="ghost"
             size="icon"
@@ -2726,18 +2735,8 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           >
             <Download className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setAdminAddOpen(true)}
-            aria-label="Add receipts"
-            title="Add receipts"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-
         </div>
+
       </div>
 
 
