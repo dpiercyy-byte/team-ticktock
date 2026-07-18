@@ -102,10 +102,14 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
     receiptUrl: z.string().url(),
     receiptMime: z.string().max(100),
     jobSiteId: z.string().uuid().nullable().optional(),
+    materialType: z.enum(["regular", "client_billable"]).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const weekStart = data.weekStart || currentWeekStartFromAdmin();
+    const materialType = data.materialType ?? "regular";
+    const billableJobSiteId =
+      materialType === "client_billable" && data.jobSiteId ? data.jobSiteId : null;
     const { data: inserted, error } = await supabaseAdmin.from("reimbursements").insert({
       worker_id: null,
       is_admin_receipt: true,
@@ -117,6 +121,8 @@ export const adminAddStandaloneReceipt = createServerFn({ method: "POST" })
       receipt_url: data.receiptUrl,
       receipt_mime: data.receiptMime,
       parsed_job_site_id: data.jobSiteId ?? null,
+      material_type: materialType,
+      billable_job_site_id: billableJobSiteId,
     }).select("id").single();
     if (error) throw error;
     if (inserted?.id) {

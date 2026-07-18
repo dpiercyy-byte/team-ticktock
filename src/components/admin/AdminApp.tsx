@@ -3244,6 +3244,7 @@ function AdminAddReceiptsDialog({
   const [description, setDescription] = useState("");
   const [weekStart, setWeekStart] = useState(currentWeekStartISOClient());
   const [jobSiteId, setJobSiteId] = useState<string>("");
+  const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -3265,6 +3266,7 @@ function AdminAddReceiptsDialog({
       setDescription("");
       setFiles([]);
       setJobSiteId("");
+      setMaterialType("regular");
       setProgress(null);
       setBusy(false);
       setWeekStart(currentWeekStartISOClient());
@@ -3309,6 +3311,10 @@ function AdminAddReceiptsDialog({
       toast.error("Add at least one file");
       return;
     }
+    if (materialType === "client_billable" && !jobSiteId) {
+      toast.error("Pick a job site for client-billable receipts");
+      return;
+    }
 
     setBusy(true);
     setProgress({ done: 0, total: files.length });
@@ -3335,6 +3341,7 @@ function AdminAddReceiptsDialog({
             receiptUrl: up.url,
             receiptMime: up.mime,
             jobSiteId: jobSiteId || null,
+            materialType,
           },
         });
         updateToken(r.token);
@@ -3402,7 +3409,36 @@ function AdminAddReceiptsDialog({
             />
           </div>
           <div>
-            <Label className="text-xs">Job (optional)</Label>
+            <Label className="text-xs">Material type</Label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMaterialType("regular")}
+                className={`h-9 rounded-md border text-sm font-medium transition ${
+                  materialType === "regular"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                Regular
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaterialType("client_billable")}
+                className={`h-9 rounded-md border text-sm font-medium transition ${
+                  materialType === "client_billable"
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                Client-billable
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">
+              Job {materialType === "client_billable" ? "(required)" : "(optional)"}
+            </Label>
             <Select
               value={jobSiteId || "none"}
               onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}
