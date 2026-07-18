@@ -3244,6 +3244,7 @@ function AdminAddReceiptsDialog({
   const [description, setDescription] = useState("");
   const [weekStart, setWeekStart] = useState(currentWeekStartISOClient());
   const [jobSiteId, setJobSiteId] = useState<string>("");
+  const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
