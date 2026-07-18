@@ -3313,6 +3313,7 @@ function AdminAddReceiptsDialog({
   const [jobSiteId, setJobSiteId] = useState<string>("");
   const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [files, setFiles] = useState<File[]>([]);
+  const [extraOpen, setExtraOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -3336,6 +3337,7 @@ function AdminAddReceiptsDialog({
       setMaterialType("regular");
       setProgress(null);
       setBusy(false);
+      setExtraOpen(false);
       setWeekStart(currentWeekStartISOClient());
     }
   }, [open]);
@@ -3432,24 +3434,15 @@ function AdminAddReceiptsDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle>Add receipts</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground pt-1">
             Business receipts not tied to a worker. Each file is parsed by AI and added to your
             Google Sheet.
           </p>
-          <div>
-            <Label className="text-xs">Payee (optional)</Label>
-            <Input
-              value={payee}
-              onChange={(e) => setPayee(e.target.value)}
-              placeholder="Auto-filled from receipt if left blank"
-              className="mt-1"
-            />
-          </div>
+        </DialogHeader>
+        <div className="space-y-3 px-6 py-3 overflow-y-auto flex-1">
           <div>
             <Label className="text-xs">Week</Label>
             <Input
@@ -3463,15 +3456,6 @@ function AdminAddReceiptsDialog({
                 const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
                 setWeekStart(iso);
               }}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Note (optional)</Label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="optional"
               className="mt-1"
             />
           </div>
@@ -3564,8 +3548,6 @@ function AdminAddReceiptsDialog({
             />
           </div>
 
-
-
           {files.length > 0 && (
             <div className="space-y-1 max-h-40 overflow-auto">
               {files.map((f, idx) => (
@@ -3588,13 +3570,48 @@ function AdminAddReceiptsDialog({
             </div>
           )}
 
+          <div className="border-t pt-2">
+            <button
+              type="button"
+              onClick={() => setExtraOpen((v) => !v)}
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition w-full"
+            >
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${extraOpen ? "rotate-0" : "-rotate-90"}`}
+              />
+              {extraOpen ? "Hide extra details" : "Add extra details (Payee, Notes)"}
+            </button>
+            {extraOpen && (
+              <div className="space-y-3 mt-3">
+                <div>
+                  <Label className="text-xs">Payee (optional)</Label>
+                  <Input
+                    value={payee}
+                    onChange={(e) => setPayee(e.target.value)}
+                    placeholder="Auto-filled from receipt if left blank"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Note (optional)</Label>
+                  <Input
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="optional"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {progress && (
             <p className="text-xs text-center text-muted-foreground">
               Uploading {progress.done} / {progress.total}…
             </p>
           )}
         </div>
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background">
           <Button variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
