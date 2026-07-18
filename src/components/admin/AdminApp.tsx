@@ -3337,6 +3337,7 @@ function AdminAddReceiptsDialog({
       setMaterialType("regular");
       setProgress(null);
       setBusy(false);
+      setExtraOpen(false);
       setWeekStart(currentWeekStartISOClient());
     }
   }, [open]);
