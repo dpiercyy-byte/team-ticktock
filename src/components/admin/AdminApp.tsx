@@ -78,6 +78,7 @@ import {
   ChevronDown,
   ArrowLeft,
   Clock,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   DropdownMenu,
