@@ -2970,14 +2970,8 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         onDone={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
       />
 
-      {/* Floating Action Button */}
-      <Button
-        onClick={() => setAdminAddOpen(true)}
-        aria-label="Add receipts"
-        className="fixed bottom-5 right-5 z-50 h-14 w-14 rounded-full shadow-lg shadow-primary/30 p-0 grid place-items-center"
-      >
-        <Plus className="h-6 w-6" />
-      </Button>
+
+
 
 
       <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
