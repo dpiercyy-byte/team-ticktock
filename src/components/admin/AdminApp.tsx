@@ -3409,7 +3409,36 @@ function AdminAddReceiptsDialog({
             />
           </div>
           <div>
-            <Label className="text-xs">Job (optional)</Label>
+            <Label className="text-xs">Material type</Label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMaterialType("regular")}
+                className={`h-9 rounded-md border text-sm font-medium transition ${
+                  materialType === "regular"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                Regular
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaterialType("client_billable")}
+                className={`h-9 rounded-md border text-sm font-medium transition ${
+                  materialType === "client_billable"
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                Client-billable
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">
+              Job {materialType === "client_billable" ? "(required)" : "(optional)"}
+            </Label>
             <Select
               value={jobSiteId || "none"}
               onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}
