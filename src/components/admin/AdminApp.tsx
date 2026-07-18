@@ -2591,103 +2591,139 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[140px]">
-          <Label className="text-xs">Worker</Label>
-          <Select value={workerId} onValueChange={setWorkerId}>
-            <SelectTrigger className="mt-1.5 h-11 bg-gray-100 border-0 shadow-none rounded-lg px-3 font-semibold focus:ring-2 focus:ring-ring">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All workers</SelectItem>
-              <SelectItem value="__admin__">Admin</SelectItem>
-              {workers.map((w) => (
-                <SelectItem key={w.id} value={w.id}>
-                  <span className="font-bold text-lg">{w.name}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[140px]">
-          <Label className="text-xs">Week</Label>
-          <Select value={weekStart} onValueChange={setWeekStart}>
-            <SelectTrigger className="mt-1.5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All weeks</SelectItem>
-              {weeks.map((w) => (
-                <SelectItem key={w} value={w}>
-                  {fmtDate(w)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[140px]">
-          <Label className="text-xs">Category</Label>
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="mt-1.5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {RECEIPT_CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[140px]">
-          <Label className="text-xs">Material</Label>
-          <Select value={materialType} onValueChange={(v) => setMaterialType(v as any)}>
-            <SelectTrigger className="mt-1.5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="regular">Regular</SelectItem>
-              <SelectItem value="client_billable">Client-billable</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+  const activeFilterCount =
+    (workerId !== "all" ? 1 : 0) +
+    (weekStart !== "all" ? 1 : 0) +
+    (category !== "all" ? 1 : 0) +
+    (materialType !== "all" ? 1 : 0);
 
-        <div className="flex-1 min-w-[200px]">
-          <Label className="text-xs">Search vendor / description</Label>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="home depot, paint…"
-            className="mt-1.5"
-          />
-        </div>
+  return (
+    <div className="space-y-3 pb-24">
+      {/* Search + Filter */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search vendor or description…"
+          className="h-11 pl-10 pr-14 bg-gray-100 border-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-background"
+              aria-label="Filters"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground grid place-items-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-3 space-y-3">
+            <div>
+              <Label className="text-xs">Worker</Label>
+              <Select value={workerId} onValueChange={setWorkerId}>
+                <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All workers</SelectItem>
+                  <SelectItem value="__admin__">Admin</SelectItem>
+                  {workers.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Week</Label>
+              <Select value={weekStart} onValueChange={setWeekStart}>
+                <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All weeks</SelectItem>
+                  {weeks.map((w) => (
+                    <SelectItem key={w} value={w}>{fmtDate(w)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {RECEIPT_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Material</Label>
+              <Select value={materialType} onValueChange={(v) => setMaterialType(v as any)}>
+                <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="regular">Regular</SelectItem>
+                  <SelectItem value="client_billable">Client-billable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setWorkerId("all");
+                  setWeekStart("all");
+                  setCategory("all");
+                  setMaterialType("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground px-1 flex-wrap gap-2">
-        <span>
+      {/* Summary + compact actions */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <span className="text-sm text-muted-foreground min-w-0 truncate">
           {filtered.length} receipt{filtered.length === 1 ? "" : "s"} · Total:{" "}
           <span className="font-semibold text-foreground">{fmtMoney(totalAmt)}</span>
         </span>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => setAdminAddOpen(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> Add receipts
-          </Button>
+        <div className="flex items-center gap-1 shrink-0">
           {unparsedCount > 0 && (
-            <Button size="sm" variant="outline" onClick={parseAll} disabled={busyId === "ALL"}>
-              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-              {busyId === "ALL" ? "Scanning…" : `Scan ${unparsedCount} unparsed`}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={parseAll}
+              disabled={busyId === "ALL"}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              {busyId === "ALL" ? "Scanning…" : `Scan ${unparsedCount}`}
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={csvExport}>
-            <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={csvExport}
+            aria-label="Export CSV"
+            title="Export CSV"
+          >
+            <Download className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
 
       {q.isLoading ? (
         <Card>
