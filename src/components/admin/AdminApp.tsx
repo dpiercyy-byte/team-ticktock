@@ -2721,6 +2721,17 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           >
             <Download className="h-4 w-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setAdminAddOpen(true)}
+            aria-label="Add receipts"
+            title="Add receipts"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+
         </div>
       </div>
 
