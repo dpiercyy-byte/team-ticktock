@@ -3341,6 +3341,7 @@ function AdminAddReceiptsDialog({
             receiptUrl: up.url,
             receiptMime: up.mime,
             jobSiteId: jobSiteId || null,
+            materialType,
           },
         });
         updateToken(r.token);
