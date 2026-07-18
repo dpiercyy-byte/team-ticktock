@@ -3434,7 +3434,10 @@ function AdminAddReceiptsDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
-      <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0">
+      <DialogContent
+        className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle>Add receipts</DialogTitle>
           <p className="text-xs text-muted-foreground pt-1">
