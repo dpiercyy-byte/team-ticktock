@@ -1,0 +1,1 @@
+ALTER TABLE public.ledger_jobs ADD COLUMN IF NOT EXISTS reimburse_log jsonb NOT NULL DEFAULT '[]'::jsonb;
