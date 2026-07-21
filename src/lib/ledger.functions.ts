@@ -24,6 +24,33 @@ export const listLedgerJobs = createServerFn({ method: "POST" })
   .inputValidator((d) => TokenSchema.parse(d))
   .handler(async ({ data }) => {
     requireAnySession(data.token);
+
+    // Self-heal: mirror any active client sites that have no linked Ledger job yet.
+    try {
+      const { data: sites } = await supabaseAdmin
+        .from("job_sites")
+        .select("id")
+        .eq("kind", "client")
+        .is("archived_at", null);
+      const siteIds = (sites ?? []).map((s: { id: string }) => s.id);
+      if (siteIds.length > 0) {
+        const { data: linked } = await supabaseAdmin
+          .from("ledger_jobs")
+          .select("linked_job_site_id")
+          .in("linked_job_site_id", siteIds);
+        const linkedSet = new Set(
+          (linked ?? [])
+            .map((r: { linked_job_site_id: string | null }) => r.linked_job_site_id)
+            .filter(Boolean) as string[],
+        );
+        const missing = siteIds.filter((id) => !linkedSet.has(id));
+        if (missing.length > 0) {
+          const { ensureLedgerJobForSite } = await import("./ledger-jobs-sync.server");
+          await Promise.all(missing.map((id) => ensureLedgerJobForSite(id).catch(() => null)));
+        }
+      }
+    } catch { /* non-fatal */ }
+
     const { data: rows, error } = await supabaseAdmin
       .from("ledger_jobs")
       .select("*")
