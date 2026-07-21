@@ -56,7 +56,7 @@ export function RecentSheets() {
         <div className="text-xs text-slate-500">No linked sheets yet.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {(data ?? []).map((row) => (
+          {(data ?? []).map((row: { id: string; address: string; client_name: string | null; sheet_id: string; sheet_last_sync_at: string | null; finish_date: string | null }) => (
             <a
               key={row.id}
               href={`https://docs.google.com/spreadsheets/d/${row.sheet_id}/edit`}
