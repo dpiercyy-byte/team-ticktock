@@ -37,6 +37,7 @@ export type LedgerJob = {
   payments_log: Array<{ date: string | null; amount: number; method: string }>;
   expense_log: Array<{ date: string | null; amount: number; category: string; vendor: string }>;
   price_log: Array<{ date: string | null; amount: number; comment: string; has_hst: boolean }>;
+  reimburse_log: Array<{ date: string | null; amount: number; comment: string; paid_date: string | null }>;
   linked_job_site_id: string | null;
   labor_manual_override: boolean;
   labor_synced_at: string | null;
