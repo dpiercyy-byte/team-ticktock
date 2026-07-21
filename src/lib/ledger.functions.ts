@@ -206,14 +206,28 @@ export const uploadLedgerJobXlsx = createServerFn({ method: "POST" })
 
     const record = { ...parsed, linked_job_site_id: existing?.linked_job_site_id ?? linked_job_site_id };
 
+    let savedId: string;
+    let created = false;
     if (existing) {
       const { data: row, error } = await supabaseAdmin
         .from("ledger_jobs").update(record).eq("id", existing.id).select("*").single();
       if (error) throw error;
-      return { created: false, job: row };
+      savedId = row.id;
+      var savedRow = row;
+    } else {
+      const { data: row, error } = await supabaseAdmin
+        .from("ledger_jobs").insert(record).select("*").single();
+      if (error) throw error;
+      savedId = row.id;
+      created = true;
+      var savedRow = row;
     }
-    const { data: row, error } = await supabaseAdmin
-      .from("ledger_jobs").insert(record).select("*").single();
-    if (error) throw error;
-    return { created: true, job: row };
+    // Best-effort: link/create a Clockwise site and archive it if the job is closed.
+    try {
+      const { ensureJobSiteForLedgerJob, archiveLinkedSiteForLedgerJob } = await import("./ledger-jobs-sync.server");
+      if (!parsed.finish_date) await ensureJobSiteForLedgerJob(savedId);
+      else await archiveLinkedSiteForLedgerJob(savedId);
+    } catch { /* non-fatal */ }
+    return { created, job: savedRow };
   });
+
