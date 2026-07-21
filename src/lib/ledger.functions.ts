@@ -135,6 +135,9 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
       (clean as any).profit_margin = totalP > 0 ? (totalP - exp) / totalP : 0;
     }
 
+    // If admin explicitly edits labor, respect it and stop auto-syncing labor for this job.
+    if ("labor" in clean) (clean as any).labor_manual_override = true;
+
     const { data: row, error } = await supabaseAdmin
       .from("ledger_jobs").update(clean as never).eq("id", data.id).select("*").single();
     if (error) throw error;
@@ -143,8 +146,16 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
         .then((m) => m.pushJobToSheet(data.id).catch(() => {}))
         .catch(() => {});
     }
+    // If finish_date was just set, archive the linked Clockwise site.
+    if ("finish_date" in clean && (row as any)?.finish_date) {
+      try {
+        const { archiveLinkedSiteForLedgerJob } = await import("./ledger-jobs-sync.server");
+        await archiveLinkedSiteForLedgerJob(data.id);
+      } catch { /* non-fatal */ }
+    }
     return row;
   });
+
 
 export const deleteLedgerJob = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ token: z.string(), id: z.string().uuid() }).parse(d))
