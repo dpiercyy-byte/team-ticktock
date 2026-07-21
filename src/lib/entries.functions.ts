@@ -447,6 +447,14 @@ export const adminEditEntry = createServerFn({ method: "POST" })
       before: { clock_in: row.clock_in, clock_out: row.clock_out, project: row.project, flagged_review: row.flagged_review, assigned_job_site_ids: row.assigned_job_site_ids ?? [] },
       after: { clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, assigned_job_site_ids: assignedIds },
     });
+    try {
+      const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
+      const { data: full } = await supabaseAdmin
+        .from("time_entries")
+        .select("planned_job_site_id, assigned_job_site_ids, job_site_id, clock_out_job_site_id")
+        .eq("id", data.entryId).maybeSingle();
+      if (full) await recomputeLaborForEntryContext(full as any);
+    } catch { /* non-fatal */ }
     return refreshed;
   });
 
@@ -456,7 +464,7 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: row } = await supabaseAdmin
-      .from("time_entries").select("worker_id, clock_in, clock_out, project, geo_status, job_site_id").eq("id", data.entryId).maybeSingle();
+      .from("time_entries").select("worker_id, clock_in, clock_out, project, geo_status, job_site_id, planned_job_site_id, assigned_job_site_ids, clock_out_job_site_id").eq("id", data.entryId).maybeSingle();
     const { error } = await supabaseAdmin.from("time_entries").delete().eq("id", data.entryId);
     if (error) throw error;
     await logAudit({
@@ -466,8 +474,15 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
       entityId: data.entryId,
       before: row ?? undefined,
     });
+    if (row) {
+      try {
+        const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
+        await recomputeLaborForEntryContext(row as any);
+      } catch { /* non-fatal */ }
+    }
     return refreshed;
   });
+
 
 export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
