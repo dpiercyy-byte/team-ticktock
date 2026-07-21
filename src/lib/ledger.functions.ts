@@ -168,11 +168,7 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("ledger_jobs").update(clean as never).eq("id", data.id).select("*").single();
     if (error) throw error;
-    if ((row as any)?.sheet_id && !(row as any)?.finish_date) {
-      import("./ledger-sheet-export.server")
-        .then((m) => m.pushJobToSheet(data.id).catch(() => {}))
-        .catch(() => {});
-    }
+    // Ledger no longer pushes to Google Sheets — sheet is the source of truth (one-way pull).
     // If finish_date was just set, archive the linked Clockwise site.
     if ("finish_date" in clean && (row as any)?.finish_date) {
       try {
