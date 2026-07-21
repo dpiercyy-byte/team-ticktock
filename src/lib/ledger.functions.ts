@@ -52,8 +52,14 @@ export const createLedgerJob = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("ledger_jobs").insert(record).select("*").single();
     if (error) throw error;
+    // Auto-create/link a Clockwise client job_site so hours can be tracked against this job.
+    try {
+      const { ensureJobSiteForLedgerJob } = await import("./ledger-jobs-sync.server");
+      await ensureJobSiteForLedgerJob(row.id);
+    } catch { /* non-fatal */ }
     return row;
   });
+
 
 const LogEntry = z.object({
   date: z.string().nullable().optional(),
