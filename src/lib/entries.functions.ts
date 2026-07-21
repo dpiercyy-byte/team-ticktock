@@ -184,8 +184,18 @@ export const clockOut = createServerFn({ method: "POST" })
     const inNonClient = active.geo_status === "supplier" || active.geo_status === "off_site" || active.geo_status === "no_gps";
     const outNonClient = outTag.status === "supplier" || outTag.status === "off_site" || outTag.status === "no_gps";
     const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
+    // Sync labor to Ledger for any site this entry touches.
+    try {
+      const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
+      const { data: full } = await supabaseAdmin
+        .from("time_entries")
+        .select("planned_job_site_id, assigned_job_site_ids, job_site_id, clock_out_job_site_id")
+        .eq("id", active.id).maybeSingle();
+      if (full) await recomputeLaborForEntryContext(full as any);
+    } catch { /* non-fatal */ }
     return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob };
   });
+
 
 
 
@@ -234,8 +244,17 @@ export async function forceCloseEntry(opts: {
     },
     metadata: { reason: opts.reason, hours: (new Date(outISO).getTime() - new Date(row.clock_in).getTime()) / 3600_000 },
   });
+  try {
+    const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
+    const { data: full } = await supabaseAdmin
+      .from("time_entries")
+      .select("planned_job_site_id, assigned_job_site_ids, job_site_id, clock_out_job_site_id")
+      .eq("id", opts.entryId).maybeSingle();
+    if (full) await recomputeLaborForEntryContext(full as any);
+  } catch { /* non-fatal */ }
   return { entryId: opts.entryId, clockOut: outISO, flagged };
 }
+
 
 export const adminForceClockOut = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({ entryId: z.string().uuid() }).parse(d))
@@ -428,6 +447,14 @@ export const adminEditEntry = createServerFn({ method: "POST" })
       before: { clock_in: row.clock_in, clock_out: row.clock_out, project: row.project, flagged_review: row.flagged_review, assigned_job_site_ids: row.assigned_job_site_ids ?? [] },
       after: { clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, assigned_job_site_ids: assignedIds },
     });
+    try {
+      const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
+      const { data: full } = await supabaseAdmin
+        .from("time_entries")
+        .select("planned_job_site_id, assigned_job_site_ids, job_site_id, clock_out_job_site_id")
+        .eq("id", data.entryId).maybeSingle();
+      if (full) await recomputeLaborForEntryContext(full as any);
+    } catch { /* non-fatal */ }
     return refreshed;
   });
 
@@ -437,7 +464,7 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: row } = await supabaseAdmin
-      .from("time_entries").select("worker_id, clock_in, clock_out, project, geo_status, job_site_id").eq("id", data.entryId).maybeSingle();
+      .from("time_entries").select("worker_id, clock_in, clock_out, project, geo_status, job_site_id, planned_job_site_id, assigned_job_site_ids, clock_out_job_site_id").eq("id", data.entryId).maybeSingle();
     const { error } = await supabaseAdmin.from("time_entries").delete().eq("id", data.entryId);
     if (error) throw error;
     await logAudit({
@@ -447,8 +474,15 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
       entityId: data.entryId,
       before: row ?? undefined,
     });
+    if (row) {
+      try {
+        const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
+        await recomputeLaborForEntryContext(row as any);
+      } catch { /* non-fatal */ }
+    }
     return refreshed;
   });
+
 
 export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({

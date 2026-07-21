@@ -83,7 +83,22 @@ export function JobCard({ job }: { job: LedgerJob }) {
               <Calendar className="w-3.5 h-3.5" /> {fmtDate(job.start_date)} →{" "}
               {fmtDate(job.finish_date)}
             </span>
+            {job.linked_job_site_id && !isClosed && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100"
+                title={
+                  job.labor_manual_override
+                    ? "Labor manually set — auto-sync paused"
+                    : job.sheet_id
+                      ? "Sheet is source of truth — labor auto-sync paused"
+                      : `Labor auto-synced from Clockwise time entries${job.labor_synced_at ? ` · last ${fmtDate(job.labor_synced_at)}` : ""}`
+                }
+              >
+                {job.labor_manual_override || job.sheet_id ? "Linked · labor manual" : "Labor auto-synced"}
+              </span>
+            )}
           </div>
+
         </div>
         <div className="text-right">
           <div className="text-xs uppercase tracking-wider text-slate-500">Total</div>

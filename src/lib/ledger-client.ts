@@ -38,11 +38,14 @@ export type LedgerJob = {
   expense_log: Array<{ date: string | null; amount: number; category: string; vendor: string }>;
   price_log: Array<{ date: string | null; amount: number; comment: string; has_hst: boolean }>;
   linked_job_site_id: string | null;
+  labor_manual_override: boolean;
+  labor_synced_at: string | null;
   sheet_id: string | null;
   sheet_last_sync_at: string | null;
   created_at: string;
   updated_at: string;
 };
+
 
 export function getSessionToken(): string | null {
   return getAdminToken() ?? getWorkerSession()?.token ?? null;

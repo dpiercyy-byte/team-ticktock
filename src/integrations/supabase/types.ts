@@ -147,6 +147,8 @@ export type Database = {
           gross_with_hst: number
           id: string
           labor: number
+          labor_manual_override: boolean
+          labor_synced_at: string | null
           lead_source: string
           linked_job_site_id: string | null
           net: number
@@ -173,6 +175,8 @@ export type Database = {
           gross_with_hst?: number
           id?: string
           labor?: number
+          labor_manual_override?: boolean
+          labor_synced_at?: string | null
           lead_source?: string
           linked_job_site_id?: string | null
           net?: number
@@ -199,6 +203,8 @@ export type Database = {
           gross_with_hst?: number
           id?: string
           labor?: number
+          labor_manual_override?: boolean
+          labor_synced_at?: string | null
           lead_source?: string
           linked_job_site_id?: string | null
           net?: number
