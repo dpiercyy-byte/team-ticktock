@@ -15,6 +15,8 @@ import {
   setJobSheet,
   pushJobToSheetFn,
   pullJobFromSheetFn,
+  listRecentSheetJobs,
+  openLedgerJobFromSheet,
 } from "@/lib/ledger-sheet-export.functions";
 
 export type LedgerJob = {
@@ -37,6 +39,7 @@ export type LedgerJob = {
   payments_log: Array<{ date: string | null; amount: number; method: string }>;
   expense_log: Array<{ date: string | null; amount: number; category: string; vendor: string }>;
   price_log: Array<{ date: string | null; amount: number; comment: string; has_hst: boolean }>;
+  reimburse_log: Array<{ date: string | null; amount: number; comment: string; paid_date: string | null }>;
   linked_job_site_id: string | null;
   labor_manual_override: boolean;
   labor_synced_at: string | null;
@@ -170,6 +173,37 @@ export function usePullJobFromSheet() {
       return fn({ data: { token, jobId } });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ledger_jobs"] }),
+  });
+}
+
+export function useRecentSheetJobs() {
+  const fn = useServerFn(listRecentSheetJobs);
+  return useQuery({
+    queryKey: ["ledger_recent_sheets"],
+    queryFn: async () => {
+      const token = getSessionToken();
+      if (!token) return [] as Array<{
+        id: string; address: string; client_name: string | null;
+        sheet_id: string; sheet_last_sync_at: string | null; finish_date: string | null;
+      }>;
+      return (await fn({ data: { token } })) as any;
+    },
+  });
+}
+
+export function useOpenLedgerJobFromSheet() {
+  const fn = useServerFn(openLedgerJobFromSheet);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (url: string) => {
+      const token = getSessionToken();
+      if (!token) throw new Error("Not signed in");
+      return fn({ data: { token, url } }) as Promise<{ jobId: string; sheetId: string; pulled: boolean; error?: string }>;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ledger_jobs"] });
+      qc.invalidateQueries({ queryKey: ["ledger_recent_sheets"] });
+    },
   });
 }
 

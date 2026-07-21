@@ -9,7 +9,6 @@ import {
   useDeleteLedgerJob,
   useUpdateLedgerJob,
   useSetJobSheet,
-  usePushJobToSheet,
   usePullJobFromSheet,
 } from "@/lib/ledger-client";
 import {
@@ -24,7 +23,6 @@ import {
   CheckCircle2,
   Sheet as SheetIcon,
   ExternalLink,
-  Upload,
   Download,
   Loader2,
   Pencil,
@@ -53,7 +51,6 @@ export function JobCard({ job }: { job: LedgerJob }) {
   const update = useUpdateLedgerJob();
   const del = useDeleteLedgerJob();
   const setSheet = useSetJobSheet();
-  const pushSheet = usePushJobToSheet();
   const pullSheet = usePullJobFromSheet();
   const admin = isAdminSession();
 
@@ -267,25 +264,6 @@ export function JobCard({ job }: { job: LedgerJob }) {
                     Save link
                   </Button>
                   <Button
-                    size="sm"
-                    disabled={!job.sheet_id || pushSheet.isPending}
-                    onClick={async () => {
-                      try {
-                        await pushSheet.mutateAsync(job.id);
-                        toast.success("Pushed to sheet");
-                      } catch (e: any) {
-                        toast.error(e?.message || "Push failed");
-                      }
-                    }}
-                  >
-                    {pushSheet.isPending ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                    ) : (
-                      <Upload className="w-3.5 h-3.5 mr-1" />
-                    )}
-                    Push
-                  </Button>
-                  <Button
                     variant="outline"
                     size="sm"
                     disabled={!job.sheet_id || pullSheet.isPending}
@@ -318,7 +296,7 @@ export function JobCard({ job }: { job: LedgerJob }) {
                 </div>
               </div>
               <p className="text-[11px] text-slate-500 mt-2">
-                Sheet is the source of truth. Edits pull back automatically every 5 minutes.
+                Sheet is the source of truth. Ledger pulls updates automatically (nightly) — hit Pull for an immediate refresh.
               </p>
             </div>
           )}
