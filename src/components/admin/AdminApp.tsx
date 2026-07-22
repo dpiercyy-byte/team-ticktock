@@ -368,8 +368,8 @@ function AdminDashboard({
                   ["entries", "Time Entries"],
                   ["payouts", "Payout"],
                   ["receipts", "Receipts"],
-                  ["workers", "Workers"],
                   ["sites", "Job Sites"],
+                  ["workers", "Workers"],
                   ["audit", "Audit Log"],
                   ["settings", "Settings"],
                 ].map(([v, label]) => (
