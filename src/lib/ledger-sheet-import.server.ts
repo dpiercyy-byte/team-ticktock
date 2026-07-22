@@ -66,14 +66,23 @@ function findLabelRow(rows: string[][], label: string, col = A): number {
   return -1;
 }
 
-// Check if this looks like a master-copy sheet (row 7 has PAYMENTS/EXPENSES/PRICE block headings).
+// Find the block header row (PAYMENTS / EXPENSES / PRICE) scanning a reasonable window.
+function findBlockHeaderRow(rows: string[][]): number {
+  for (let r = 4; r <= 12 && r < rows.length; r++) {
+    const joined = (rows[r] ?? []).map((c) => String(c ?? "").toUpperCase()).join(" ");
+    if (joined.includes("PAYMENTS") && joined.includes("EXPENSES") && joined.includes("PRICE")) return r;
+  }
+  return -1;
+}
+
+// Check if this looks like a master-copy sheet.
 export function looksLikeMasterSheet(rows: string[][]): boolean {
-  const joined = (rows[6] ?? []).map((c) => String(c ?? "").toUpperCase()).join(" ");
-  return joined.includes("PAYMENTS") && joined.includes("EXPENSES") && joined.includes("PRICE");
+  return findBlockHeaderRow(rows) >= 0;
 }
 
 export function parseMasterSheet(rows: string[][]): ParsedMasterSheet | null {
-  if (!looksLikeMasterSheet(rows)) return null;
+  const blockHeaderRow = findBlockHeaderRow(rows);
+  if (blockHeaderRow < 0) return null;
 
   // Summary — pull by label so slight row shifts are tolerated.
   const clientRow = findLabelRow(rows, "Client Name(s):");
@@ -101,8 +110,9 @@ export function parseMasterSheet(rows: string[][]): ParsedMasterSheet | null {
   // profit_margin is expressed as a fraction (0..1) in the DB; sheet stores %.
   const profit_margin = profit_margin_pct > 1 ? profit_margin_pct / 100 : profit_margin_pct;
 
-  // Block data rows start at row 9 (0-indexed) — row 10 in the sheet.
-  const DATA_START = 9;
+  // Data rows start two rows below the block header (skip the sub-header row).
+  const DATA_START = blockHeaderRow + 2;
+
 
   const payments_log: ParsedMasterSheet["payments_log"] = [];
   const expense_log: ParsedMasterSheet["expense_log"] = [];
