@@ -80,13 +80,8 @@ export const adminAddJobSite = createServerFn({ method: "POST" })
       entityId: inserted?.id,
       after: { label, address: geo.formatted, radius_m: data.radius_m, kind: data.kind },
     });
-    // Sync: create a matching Ledger job for client sites.
-    if (inserted?.id && data.kind === "client") {
-      try {
-        const { ensureLedgerJobForSite } = await import("./ledger-jobs-sync.server");
-        await ensureLedgerJobForSite(inserted.id);
-      } catch { /* non-fatal */ }
-    }
+    // (Ledger sync removed — Ledger is being rebuilt.)
+
     return refreshed;
   });
 
