@@ -1,30 +1,26 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { AppSwitcherBar } from "@/components/AppSwitcherBar";
-import { Hammer } from "lucide-react";
+import { BottomNav } from "@/components/os/BottomNav";
 
 export const Route = createFileRoute("/ledger")({
   head: () => ({
     meta: [
-      { title: "Ledger — Rebuilding" },
+      { title: "Jobs — Clockwise OS" },
+      { name: "description", content: "The Job is the single source of truth." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: LedgerPlaceholder,
+  component: LedgerLayout,
 });
 
-function LedgerPlaceholder() {
+function LedgerLayout() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[hsl(40_30%_98%)]">
       <AppSwitcherBar />
-      <div className="max-w-2xl mx-auto px-6 py-24 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white inline-flex items-center justify-center mb-6">
-          <Hammer className="w-6 h-6" />
-        </div>
-        <h1 className="text-3xl font-semibold text-slate-900 mb-3">Ledger is being rebuilt</h1>
-        <p className="text-slate-500 leading-relaxed">
-          The old Ledger has been retired. A new version is coming — Clockwise is unaffected.
-        </p>
-      </div>
+      <main className="mx-auto max-w-3xl px-4 pb-28 pt-4 sm:px-6">
+        <Outlet />
+      </main>
+      <BottomNav />
     </div>
   );
 }
