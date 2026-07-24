@@ -80,13 +80,8 @@ export const adminAddJobSite = createServerFn({ method: "POST" })
       entityId: inserted?.id,
       after: { label, address: geo.formatted, radius_m: data.radius_m, kind: data.kind },
     });
-    // Sync: create a matching Ledger job for client sites.
-    if (inserted?.id && data.kind === "client") {
-      try {
-        const { ensureLedgerJobForSite } = await import("./ledger-jobs-sync.server");
-        await ensureLedgerJobForSite(inserted.id);
-      } catch { /* non-fatal */ }
-    }
+    // (Ledger sync removed — Ledger is being rebuilt.)
+
     return refreshed;
   });
 
@@ -155,13 +150,8 @@ export const adminArchiveJobSite = createServerFn({ method: "POST" })
       before: { archived_at: prev?.archived_at ?? null, label: prev?.label ?? null },
       after: { archived_at },
     });
-    // Sync: mark the linked Ledger job as finished when archived.
-    if (data.archived) {
-      try {
-        const { finishLinkedLedgerJobForSite } = await import("./ledger-jobs-sync.server");
-        await finishLinkedLedgerJobForSite(data.id);
-      } catch { /* non-fatal */ }
-    }
+    // (Ledger sync removed — Ledger is being rebuilt.)
+
     return refreshed;
   });
 

@@ -1,37 +1,46 @@
-## Problem
+## Goal
 
-`16 Ostick St` shows "synced" but every value is `$0` and every log is empty.
+Remove the current Ledger implementation completely — code, routes, server functions, DB tables, and cron — so we can rebuild it from your written spec against a clean slate. Clockwise (App 1) stays untouched. The `/ledger` route and `AppSwitcherBar` stay in place but point at a minimal placeholder until the new spec lands.
 
-Root cause: `looksLikeMasterSheet` in `src/lib/ledger-sheet-import.server.ts` only inspects `rows[6]` for the block header row (PAYMENTS / EXPENSES / PRICE / REIMBURSE). In the actual master-copy sheet, row 7 is a blank spacer and the block headers are on row 8 (index 7). Detection returns `false`, so `pullJobFromSheet` falls back to the legacy 4-tab parser, finds no `Summary`/`Payments`/`Expenses` tabs, writes zeros for every field, then stamps `sheet_last_sync_at` — which is what makes the UI claim it synced successfully.
+## Scope of removal
 
-`parseMasterSheet` also hard-codes `DATA_START = 9`, which is right for this sheet but will drift if the header row moves by one.
+### Frontend / routes
+- Delete `src/routes/ledger.tsx` and everything under `src/routes/ledger/` (`index.tsx`, `active.tsx`, `closed.tsx`, `sync.tsx`).
+- Delete `src/components/ledger/` (Header, JobCard, EditJobDialog, ExecutiveDashboard, KpiCard, RecentSheets).
+- Delete the public API route `src/routes/api/public/hooks/ledger-sheet-pull.ts`.
 
-## Fix
+### Server / lib
+- Delete `src/lib/ledger.functions.ts`, `src/lib/ledger-client.ts`, `src/lib/ledger-xlsx.ts`, `src/lib/ledger-jobs-sync.server.ts`, `src/lib/ledger-sheet-import.server.ts`, `src/lib/ledger-sheet-export.server.ts`, `src/lib/ledger-sheet-export.functions.ts`.
+- Remove all imports/calls into those modules from Clockwise code (notably any `mirrorJobToLedger` / labor-rollup hooks in `entries.functions.ts`, `jobsites.functions.ts`, clock-in/out paths). Clockwise keeps working with no Ledger side-effects.
 
-Make the parser locate the block-header row dynamically instead of assuming a fixed index.
+### Database (migration)
+- `DROP TABLE public.ledger_jobs CASCADE;`
+- Drop `public.ledger_jobs_touch_updated_at()` trigger function.
+- Drop any `pg_cron` job that pulls Ledger sheets (leave Clockwise auto-clockout cron alone, per prior instruction).
+- Leave `app_settings`, `audit_log`, `job_sites`, `reimbursements`, `time_entries`, `weekly_payouts`, `workers`, `receipts` bucket untouched.
 
-1. `looksLikeMasterSheet(rows)` — scan rows 4-12 (0-indexed) for a row whose upper-cased join contains all of `PAYMENTS`, `EXPENSES`, `PRICE`. Return `true` when found. (Drop `REIMBURSE` from the required set — some older master copies omit that block.)
-2. Add a helper `findBlockHeaderRow(rows)` returning that row index, or `-1`.
-3. In `parseMasterSheet`:
-   - Call `findBlockHeaderRow`; if `-1`, return `null`.
-   - Set `DATA_START = blockHeaderRow + 2` (block header + sub-header + first data row).
-   - Keep the existing label-based lookup for `Client Name`, `Start Date`, `Finish Date`, `Total Revenue` so the summary block also tolerates row shifts.
+### Placeholder
+- New `src/routes/ledger.tsx` (or `ledger/index.tsx`) rendering a simple "Ledger is being rebuilt" panel inside `AppSwitcherBar`, so the app tab still routes cleanly and there are no broken links.
 
-No changes to `pullJobFromSheet`, no schema changes, no UI changes.
+## Why "hard reset" over "paste code"
 
-## Verification
+You picked hybrid — spec first, code as reference. That means:
+1. This turn: clean removal only, no new Ledger business logic.
+2. Next turn: you send the written spec (data model, screens, flows, sync rules). Optionally paste snippets from your other app for visual reference.
+3. Turn after: I design tables + routes native to this stack (Supabase + TanStack Start + shadcn) and build.
 
-After the fix, re-pull `16 Ostick St` (per-job Pull button on the card). Expected result against the sheet you have open:
+Reasons to do the wipe as its own step:
+- Avoids merge/type conflicts between old `ledger_jobs` columns and whatever the new schema needs.
+- Lets us decide the job-sync question later without carrying dead mirroring code.
+- Keeps the diff reviewable — deletions in one commit, new build in the next.
 
-- `total_price` = 12500, `finish_materials` ≈ 1146.92, `building_materials` ≈ 1901.27, `subs` = 1200, `labor` ≈ 5997.52, `net` ≈ 1864.41
-- `payments_log` = 3 entries (5000 / 5000 / 2500)
-- `expense_log` ≈ 20+ entries across FM/BM/Subs/Labor
-- `price_log` = 4 entries
-- `reimburse_log` = 4 entries
+## Deliverable this turn
+1. One `supabase--migration` dropping `ledger_jobs` + related function/cron.
+2. File deletions + import cleanup in Clockwise.
+3. Placeholder `/ledger` route.
+4. Confirmation that Clockwise (worker + admin) still builds and runs.
 
-I'll confirm the row counts with a `SELECT` on `ledger_jobs` after the pull.
-
-## Technical notes
-
-- Purely a parser fix in `src/lib/ledger-sheet-import.server.ts`. Legacy fallback path is left intact for any sheet that genuinely uses the old 4-tab layout.
-- `sheet_last_sync_at` will only be stamped after a successful parse-and-write, same as today — the misleading "synced" badge on a zero-data pull is exactly what this fixes going forward, because the master-copy branch will now succeed.
+## What you send next
+- The spec (screens, entities, flows, required fields, permissions, whether Google Sheets is involved at all this time).
+- Optional: the other app's repo/snippets as visual reference.
+- Answer to the deferred "sync Ledger jobs with Clockwise job sites?" question once the spec is clearer.
