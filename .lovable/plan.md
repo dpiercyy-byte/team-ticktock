@@ -1,97 +1,46 @@
-# Clockwise OS — Phase 1
+## Goal
 
-Replace the current `/ledger` placeholder with a new admin-only experience built around a single primary object: **the Job**. Fully standalone this phase — no wiring into `job_sites` / `time_entries` yet.
+Remove the current Ledger implementation completely — code, routes, server functions, DB tables, and cron — so we can rebuild it from your written spec against a clean slate. Clockwise (App 1) stays untouched. The `/ledger` route and `AppSwitcherBar` stay in place but point at a minimal placeholder until the new spec lands.
 
-## Design language
+## Scope of removal
 
-Calm, premium, focused. Inspired by Linear, Notion, Apple Health, Arc.
-- Off-white canvas, subtle 1px borders, soft shadows, generous whitespace
-- Bricolage Grotesque for display, Manrope for body (already loaded)
-- Rounded-2xl cards, large touch targets, subtle spring-ish transitions
-- Every screen answers "what's next?" — no dashboards, no tables
+### Frontend / routes
+- Delete `src/routes/ledger.tsx` and everything under `src/routes/ledger/` (`index.tsx`, `active.tsx`, `closed.tsx`, `sync.tsx`).
+- Delete `src/components/ledger/` (Header, JobCard, EditJobDialog, ExecutiveDashboard, KpiCard, RecentSheets).
+- Delete the public API route `src/routes/api/public/hooks/ledger-sheet-pull.ts`.
 
-## Data model (new tables, standalone)
+### Server / lib
+- Delete `src/lib/ledger.functions.ts`, `src/lib/ledger-client.ts`, `src/lib/ledger-xlsx.ts`, `src/lib/ledger-jobs-sync.server.ts`, `src/lib/ledger-sheet-import.server.ts`, `src/lib/ledger-sheet-export.server.ts`, `src/lib/ledger-sheet-export.functions.ts`.
+- Remove all imports/calls into those modules from Clockwise code (notably any `mirrorJobToLedger` / labor-rollup hooks in `entries.functions.ts`, `jobsites.functions.ts`, clock-in/out paths). Clockwise keeps working with no Ledger side-effects.
 
-```text
-clients            (name, email, phone, notes)
-jobs               (client_id, name, address, lat, lng, project_type,
-                    trades text[], status, budget_cents, progress,
-                    archived_at)
-job_events         (job_id, kind, title, body, meta jsonb, occurred_at)
-                   -- append-only activity timeline
-```
+### Database (migration)
+- `DROP TABLE public.ledger_jobs CASCADE;`
+- Drop `public.ledger_jobs_touch_updated_at()` trigger function.
+- Drop any `pg_cron` job that pulls Ledger sheets (leave Clockwise auto-clockout cron alone, per prior instruction).
+- Leave `app_settings`, `audit_log`, `job_sites`, `reimbursements`, `time_entries`, `weekly_payouts`, `workers`, `receipts` bucket untouched.
 
-Budget/collected/expenses/profit are stored on `jobs` as cents for Phase 1 (manual entry only — later phases attach real receipts/payments). RLS: admin-only (session validated server-side via existing `requireAdmin` pattern; no per-user policies needed since admin uses HMAC token, not Supabase auth — table policies deny by default, all access via server functions using `supabaseAdmin` after admin token verification, matching how Clockwise already works).
+### Placeholder
+- New `src/routes/ledger.tsx` (or `ledger/index.tsx`) rendering a simple "Ledger is being rebuilt" panel inside `AppSwitcherBar`, so the app tab still routes cleanly and there are no broken links.
 
-## Routes (under existing /ledger tab, which we'll relabel "Jobs")
+## Why "hard reset" over "paste code"
 
-```text
-/ledger                    -> Home (daily briefing)
-/ledger/jobs               -> All jobs (card grid, not table)
-/ledger/jobs/new           -> 5-step wizard
-/ledger/jobs/$jobId        -> Job detail (the hero screen)
-/ledger/calendar           -> Placeholder ("Coming in Phase 2")
-/ledger/notifications      -> Placeholder
-/ledger/profile            -> Placeholder
-```
+You picked hybrid — spec first, code as reference. That means:
+1. This turn: clean removal only, no new Ledger business logic.
+2. Next turn: you send the written spec (data model, screens, flows, sync rules). Optionally paste snippets from your other app for visual reference.
+3. Turn after: I design tables + routes native to this stack (Supabase + TanStack Start + shadcn) and build.
 
-Top-level Clockwise/Ledger switcher stays. Inside `/ledger`, a bottom nav bar (mobile-first) with Home / Jobs / Calendar / Notifications / Profile.
-
-## Screens
-
-**Home** — daily briefing sections, each a horizontal row of cards:
-- Today's Jobs · Estimates Waiting · Jobs Requiring Action · Recently Updated
-- (Workers Clocked In / Payments Waiting shown as empty-state cards for Phase 1)
-- Every card taps straight into the Job.
-
-**New Job wizard** — one decision per screen, iOS-setup feel:
-1. Client (existing dropdown / new inline form)
-2. Address (Google Places autocomplete + static map preview — GOOGLE_MAPS keys already present)
-3. Project type (large pill grid)
-4. Trades (multi-select pills)
-5. Status (single-select list)
-Finish → creates job + seeds "Lead Created" event → routes to job detail.
-
-**Job detail** — the source of truth:
-- Header: name, client, address, status pill, progress bar
-- Stat strip: Budget / Collected / Expenses / Profit / Workers on site
-- Chronological event timeline (message-feed style cards)
-- Floating "+ Add event" action to append timeline entries manually this phase
-
-**Jobs index** — filterable card grid (status chips), no tables.
-
-## Server functions (`src/lib/os/`)
-
-- `clients.functions.ts` — list/create
-- `jobs.functions.ts` — list, get, create, update, archive
-- `jobEvents.functions.ts` — list, append
-- `home.functions.ts` — briefing aggregator (one call, returns all home sections)
-
-All gated by admin token via existing `requireAdmin` helper.
-
-## Files
-
-**Delete/replace:** `src/routes/ledger.tsx` (current placeholder)
-
-**Create:**
-- `src/routes/ledger.tsx` (layout with bottom nav + AppSwitcherBar)
-- `src/routes/ledger/index.tsx` (Home)
-- `src/routes/ledger/jobs.index.tsx`, `jobs.new.tsx`, `jobs.$jobId.tsx`
-- `src/routes/ledger/calendar.tsx`, `notifications.tsx`, `profile.tsx`
-- `src/components/os/` — BottomNav, JobCard, BriefingRow, TimelineEvent, StatusPill, StatChip, wizard steps, TradePill, AddressAutocomplete
-- `src/lib/os/*.functions.ts` (above)
-- One migration for `clients`, `jobs`, `job_events` (+ GRANTs + RLS + updated_at trigger)
-
-**Update:** `src/components/AppSwitcherBar.tsx` — relabel "Ledger" → "Jobs" (icon: Briefcase). Two-tab layout unchanged.
-
-## Explicitly out of scope this phase
-
-Time tracking integration, receipts, real payments, estimating, invoicing, scheduling logic, worker-facing views, notifications delivery. Calendar/Notifications/Profile are placeholder shells so the nav feels complete.
+Reasons to do the wipe as its own step:
+- Avoids merge/type conflicts between old `ledger_jobs` columns and whatever the new schema needs.
+- Lets us decide the job-sync question later without carrying dead mirroring code.
+- Keeps the diff reviewable — deletions in one commit, new build in the next.
 
 ## Deliverable this turn
+1. One `supabase--migration` dropping `ledger_jobs` + related function/cron.
+2. File deletions + import cleanup in Clockwise.
+3. Placeholder `/ledger` route.
+4. Confirmation that Clockwise (worker + admin) still builds and runs.
 
-1. Migration for the three new tables
-2. All server functions
-3. All routes + components above
-4. AppSwitcherBar relabel
-5. Build clean, /ledger opens to Home, wizard creates a Job, Job detail renders with a seeded timeline event.
+## What you send next
+- The spec (screens, entities, flows, required fields, permissions, whether Google Sheets is involved at all this time).
+- Optional: the other app's repo/snippets as visual reference.
+- Answer to the deferred "sync Ledger jobs with Clockwise job sites?" question once the spec is clearer.
