@@ -42,7 +42,7 @@ export const listJobs = createServerFn({ method: "POST" })
     if (data.status) q = q.eq("status", data.status);
     const { data: rows, error } = await q;
     if (error) throw error;
-    return (rows ?? []).map(shape);
+    return (rows ?? []).map(shape) as OsJob[];
   });
 
 export const getJob = createServerFn({ method: "POST" })
