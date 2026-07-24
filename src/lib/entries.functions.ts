@@ -184,15 +184,8 @@ export const clockOut = createServerFn({ method: "POST" })
     const inNonClient = active.geo_status === "supplier" || active.geo_status === "off_site" || active.geo_status === "no_gps";
     const outNonClient = outTag.status === "supplier" || outTag.status === "off_site" || outTag.status === "no_gps";
     const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
-    // Sync labor to Ledger for any site this entry touches.
-    try {
-      const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
-      const { data: full } = await supabaseAdmin
-        .from("time_entries")
-        .select("planned_job_site_id, assigned_job_site_ids, job_site_id, clock_out_job_site_id")
-        .eq("id", active.id).maybeSingle();
-      if (full) await recomputeLaborForEntryContext(full as any);
-    } catch { /* non-fatal */ }
+    // (Ledger sync removed — Ledger is being rebuilt.)
+
     return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob };
   });
 
