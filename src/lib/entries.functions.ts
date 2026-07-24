@@ -455,12 +455,8 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
       entityId: data.entryId,
       before: row ?? undefined,
     });
-    if (row) {
-      try {
-        const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
-        await recomputeLaborForEntryContext(row as any);
-      } catch { /* non-fatal */ }
-    }
+    // (Ledger sync removed — Ledger is being rebuilt.)
+
     return refreshed;
   });
 
