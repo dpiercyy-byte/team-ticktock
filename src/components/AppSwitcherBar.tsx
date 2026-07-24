@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { Clock, BookOpen, LogOut } from "lucide-react";
+import { Clock, Briefcase, LogOut } from "lucide-react";
 import { getAdminToken, getWorkerSession, clearAdminToken, clearWorkerSession } from "@/lib/session";
 
 export function AppSwitcherBar({ onLogout }: { onLogout?: () => void }) {
@@ -29,8 +29,8 @@ export function AppSwitcherBar({ onLogout }: { onLogout?: () => void }) {
           Clockwise
         </Link>
         <Link to="/ledger" className={`${base} ${isLedger ? active : inactive}`}>
-          <BookOpen className="w-4 h-4" />
-          Ledger
+          <Briefcase className="w-4 h-4" />
+          Jobs
         </Link>
         <button
           onClick={handleLogout}
