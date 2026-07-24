@@ -11,7 +11,7 @@ export type JobEvent = {
   kind: string;
   title: string;
   body: string | null;
-  meta: Record<string, unknown>;
+  meta: Record<string, any>;
   occurred_at: string;
 };
 
