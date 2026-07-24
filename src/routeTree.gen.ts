@@ -9,22 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as LedgerIndexRouteImport } from './routes/ledger/index'
-import { Route as LedgerSyncRouteImport } from './routes/ledger/sync'
-import { Route as LedgerClosedRouteImport } from './routes/ledger/closed'
-import { Route as LedgerActiveRouteImport } from './routes/ledger/active'
 import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
-import { Route as ApiPublicHooksLedgerSheetPullRouteImport } from './routes/api/public/hooks/ledger-sheet-pull'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
 
-const LedgerRoute = LedgerRouteImport.update({
-  id: '/ledger',
-  path: '/ledger',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -35,36 +24,10 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LedgerIndexRoute = LedgerIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => LedgerRoute,
-} as any)
-const LedgerSyncRoute = LedgerSyncRouteImport.update({
-  id: '/sync',
-  path: '/sync',
-  getParentRoute: () => LedgerRoute,
-} as any)
-const LedgerClosedRoute = LedgerClosedRouteImport.update({
-  id: '/closed',
-  path: '/closed',
-  getParentRoute: () => LedgerRoute,
-} as any)
-const LedgerActiveRoute = LedgerActiveRouteImport.update({
-  id: '/active',
-  path: '/active',
-  getParentRoute: () => LedgerRoute,
-} as any)
 const ApiPublicHooksSheetExportRoute =
   ApiPublicHooksSheetExportRouteImport.update({
     id: '/api/public/hooks/sheet-export',
     path: '/api/public/hooks/sheet-export',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksLedgerSheetPullRoute =
-  ApiPublicHooksLedgerSheetPullRouteImport.update({
-    id: '/api/public/hooks/ledger-sheet-pull',
-    path: '/api/public/hooks/ledger-sheet-pull',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksAutoClockoutRoute =
@@ -77,37 +40,20 @@ const ApiPublicHooksAutoClockoutRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/ledger': typeof LedgerRouteWithChildren
-  '/ledger/active': typeof LedgerActiveRoute
-  '/ledger/closed': typeof LedgerClosedRoute
-  '/ledger/sync': typeof LedgerSyncRoute
-  '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
-  '/api/public/hooks/ledger-sheet-pull': typeof ApiPublicHooksLedgerSheetPullRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/ledger/active': typeof LedgerActiveRoute
-  '/ledger/closed': typeof LedgerClosedRoute
-  '/ledger/sync': typeof LedgerSyncRoute
-  '/ledger': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
-  '/api/public/hooks/ledger-sheet-pull': typeof ApiPublicHooksLedgerSheetPullRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/ledger': typeof LedgerRouteWithChildren
-  '/ledger/active': typeof LedgerActiveRoute
-  '/ledger/closed': typeof LedgerClosedRoute
-  '/ledger/sync': typeof LedgerSyncRoute
-  '/ledger/': typeof LedgerIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
-  '/api/public/hooks/ledger-sheet-pull': typeof ApiPublicHooksLedgerSheetPullRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
 export interface FileRouteTypes {
@@ -115,57 +61,31 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/ledger'
-    | '/ledger/active'
-    | '/ledger/closed'
-    | '/ledger/sync'
-    | '/ledger/'
     | '/api/public/hooks/auto-clockout'
-    | '/api/public/hooks/ledger-sheet-pull'
     | '/api/public/hooks/sheet-export'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
-    | '/ledger/active'
-    | '/ledger/closed'
-    | '/ledger/sync'
-    | '/ledger'
     | '/api/public/hooks/auto-clockout'
-    | '/api/public/hooks/ledger-sheet-pull'
     | '/api/public/hooks/sheet-export'
   id:
     | '__root__'
     | '/'
     | '/admin'
-    | '/ledger'
-    | '/ledger/active'
-    | '/ledger/closed'
-    | '/ledger/sync'
-    | '/ledger/'
     | '/api/public/hooks/auto-clockout'
-    | '/api/public/hooks/ledger-sheet-pull'
     | '/api/public/hooks/sheet-export'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  LedgerRoute: typeof LedgerRouteWithChildren
   ApiPublicHooksAutoClockoutRoute: typeof ApiPublicHooksAutoClockoutRoute
-  ApiPublicHooksLedgerSheetPullRoute: typeof ApiPublicHooksLedgerSheetPullRoute
   ApiPublicHooksSheetExportRoute: typeof ApiPublicHooksSheetExportRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/ledger': {
-      id: '/ledger'
-      path: '/ledger'
-      fullPath: '/ledger'
-      preLoaderRoute: typeof LedgerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -180,46 +100,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ledger/': {
-      id: '/ledger/'
-      path: '/'
-      fullPath: '/ledger/'
-      preLoaderRoute: typeof LedgerIndexRouteImport
-      parentRoute: typeof LedgerRoute
-    }
-    '/ledger/sync': {
-      id: '/ledger/sync'
-      path: '/sync'
-      fullPath: '/ledger/sync'
-      preLoaderRoute: typeof LedgerSyncRouteImport
-      parentRoute: typeof LedgerRoute
-    }
-    '/ledger/closed': {
-      id: '/ledger/closed'
-      path: '/closed'
-      fullPath: '/ledger/closed'
-      preLoaderRoute: typeof LedgerClosedRouteImport
-      parentRoute: typeof LedgerRoute
-    }
-    '/ledger/active': {
-      id: '/ledger/active'
-      path: '/active'
-      fullPath: '/ledger/active'
-      preLoaderRoute: typeof LedgerActiveRouteImport
-      parentRoute: typeof LedgerRoute
-    }
     '/api/public/hooks/sheet-export': {
       id: '/api/public/hooks/sheet-export'
       path: '/api/public/hooks/sheet-export'
       fullPath: '/api/public/hooks/sheet-export'
       preLoaderRoute: typeof ApiPublicHooksSheetExportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/ledger-sheet-pull': {
-      id: '/api/public/hooks/ledger-sheet-pull'
-      path: '/api/public/hooks/ledger-sheet-pull'
-      fullPath: '/api/public/hooks/ledger-sheet-pull'
-      preLoaderRoute: typeof ApiPublicHooksLedgerSheetPullRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/auto-clockout': {
@@ -232,29 +117,10 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface LedgerRouteChildren {
-  LedgerActiveRoute: typeof LedgerActiveRoute
-  LedgerClosedRoute: typeof LedgerClosedRoute
-  LedgerSyncRoute: typeof LedgerSyncRoute
-  LedgerIndexRoute: typeof LedgerIndexRoute
-}
-
-const LedgerRouteChildren: LedgerRouteChildren = {
-  LedgerActiveRoute: LedgerActiveRoute,
-  LedgerClosedRoute: LedgerClosedRoute,
-  LedgerSyncRoute: LedgerSyncRoute,
-  LedgerIndexRoute: LedgerIndexRoute,
-}
-
-const LedgerRouteWithChildren =
-  LedgerRoute._addFileChildren(LedgerRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  LedgerRoute: LedgerRouteWithChildren,
   ApiPublicHooksAutoClockoutRoute: ApiPublicHooksAutoClockoutRoute,
-  ApiPublicHooksLedgerSheetPullRoute: ApiPublicHooksLedgerSheetPullRoute,
   ApiPublicHooksSheetExportRoute: ApiPublicHooksSheetExportRoute,
 }
 export const routeTree = rootRouteImport
