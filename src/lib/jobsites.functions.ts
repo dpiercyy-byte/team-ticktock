@@ -150,13 +150,8 @@ export const adminArchiveJobSite = createServerFn({ method: "POST" })
       before: { archived_at: prev?.archived_at ?? null, label: prev?.label ?? null },
       after: { archived_at },
     });
-    // Sync: mark the linked Ledger job as finished when archived.
-    if (data.archived) {
-      try {
-        const { finishLinkedLedgerJobForSite } = await import("./ledger-jobs-sync.server");
-        await finishLinkedLedgerJobForSite(data.id);
-      } catch { /* non-fatal */ }
-    }
+    // (Ledger sync removed — Ledger is being rebuilt.)
+
     return refreshed;
   });
 
