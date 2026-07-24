@@ -237,14 +237,8 @@ export async function forceCloseEntry(opts: {
     },
     metadata: { reason: opts.reason, hours: (new Date(outISO).getTime() - new Date(row.clock_in).getTime()) / 3600_000 },
   });
-  try {
-    const { recomputeLaborForEntryContext } = await import("./ledger-jobs-sync.server");
-    const { data: full } = await supabaseAdmin
-      .from("time_entries")
-      .select("planned_job_site_id, assigned_job_site_ids, job_site_id, clock_out_job_site_id")
-      .eq("id", opts.entryId).maybeSingle();
-    if (full) await recomputeLaborForEntryContext(full as any);
-  } catch { /* non-fatal */ }
+  // (Ledger sync removed — Ledger is being rebuilt.)
+
   return { entryId: opts.entryId, clockOut: outISO, flagged };
 }
 
