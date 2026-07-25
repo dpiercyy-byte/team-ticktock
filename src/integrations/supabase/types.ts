@@ -208,6 +208,107 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_job_events: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          job_id: string
+          kind: string
+          occurred_at: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          job_id: string
+          kind: string
+          occurred_at?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          job_id?: string
+          kind?: string
+          occurred_at?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_job_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_jobs: {
+        Row: {
+          address: string
+          archived_at: string | null
+          budget_cents: number
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          collected_cents: number
+          created_at: string
+          expenses_cents: number
+          id: string
+          name: string
+          progress: number
+          project_type: string
+          scheduled_for: string | null
+          status: string
+          trades: string[]
+          updated_at: string
+          workers_on_site: number
+        }
+        Insert: {
+          address: string
+          archived_at?: string | null
+          budget_cents?: number
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          collected_cents?: number
+          created_at?: string
+          expenses_cents?: number
+          id?: string
+          name: string
+          progress?: number
+          project_type: string
+          scheduled_for?: string | null
+          status?: string
+          trades?: string[]
+          updated_at?: string
+          workers_on_site?: number
+        }
+        Update: {
+          address?: string
+          archived_at?: string | null
+          budget_cents?: number
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          collected_cents?: number
+          created_at?: string
+          expenses_cents?: number
+          id?: string
+          name?: string
+          progress?: number
+          project_type?: string
+          scheduled_for?: string | null
+          status?: string
+          trades?: string[]
+          updated_at?: string
+          workers_on_site?: number
+        }
+        Relationships: []
+      }
       os_jobs: {
         Row: {
           address: string | null
