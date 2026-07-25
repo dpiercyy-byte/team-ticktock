@@ -272,7 +272,7 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
     if (p.scheduledFor !== undefined) upd.scheduled_for = p.scheduledFor;
 
     const { data: row, error } = await supabaseAdmin
-      .from("ledger_jobs").update(upd).eq("id", data.id).select(JOB_COLS).single();
+      .from("ledger_jobs").update(upd as never).eq("id", data.id).select(JOB_COLS).single();
     if (error) throw error;
 
     if (p.status && p.status !== prev.status) {
