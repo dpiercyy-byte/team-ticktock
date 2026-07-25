@@ -255,7 +255,7 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
     if (!prev) throw new Response("Not found", { status: 404 });
 
     const p = data.patch;
-    const upd: Record<string, unknown> = {};
+    const upd: Record<string, any> = {};
     if (p.name !== undefined) upd.name = p.name;
     if (p.clientName !== undefined) upd.client_name = p.clientName;
     if (p.clientEmail !== undefined) upd.client_email = p.clientEmail;
