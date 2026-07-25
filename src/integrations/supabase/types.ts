@@ -98,6 +98,80 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      job_events: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          job_id: string
+          kind: string
+          meta: Json
+          occurred_at: string
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          kind: string
+          meta?: Json
+          occurred_at?: string
+          title: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          kind?: string
+          meta?: Json
+          occurred_at?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "os_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_sites: {
         Row: {
           address: string
@@ -133,6 +207,71 @@ export type Database = {
           radius_m?: number
         }
         Relationships: []
+      }
+      os_jobs: {
+        Row: {
+          address: string | null
+          archived_at: string | null
+          budget_cents: number
+          client_id: string | null
+          collected_cents: number
+          created_at: string
+          expenses_cents: number
+          id: string
+          lat: number | null
+          lng: number | null
+          name: string
+          progress: number
+          project_type: string | null
+          status: string
+          trades: string[]
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          archived_at?: string | null
+          budget_cents?: number
+          client_id?: string | null
+          collected_cents?: number
+          created_at?: string
+          expenses_cents?: number
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name: string
+          progress?: number
+          project_type?: string | null
+          status?: string
+          trades?: string[]
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          archived_at?: string | null
+          budget_cents?: number
+          client_id?: string | null
+          collected_cents?: number
+          created_at?: string
+          expenses_cents?: number
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          progress?: number
+          project_type?: string | null
+          status?: string
+          trades?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "os_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reimbursements: {
         Row: {
