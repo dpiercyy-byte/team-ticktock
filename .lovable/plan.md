@@ -1,46 +1,92 @@
 ## Goal
 
-Remove the current Ledger implementation completely — code, routes, server functions, DB tables, and cron — so we can rebuild it from your written spec against a clean slate. Clockwise (App 1) stays untouched. The `/ledger` route and `AppSwitcherBar` stay in place but point at a minimal placeholder until the new spec lands.
+Rebuild the Ledger tab as a port of the **Job Flow** project — same UI, screens, and interactions — but backed by Lovable Cloud (Supabase) instead of `localStorage`, and fully independent from Clockwise (no worker/site sync). Clockwise stays untouched. The top `AppSwitcherBar` remains; Job Flow's floating bottom-pill nav lives underneath it while inside `/ledger/*`.
 
-## Scope of removal
+## Source app (Job Flow) — what we're mirroring
 
-### Frontend / routes
-- Delete `src/routes/ledger.tsx` and everything under `src/routes/ledger/` (`index.tsx`, `active.tsx`, `closed.tsx`, `sync.tsx`).
-- Delete `src/components/ledger/` (Header, JobCard, EditJobDialog, ExecutiveDashboard, KpiCard, RecentSheets).
-- Delete the public API route `src/routes/api/public/hooks/ledger-sheet-pull.ts`.
+- Screens: Home (daily briefing), Jobs list, Job detail, New job, Calendar, Notifications, Profile.
+- Data model: `Job { id, name, client{name,email,phone}, address, projectType, trades[], status, progress, budget, collected, expenses, workersOnSite, scheduledFor, createdAt, updatedAt, timeline[] }` with typed enums for status/project type/trades and a `TimelineEvent` union (created, status, note, visit, estimate, approval, payment, clockin, receipt, material, change_order, inspection, completed).
+- Visual system: shadcn + Tailwind tokens (`--surface`, `--shadow-card`, `card-surface`, `card-lift`), soft rounded cards, floating pill nav, status-tone chips via `color-mix`.
 
-### Server / lib
-- Delete `src/lib/ledger.functions.ts`, `src/lib/ledger-client.ts`, `src/lib/ledger-xlsx.ts`, `src/lib/ledger-jobs-sync.server.ts`, `src/lib/ledger-sheet-import.server.ts`, `src/lib/ledger-sheet-export.server.ts`, `src/lib/ledger-sheet-export.functions.ts`.
-- Remove all imports/calls into those modules from Clockwise code (notably any `mirrorJobToLedger` / labor-rollup hooks in `entries.functions.ts`, `jobsites.functions.ts`, clock-in/out paths). Clockwise keeps working with no Ledger side-effects.
+## Database (one migration)
 
-### Database (migration)
-- `DROP TABLE public.ledger_jobs CASCADE;`
-- Drop `public.ledger_jobs_touch_updated_at()` trigger function.
-- Drop any `pg_cron` job that pulls Ledger sheets (leave Clockwise auto-clockout cron alone, per prior instruction).
-- Leave `app_settings`, `audit_log`, `job_sites`, `reimbursements`, `time_entries`, `weekly_payouts`, `workers`, `receipts` bucket untouched.
+Create fresh Ledger tables — no reuse of the dropped `ledger_jobs` schema.
 
-### Placeholder
-- New `src/routes/ledger.tsx` (or `ledger/index.tsx`) rendering a simple "Ledger is being rebuilt" panel inside `AppSwitcherBar`, so the app tab still routes cleanly and there are no broken links.
+```text
+ledger_jobs
+  id, name, client_name, client_email, client_phone,
+  address, project_type (enum text), trades text[],
+  status (enum text), progress int (0-100),
+  budget_cents bigint, collected_cents bigint, expenses_cents bigint,
+  workers_on_site int, scheduled_for timestamptz,
+  archived_at, created_at, updated_at
 
-## Why "hard reset" over "paste code"
+ledger_job_events   (timeline)
+  id, job_id → ledger_jobs.id ON DELETE CASCADE,
+  kind text (created|status|note|visit|estimate|approval|payment|
+             clockin|receipt|material|change_order|inspection|completed),
+  title, detail, occurred_at timestamptz, created_at
+```
 
-You picked hybrid — spec first, code as reference. That means:
-1. This turn: clean removal only, no new Ledger business logic.
-2. Next turn: you send the written spec (data model, screens, flows, sync rules). Optionally paste snippets from your other app for visual reference.
-3. Turn after: I design tables + routes native to this stack (Supabase + TanStack Start + shadcn) and build.
+- GRANTs to `authenticated` + `service_role` (this app is admin-only under a custom HMAC token, so RLS policies stay `deny all` matching Clockwise's pattern; all reads/writes go through `createServerFn` with `verifyAdminToken`).
+- `updated_at` trigger on `ledger_jobs`.
+- No cron, no Sheets integration, no Clockwise linkage.
 
-Reasons to do the wipe as its own step:
-- Avoids merge/type conflicts between old `ledger_jobs` columns and whatever the new schema needs.
-- Lets us decide the job-sync question later without carrying dead mirroring code.
-- Keeps the diff reviewable — deletions in one commit, new build in the next.
+## Server functions — `src/lib/ledger.functions.ts`
 
-## Deliverable this turn
-1. One `supabase--migration` dropping `ledger_jobs` + related function/cron.
-2. File deletions + import cleanup in Clockwise.
-3. Placeholder `/ledger` route.
-4. Confirmation that Clockwise (worker + admin) still builds and runs.
+Admin-guarded (reuse Clockwise's `verifyAdminToken` pattern):
+- `listLedgerJobs()` — for Home + Jobs list + Calendar.
+- `getLedgerJob(id)` — job + timeline (sorted desc).
+- `createLedgerJob({ client, address, projectType, trades, status })` — auto-generates `name` (`"<lastName> <projectType>"`) and seeds two timeline events (`created`, `status`).
+- `updateLedgerJob(id, patch)` — arbitrary field patch; appends a `status` event when status changes; bumps `updated_at`.
+- `addLedgerJobEvent(id, { kind, title, detail, occurred_at? })` — for the "Add a note" button and any future event drops.
+- `deleteLedgerJob(id)` — cascade removes events.
 
-## What you send next
-- The spec (screens, entities, flows, required fields, permissions, whether Google Sheets is involved at all this time).
-- Optional: the other app's repo/snippets as visual reference.
-- Answer to the deferred "sync Ledger jobs with Clockwise job sites?" question once the spec is clearer.
+## Routes (nested under `/ledger`)
+
+Replace the current placeholder with a nested tree:
+
+```text
+src/routes/
+  ledger.tsx                → layout: <AppSwitcherBar/> + <Outlet/> + <LedgerBottomNav/>
+  ledger/index.tsx          → Home (daily briefing)
+  ledger/jobs.tsx           → Jobs list
+  ledger/jobs.$jobId.tsx    → Job detail
+  ledger/jobs.new.tsx       → New job form
+  ledger/calendar.tsx       → Calendar
+  ledger/notifications.tsx  → Alerts
+  ledger/profile.tsx        → Profile
+```
+
+Each leaf gets a unique `head()` with title/description/OG tags. All data reads use `queryOptions` + `ensureQueryData` in the loader and `useSuspenseQuery` in the component, per the stack rules.
+
+## Components — `src/components/ledger/`
+
+- `LedgerShell.tsx` — the container (padding, max-width) from Job Flow's `AppShell` minus its nav (nav moves out).
+- `LedgerBottomNav.tsx` — the floating pill (Home / Jobs / Calendar / Alerts / Profile), rendered by the `ledger.tsx` layout so it appears on every child but not outside Ledger.
+- `JobCard.tsx`, `JobStatusBadge.tsx`, `JobTimeline.tsx`, `NewJobForm.tsx` — ported from Job Flow, restyled to use existing tokens.
+- `jobs-client.ts` — thin TanStack Query hooks (`useLedgerJobs`, `useLedgerJob`, `useCreateLedgerJob`, …) wrapping the server fns.
+
+## Nav / layout integration
+
+- `AppSwitcherBar` stays as the top-of-screen Clockwise↔Ledger toggle (no changes).
+- `ledger.tsx` renders: `<AppSwitcherBar /> <main class="pb-28"><Outlet/></main> <LedgerBottomNav/>`.
+- Bottom nav highlights the active `/ledger/*` sub-route; on `/` (Clockwise) it is not rendered.
+
+## Out of scope (per your answers)
+
+- No sync between Ledger jobs and Clockwise `job_sites` / workers.
+- No Google Sheets import/export, no `pg_net`, no cron.
+- No auth changes — Ledger sits behind the same admin login as Clockwise.
+
+## Deliverable order
+
+1. `supabase--migration` creating `ledger_jobs` + `ledger_job_events` with GRANTs, RLS, updated_at trigger.
+2. `src/lib/ledger.functions.ts` with the six server fns above.
+3. Route tree + components port (single edit batch after types regenerate).
+4. Verify build + a quick smoke test: create a job → shows on Home + Jobs list, timeline event added, status change appends event.
+
+## What you'll want to decide later (not this turn)
+
+- Whether Ledger should eventually mirror Active jobs into Clockwise `job_sites` (deferred by your answer today).
+- Whether to persist a "seen" state for Notifications (currently just derived from jobs).
