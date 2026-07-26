@@ -3344,12 +3344,12 @@ function AdminAddReceiptsDialog({
 
   const addFiles = (list: FileList | File[]) => {
     const incoming = Array.from(list).filter((f) => {
-      if (!ADMIN_ALLOWED_MIMES.has(f.type)) {
-        toast.error(`Skipped ${f.name}: must be JPG, PNG, or PDF`);
+      if (!isAcceptableUpload(f)) {
+        toast.error(`Skipped ${f.name}: must be an image or PDF`);
         return false;
       }
-      if (f.size > 10 * 1024 * 1024) {
-        toast.error(`Skipped ${f.name}: over 10MB`);
+      if (f.size > 25 * 1024 * 1024) {
+        toast.error(`Skipped ${f.name}: over 25MB`);
         return false;
       }
       return true;
