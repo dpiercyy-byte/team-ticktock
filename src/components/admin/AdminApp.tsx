@@ -167,20 +167,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compress";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
-const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
+const RECEIPT_ACCEPT = "image/*,application/pdf";
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const s = String(r.result || "");
-      const i = s.indexOf(",");
-      resolve(i >= 0 ? s.slice(i + 1) : s);
-    };
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-}
 
 export function AdminApp() {
   const [token, setTokenState] = useState<string | null>(null);
