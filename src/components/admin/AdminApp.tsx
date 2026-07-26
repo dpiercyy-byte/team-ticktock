@@ -164,6 +164,7 @@ import {
   relativeWeekLabel,
 } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compress";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
 const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
