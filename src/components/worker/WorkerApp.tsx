@@ -40,20 +40,8 @@ import { enqueueClock } from "@/lib/offline-queue";
 import { workerWeekSummary } from "@/lib/payout.functions";
 import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
 
-const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
+import { isAcceptableUpload, prepareUpload, withRetry, fileToBase64 } from "@/lib/image-compress";
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const s = String(r.result || "");
-      const i = s.indexOf(",");
-      resolve(i >= 0 ? s.slice(i + 1) : s);
-    };
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-}
 
 type GeoCoords = { lat: number; lng: number } | null;
 
