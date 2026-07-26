@@ -3278,7 +3278,6 @@ function EditParsedDialog({
 
 // ===== Admin standalone receipt bulk upload =====
 
-const ADMIN_ALLOWED_MIMES = new Set(["image/jpeg", "image/png", "application/pdf"]);
 
 function currentWeekStartISOClient(): string {
   const d = new Date();
@@ -3531,7 +3530,7 @@ function AdminAddReceiptsDialog({
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,application/pdf"
+              accept="image/*,application/pdf"
               multiple
               className="hidden"
               onChange={(e) => {

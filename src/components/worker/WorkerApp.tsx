@@ -40,7 +40,7 @@ import { enqueueClock } from "@/lib/offline-queue";
 import { workerWeekSummary } from "@/lib/payout.functions";
 import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
 
-import { isAcceptableUpload, prepareUpload, withRetry, fileToBase64 } from "@/lib/image-compress";
+import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compress";
 
 
 type GeoCoords = { lat: number; lng: number } | null;
