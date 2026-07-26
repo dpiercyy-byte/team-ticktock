@@ -1,92 +1,35 @@
-## Goal
+## What went wrong
 
-Rebuild the Ledger tab as a port of the **Job Flow** project — same UI, screens, and interactions — but backed by Lovable Cloud (Supabase) instead of `localStorage`, and fully independent from Clockwise (no worker/site sync). Clockwise stays untouched. The top `AppSwitcherBar` remains; Job Flow's floating bottom-pill nav lives underneath it while inside `/ledger/*`.
+Your Android photo was 3812 KB. The app sends receipts to the server as **base64 text inside a JSON request body** — base64 inflates the file by ~33%, so that single photo became a ~5.1 MB request. On a phone connection those large single-shot requests frequently stall or get dropped, which is exactly the "works on the 5th try" pattern. The dialog then shows a generic **"All uploads failed"** because the real error is only written to the browser console, never shown.
 
-## Source app (Job Flow) — what we're mirroring
+Two secondary issues on Android:
+- Some Android cameras/galleries report a photo as `image/heic`, `image/webp`, or with an empty MIME type. The picker silently rejects those ("must be JPG, PNG, or PDF").
+- A failed file is not retried at all — one network hiccup kills it.
 
-- Screens: Home (daily briefing), Jobs list, Job detail, New job, Calendar, Notifications, Profile.
-- Data model: `Job { id, name, client{name,email,phone}, address, projectType, trades[], status, progress, budget, collected, expenses, workersOnSite, scheduledFor, createdAt, updatedAt, timeline[] }` with typed enums for status/project type/trades and a `TimelineEvent` union (created, status, note, visit, estimate, approval, payment, clockin, receipt, material, change_order, inspection, completed).
-- Visual system: shadcn + Tailwind tokens (`--surface`, `--shadow-card`, `card-surface`, `card-lift`), soft rounded cards, floating pill nav, status-tone chips via `color-mix`.
+## The fix
 
-## Database (one migration)
+**1. Shrink images before upload (main fix)**
+Add a shared helper `src/lib/image-compress.ts`:
+- Decode the picked image (via `createImageBitmap`), draw to a canvas scaled so the longest edge is max 2000px, re-encode as JPEG quality ~0.8.
+- Loop down quality/size until the result is under ~1.2 MB.
+- PDFs pass through untouched; if decoding fails for any reason, fall back to the original file so nothing breaks.
 
-Create fresh Ledger tables — no reuse of the dropped `ledger_jobs` schema.
+A 3.8 MB phone photo becomes ~300–600 KB — small enough to upload reliably first try, and receipt text stays perfectly legible for the AI parser.
 
-```text
-ledger_jobs
-  id, name, client_name, client_email, client_phone,
-  address, project_type (enum text), trades text[],
-  status (enum text), progress int (0-100),
-  budget_cents bigint, collected_cents bigint, expenses_cents bigint,
-  workers_on_site int, scheduled_for timestamptz,
-  archived_at, created_at, updated_at
+**2. Retry with backoff**
+Wrap the per-file `uploadReceipt` call in up to 3 attempts with a short increasing delay, so a transient mobile-network drop self-heals instead of failing the batch.
 
-ledger_job_events   (timeline)
-  id, job_id → ledger_jobs.id ON DELETE CASCADE,
-  kind text (created|status|note|visit|estimate|approval|payment|
-             clockin|receipt|material|change_order|inspection|completed),
-  title, detail, occurred_at timestamptz, created_at
-```
+**3. Show the real error**
+Replace the blanket "All uploads failed" toast with the actual failure message from the first failed file (e.g. size, auth expiry, storage error), so future problems are diagnosable.
 
-- GRANTs to `authenticated` + `service_role` (this app is admin-only under a custom HMAC token, so RLS policies stay `deny all` matching Clockwise's pattern; all reads/writes go through `createServerFn` with `verifyAdminToken`).
-- `updated_at` trigger on `ledger_jobs`.
-- No cron, no Sheets integration, no Clockwise linkage.
+**4. Accept what Android actually hands over**
+Widen the picker's accepted list to include `image/heic`, `image/heif`, `image/webp`, and files with a blank MIME type — these get normalized to JPEG by the compression step before being sent, so the server still only ever receives JPG/PNG/PDF.
 
-## Server functions — `src/lib/ledger.functions.ts`
+**5. Apply the same treatment to the worker app**
+The worker reimbursement upload (`WorkerApp.tsx`) uses the identical base64 pattern and has the same failure mode — it gets the same compression + retry helper.
 
-Admin-guarded (reuse Clockwise's `verifyAdminToken` pattern):
-- `listLedgerJobs()` — for Home + Jobs list + Calendar.
-- `getLedgerJob(id)` — job + timeline (sorted desc).
-- `createLedgerJob({ client, address, projectType, trades, status })` — auto-generates `name` (`"<lastName> <projectType>"`) and seeds two timeline events (`created`, `status`).
-- `updateLedgerJob(id, patch)` — arbitrary field patch; appends a `status` event when status changes; bumps `updated_at`.
-- `addLedgerJobEvent(id, { kind, title, detail, occurred_at? })` — for the "Add a note" button and any future event drops.
-- `deleteLedgerJob(id)` — cascade removes events.
+## Technical notes
 
-## Routes (nested under `/ledger`)
-
-Replace the current placeholder with a nested tree:
-
-```text
-src/routes/
-  ledger.tsx                → layout: <AppSwitcherBar/> + <Outlet/> + <LedgerBottomNav/>
-  ledger/index.tsx          → Home (daily briefing)
-  ledger/jobs.tsx           → Jobs list
-  ledger/jobs.$jobId.tsx    → Job detail
-  ledger/jobs.new.tsx       → New job form
-  ledger/calendar.tsx       → Calendar
-  ledger/notifications.tsx  → Alerts
-  ledger/profile.tsx        → Profile
-```
-
-Each leaf gets a unique `head()` with title/description/OG tags. All data reads use `queryOptions` + `ensureQueryData` in the loader and `useSuspenseQuery` in the component, per the stack rules.
-
-## Components — `src/components/ledger/`
-
-- `LedgerShell.tsx` — the container (padding, max-width) from Job Flow's `AppShell` minus its nav (nav moves out).
-- `LedgerBottomNav.tsx` — the floating pill (Home / Jobs / Calendar / Alerts / Profile), rendered by the `ledger.tsx` layout so it appears on every child but not outside Ledger.
-- `JobCard.tsx`, `JobStatusBadge.tsx`, `JobTimeline.tsx`, `NewJobForm.tsx` — ported from Job Flow, restyled to use existing tokens.
-- `jobs-client.ts` — thin TanStack Query hooks (`useLedgerJobs`, `useLedgerJob`, `useCreateLedgerJob`, …) wrapping the server fns.
-
-## Nav / layout integration
-
-- `AppSwitcherBar` stays as the top-of-screen Clockwise↔Ledger toggle (no changes).
-- `ledger.tsx` renders: `<AppSwitcherBar /> <main class="pb-28"><Outlet/></main> <LedgerBottomNav/>`.
-- Bottom nav highlights the active `/ledger/*` sub-route; on `/` (Clockwise) it is not rendered.
-
-## Out of scope (per your answers)
-
-- No sync between Ledger jobs and Clockwise `job_sites` / workers.
-- No Google Sheets import/export, no `pg_net`, no cron.
-- No auth changes — Ledger sits behind the same admin login as Clockwise.
-
-## Deliverable order
-
-1. `supabase--migration` creating `ledger_jobs` + `ledger_job_events` with GRANTs, RLS, updated_at trigger.
-2. `src/lib/ledger.functions.ts` with the six server fns above.
-3. Route tree + components port (single edit batch after types regenerate).
-4. Verify build + a quick smoke test: create a job → shows on Home + Jobs list, timeline event added, status change appends event.
-
-## What you'll want to decide later (not this turn)
-
-- Whether Ledger should eventually mirror Active jobs into Clockwise `job_sites` (deferred by your answer today).
-- Whether to persist a "seen" state for Notifications (currently just derived from jobs).
+- Files touched: new `src/lib/image-compress.ts`; `src/components/admin/AdminApp.tsx` (`AdminAddReceiptsDialog`: `addFiles`, `submit`, `ADMIN_ALLOWED_MIMES`); `src/components/worker/WorkerApp.tsx` (receipt submit path).
+- No server or database changes. `uploadReceipt` / `workerUploadReceipt` keep their existing 10 MB guard and JPG/PNG/PDF enum as the backstop.
+- Compression runs on the main thread but only on user-picked files; typical cost is well under 200 ms per photo.

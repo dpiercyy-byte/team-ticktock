@@ -164,22 +164,10 @@ import {
   relativeWeekLabel,
 } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compress";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
-const ALLOWED_RECEIPT_MIMES = ["image/jpeg", "image/png", "application/pdf"] as const;
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const s = String(r.result || "");
-      const i = s.indexOf(",");
-      resolve(i >= 0 ? s.slice(i + 1) : s);
-    };
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-}
 
 export function AdminApp() {
   const [token, setTokenState] = useState<string | null>(null);
@@ -1813,20 +1801,27 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   );
 
   const handleFile = async (file: File) => {
-    if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
-      toast.error("Only JPG, PNG or PDF allowed");
+    if (!isAcceptableUpload(file)) {
+      toast.error("Only images or PDF allowed");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Max file size is 10MB");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Max file size is 25MB");
       return;
     }
     setUploading(true);
     try {
-      const base64 = await fileToBase64(file);
-      const r = await upload({
-        data: { token, filename: file.name, mime: file.type as any, base64 },
-      });
+      const prepped = await prepareUpload(file);
+      const r = await withRetry(() =>
+        upload({
+          data: {
+            token,
+            filename: prepped.filename,
+            mime: prepped.mime as any,
+            base64: prepped.base64,
+          },
+        }),
+      );
       updateToken(r.token);
       setReceipt({ url: r.url, mime: r.mime });
     } catch (e: any) {
@@ -3282,7 +3277,6 @@ function EditParsedDialog({
 
 // ===== Admin standalone receipt bulk upload =====
 
-const ADMIN_ALLOWED_MIMES = new Set(["image/jpeg", "image/png", "application/pdf"]);
 
 function currentWeekStartISOClient(): string {
   const d = new Date();
@@ -3344,12 +3338,12 @@ function AdminAddReceiptsDialog({
 
   const addFiles = (list: FileList | File[]) => {
     const incoming = Array.from(list).filter((f) => {
-      if (!ADMIN_ALLOWED_MIMES.has(f.type)) {
-        toast.error(`Skipped ${f.name}: must be JPG, PNG, or PDF`);
+      if (!isAcceptableUpload(f)) {
+        toast.error(`Skipped ${f.name}: must be an image or PDF`);
         return false;
       }
-      if (f.size > 10 * 1024 * 1024) {
-        toast.error(`Skipped ${f.name}: over 10MB`);
+      if (f.size > 25 * 1024 * 1024) {
+        toast.error(`Skipped ${f.name}: over 25MB`);
         return false;
       }
       return true;
@@ -3362,18 +3356,6 @@ function AdminAddReceiptsDialog({
     setDragOver(false);
     if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
   };
-
-  const fileToBase64 = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const res = reader.result as string;
-        const idx = res.indexOf("base64,");
-        resolve(idx >= 0 ? res.slice(idx + 7) : res);
-      };
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
 
   const submit = async () => {
     if (files.length === 0) {
@@ -3389,34 +3371,40 @@ function AdminAddReceiptsDialog({
     setProgress({ done: 0, total: files.length });
     let ok = 0,
       failed = 0;
+    let firstError = "";
     for (const f of files) {
       try {
-        const base64 = await fileToBase64(f);
-        const up = await uploadFn({
-          data: {
-            token,
-            filename: f.name,
-            mime: f.type as any,
-            base64,
-          },
-        });
+        const prepped = await prepareUpload(f);
+        const up = await withRetry(() =>
+          uploadFn({
+            data: {
+              token,
+              filename: prepped.filename,
+              mime: prepped.mime as any,
+              base64: prepped.base64,
+            },
+          }),
+        );
         updateToken(up.token);
-        const r = await addFn({
-          data: {
-            token: up.token,
-            payeeLabel: payee.trim() || undefined,
-            description: description.trim() || undefined,
-            weekStart,
-            receiptUrl: up.url,
-            receiptMime: up.mime,
-            jobSiteId: jobSiteId || null,
-            materialType,
-          },
-        });
+        const r = await withRetry(() =>
+          addFn({
+            data: {
+              token: up.token,
+              payeeLabel: payee.trim() || undefined,
+              description: description.trim() || undefined,
+              weekStart,
+              receiptUrl: up.url,
+              receiptMime: up.mime,
+              jobSiteId: jobSiteId || null,
+              materialType,
+            },
+          }),
+        );
         updateToken(r.token);
         ok++;
       } catch (e: any) {
         failed++;
+        if (!firstError) firstError = String(e?.message || e || "Upload failed");
         console.error("admin receipt upload failed", e);
       } finally {
         setProgress((p) => (p ? { done: p.done + 1, total: p.total } : null));
@@ -3427,7 +3415,7 @@ function AdminAddReceiptsDialog({
       toast.success(
         `Uploaded ${ok} receipt${ok === 1 ? "" : "s"}${failed ? ` (${failed} failed)` : ""} — parsing in background`,
       );
-    if (ok === 0 && failed > 0) toast.error("All uploads failed");
+    if (ok === 0 && failed > 0) toast.error(`Upload failed: ${firstError.slice(0, 160)}`);
     onDone();
     if (ok > 0) onClose();
   };
@@ -3541,7 +3529,7 @@ function AdminAddReceiptsDialog({
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,application/pdf"
+              accept="image/*,application/pdf"
               multiple
               className="hidden"
               onChange={(e) => {

@@ -44,7 +44,7 @@ export function CameraFilePicker({
       <input
         ref={camRef}
         type="file"
-        accept="image/jpeg,image/png,application/pdf"
+        accept="image/*,application/pdf"
         capture="environment"
         multiple={multiple}
         className="hidden"
@@ -53,7 +53,7 @@ export function CameraFilePicker({
       <input
         ref={galRef}
         type="file"
-        accept="image/jpeg,image/png,application/pdf"
+        accept="image/*,application/pdf"
         multiple={multiple}
         className="hidden"
         onChange={handleChange}
