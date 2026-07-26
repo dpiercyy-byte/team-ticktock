@@ -3364,18 +3364,6 @@ function AdminAddReceiptsDialog({
     if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
   };
 
-  const fileToBase64 = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const res = reader.result as string;
-        const idx = res.indexOf("base64,");
-        resolve(idx >= 0 ? res.slice(idx + 7) : res);
-      };
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-
   const submit = async () => {
     if (files.length === 0) {
       toast.error("Add at least one file");
@@ -3390,34 +3378,40 @@ function AdminAddReceiptsDialog({
     setProgress({ done: 0, total: files.length });
     let ok = 0,
       failed = 0;
+    let firstError = "";
     for (const f of files) {
       try {
-        const base64 = await fileToBase64(f);
-        const up = await uploadFn({
-          data: {
-            token,
-            filename: f.name,
-            mime: f.type as any,
-            base64,
-          },
-        });
+        const prepped = await prepareUpload(f);
+        const up = await withRetry(() =>
+          uploadFn({
+            data: {
+              token,
+              filename: prepped.filename,
+              mime: prepped.mime as any,
+              base64: prepped.base64,
+            },
+          }),
+        );
         updateToken(up.token);
-        const r = await addFn({
-          data: {
-            token: up.token,
-            payeeLabel: payee.trim() || undefined,
-            description: description.trim() || undefined,
-            weekStart,
-            receiptUrl: up.url,
-            receiptMime: up.mime,
-            jobSiteId: jobSiteId || null,
-            materialType,
-          },
-        });
+        const r = await withRetry(() =>
+          addFn({
+            data: {
+              token: up.token,
+              payeeLabel: payee.trim() || undefined,
+              description: description.trim() || undefined,
+              weekStart,
+              receiptUrl: up.url,
+              receiptMime: up.mime,
+              jobSiteId: jobSiteId || null,
+              materialType,
+            },
+          }),
+        );
         updateToken(r.token);
         ok++;
       } catch (e: any) {
         failed++;
+        if (!firstError) firstError = String(e?.message || e || "Upload failed");
         console.error("admin receipt upload failed", e);
       } finally {
         setProgress((p) => (p ? { done: p.done + 1, total: p.total } : null));
@@ -3428,7 +3422,7 @@ function AdminAddReceiptsDialog({
       toast.success(
         `Uploaded ${ok} receipt${ok === 1 ? "" : "s"}${failed ? ` (${failed} failed)` : ""} — parsing in background`,
       );
-    if (ok === 0 && failed > 0) toast.error("All uploads failed");
+    if (ok === 0 && failed > 0) toast.error(`Upload failed: ${firstError.slice(0, 160)}`);
     onDone();
     if (ok > 0) onClose();
   };
