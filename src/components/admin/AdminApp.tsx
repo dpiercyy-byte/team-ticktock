@@ -167,7 +167,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compress";
 
 const INACTIVITY_MS = 30 * 60 * 1000;
-const RECEIPT_ACCEPT = "image/*,application/pdf";
 
 
 export function AdminApp() {
