@@ -598,18 +598,27 @@ function ReimbursementsSection({ token, workerId }: { token: string; workerId: s
   }, [workerId, qc]);
 
   const handleFile = async (file: File) => {
-    if (!ALLOWED_RECEIPT_MIMES.includes(file.type as any)) {
-      toast.error("Only JPG, PNG or PDF allowed");
+    if (!isAcceptableUpload(file)) {
+      toast.error("Only images or PDF allowed");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Max file size is 10MB");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Max file size is 25MB");
       return;
     }
     setUploading(true);
     try {
-      const base64 = await fileToBase64(file);
-      const r = await uploadFn({ data: { token, filename: file.name, mime: file.type as any, base64 } });
+      const prepped = await prepareUpload(file);
+      const r = await withRetry(() =>
+        uploadFn({
+          data: {
+            token,
+            filename: prepped.filename,
+            mime: prepped.mime as any,
+            base64: prepped.base64,
+          },
+        }),
+      );
       setReceipt({ url: r.url, mime: r.mime });
     } catch (e: any) {
       toast.error(e?.message || "Upload failed");
