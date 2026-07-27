@@ -5,7 +5,7 @@ import type { ComponentType } from "react";
 import {
   ArrowLeft, Calendar, CheckCircle2, Clock, DollarSign,
   FileText, Hammer, MapPin, Package, PenSquare, Phone, Plus, Receipt,
-  ShieldCheck, Sparkles, Users, X,
+  ShieldCheck, Sparkles, Trash2, Users, X,
 } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobHero, heroClass } from "@/components/ledger/JobHero";
@@ -13,8 +13,13 @@ import { JobHero, heroClass } from "@/components/ledger/JobHero";
 import { JobJourney } from "@/components/ledger/JobJourney";
 import { LedgerFab } from "@/components/ledger/LedgerFab";
 import { formatCurrency, shortDateTime, heroImage } from "@/components/ledger/ledger-ui";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ledgerJobQuery } from "@/lib/ledger-client";
-import { addLedgerJobEvent, type LedgerTimelineEvent } from "@/lib/ledger.functions";
+import { addLedgerJobEvent, deleteLedgerJob, type LedgerTimelineEvent } from "@/lib/ledger.functions";
 import { getAdminToken } from "@/lib/session";
 import { useState } from "react";
 
