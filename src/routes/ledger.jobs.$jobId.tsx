@@ -5,7 +5,7 @@ import type { ComponentType } from "react";
 import {
   ArrowLeft, Calendar, CheckCircle2, Clock, DollarSign,
   FileText, Hammer, MapPin, Package, PenSquare, Phone, Plus, Receipt,
-  ShieldCheck, Sparkles, Users, X,
+  ShieldCheck, Sparkles, Trash2, Users, X,
 } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobHero, heroClass } from "@/components/ledger/JobHero";
@@ -13,8 +13,13 @@ import { JobHero, heroClass } from "@/components/ledger/JobHero";
 import { JobJourney } from "@/components/ledger/JobJourney";
 import { LedgerFab } from "@/components/ledger/LedgerFab";
 import { formatCurrency, shortDateTime, heroImage } from "@/components/ledger/ledger-ui";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ledgerJobQuery } from "@/lib/ledger-client";
-import { addLedgerJobEvent, type LedgerTimelineEvent } from "@/lib/ledger.functions";
+import { addLedgerJobEvent, deleteLedgerJob, type LedgerTimelineEvent } from "@/lib/ledger.functions";
 import { getAdminToken } from "@/lib/session";
 import { useState } from "react";
 
@@ -41,8 +46,10 @@ function JobDetail() {
   const qc = useQueryClient();
   const router = useRouter();
   const addEvent = useServerFn(addLedgerJobEvent);
+  const removeJob = useServerFn(deleteLedgerJob);
   const [note, setNote] = useState("");
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const noteMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -56,6 +63,20 @@ function JobDetail() {
       qc.invalidateQueries({ queryKey: ["ledger", "jobs", jobId] });
       qc.invalidateQueries({ queryKey: ["ledger", "jobs"] });
       router.invalidate();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const token = getAdminToken();
+      if (!token) throw new Error("Not signed in");
+      return removeJob({ data: { token, id: jobId } });
+    },
+    onSuccess: async () => {
+      setConfirmDelete(false);
+      qc.removeQueries({ queryKey: ["ledger", "jobs", jobId] });
+      await qc.invalidateQueries({ queryKey: ["ledger", "jobs"] });
+      await router.navigate({ to: "/ledger/jobs", replace: true });
     },
   });
 
@@ -214,7 +235,51 @@ function JobDetail() {
             </form>
           )}
         </section>
+
+        {/* Danger zone */}
+        <section className="mt-10">
+          <h2 className="l-eyebrow mb-3 px-1">Danger zone</h2>
+          <div className="l-card p-4">
+            <p className="text-[12px] l-muted">
+              Deleting this job permanently removes it and its entire activity timeline. This
+              cannot be undone.
+            </p>
+            <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="mt-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-bold l-red"
+                  style={{ background: "hsl(6 78% 96%)" }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete job
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete “{job.name}”?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes the job and all of its timeline events. This cannot
+                    be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => {
+                      e.preventDefault();
+                      deleteMutation.mutate();
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? "Deleting…" : "Delete job"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </section>
       </LedgerShell>
+
 
       {!open && (
         <LedgerFab label="Add a note" onClick={() => setOpen(true)}>
