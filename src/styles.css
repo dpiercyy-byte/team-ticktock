@@ -180,14 +180,32 @@
  * ================================================================ */
 
 .ledger-scope {
+  /* --- Ledger design tokens (light, warm) --- */
+  --l-bg: hsl(38 32% 97%);
+  --l-surface: #ffffff;
+  --l-surface-2: hsl(38 24% 95%);
+  --l-ink: hsl(215 30% 15%);
+  --l-muted: hsl(215 14% 47%);
+  --l-line: hsl(35 18% 90%);
+  --l-accent: hsl(14 74% 52%);
+  --l-accent-soft: hsl(14 74% 95%);
+  --l-green: hsl(152 48% 32%);
+  --l-red: hsl(2 68% 48%);
+  --l-radius-sheet: 28px;
+  --l-radius-card: 20px;
+  --shadow-sheet: 0 1px 2px rgba(23, 20, 15, 0.04), 0 18px 46px -18px rgba(23, 20, 15, 0.22);
+  --shadow-card: 0 1px 2px rgba(23, 20, 15, 0.04), 0 10px 26px -14px rgba(23, 20, 15, 0.18);
+  --shadow-float: 0 8px 30px -6px rgba(23, 20, 15, 0.28);
+
   font-family: "Manrope", system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
   letter-spacing: -0.01em;
-  background: hsl(40 30% 97%);
-  color: hsl(215 28% 17%);
+  background: var(--l-bg);
+  color: var(--l-ink);
   min-height: 100vh;
   position: relative;
 }
+
 .ledger-scope h1,
 .ledger-scope h2,
 .ledger-scope h3,
