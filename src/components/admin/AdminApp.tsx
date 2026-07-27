@@ -376,8 +376,9 @@ function AdminDashboard({
           </Tabs>
         </SwipeableTabs>
       </div>
+      <AdminBottomNav value={activeTab} onValueChange={setActiveTab} />
     </div>
-  );
+
 }
 
 // ===== Entries tab =====
