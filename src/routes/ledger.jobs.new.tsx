@@ -214,10 +214,8 @@ function NewJob() {
                   key={t}
                   onClick={() => setTrades((prev) => (on ? prev.filter((x) => x !== t) : [...prev, t]))}
                   className={
-                    "rounded-full border px-4 py-2 text-sm font-medium transition-all " +
-                    (on
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground hover:border-primary/40")
+                    "l-pill transition-all " +
+                    (on ? "bg-primary text-primary-foreground" : "l-pill--raised")
                   }
                 >
                   {t}
@@ -225,6 +223,7 @@ function NewJob() {
               );
             })}
           </div>
+
           {trades.length > 0 && (
             <p className="mt-4 text-xs l-muted">
               {trades.length} trade{trades.length === 1 ? "" : "s"} selected
@@ -261,23 +260,29 @@ function NewJob() {
         </p>
       )}
 
-      <div className="mt-10 flex justify-end">
-        <button
-          onClick={next}
-          disabled={!canNext || createMutation.isPending}
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-[var(--shadow-card)] transition-all disabled:cursor-not-allowed disabled:opacity-40 enabled:hover:-translate-y-0.5"
-        >
-          {step === 5 ? (createMutation.isPending ? "Saving…" : "Finish") : "Continue"}
-          <ArrowRight className="h-4 w-4" />
-        </button>
-      </div>
-
       <div className="mt-6 text-center">
         <Link to="/ledger/jobs" className="text-xs l-muted hover:text-foreground">
           Cancel
         </Link>
       </div>
+
+      {/* spacer for the fixed footer */}
+      <div className="h-28" />
+
+      <div className="l-wizard-footer">
+        <div className="mx-auto w-full max-w-3xl px-5 py-3 md:px-8">
+          <button
+            onClick={next}
+            disabled={!canNext || createMutation.isPending}
+            className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-base font-semibold text-primary-foreground shadow-[var(--shadow-card)] transition-all disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {step === 5 ? (createMutation.isPending ? "Saving…" : "Finish") : "Continue"}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
     </LedgerShell>
+
   );
 }
 

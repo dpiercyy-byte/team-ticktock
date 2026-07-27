@@ -65,19 +65,35 @@ export function journeyIndex(s: LedgerStatus | string) {
   return i < 0 ? 0 : i;
 }
 
-/* ---------------- Hero gradients ---------------- */
+/* ---------------- Hero photos ---------------- */
 
-export function heroClass(projectType: string) {
+import heroBathroom from "@/assets/ledger/hero-bathroom.jpg";
+import heroKitchen from "@/assets/ledger/hero-kitchen.jpg";
+import heroBasement from "@/assets/ledger/hero-basement.jpg";
+import heroAddition from "@/assets/ledger/hero-addition.jpg";
+import heroWhole from "@/assets/ledger/hero-whole.jpg";
+import heroCommercial from "@/assets/ledger/hero-commercial.jpg";
+import heroMaintenance from "@/assets/ledger/hero-maintenance.jpg";
+import heroCustom from "@/assets/ledger/hero-custom.jpg";
+
+/** Photo used for the hero band of a given project type. */
+export function heroImage(projectType: string) {
   const p = (projectType || "").toLowerCase();
-  if (p.includes("bathroom")) return "l-hero l-hero--bathroom";
-  if (p.includes("kitchen")) return "l-hero l-hero--kitchen";
-  if (p.includes("basement")) return "l-hero l-hero--basement";
-  if (p.includes("addition")) return "l-hero l-hero--addition";
-  if (p.includes("whole")) return "l-hero l-hero--whole";
-  if (p.includes("commercial")) return "l-hero l-hero--commercial";
-  if (p.includes("maintenance")) return "l-hero l-hero--maintenance";
-  return "l-hero l-hero--custom";
+  if (p.includes("bathroom")) return heroBathroom;
+  if (p.includes("kitchen")) return heroKitchen;
+  if (p.includes("basement")) return heroBasement;
+  if (p.includes("addition")) return heroAddition;
+  if (p.includes("whole")) return heroWhole;
+  if (p.includes("commercial")) return heroCommercial;
+  if (p.includes("maintenance")) return heroMaintenance;
+  return heroCustom;
 }
+
+/** Base hero band class (photo + scrim applied via style). */
+export function heroClass(_projectType?: string) {
+  return "l-hero";
+}
+
 
 /* ---------------- Time ---------------- */
 

@@ -21,9 +21,10 @@ export function LedgerBottomNav() {
   return (
     <nav
       aria-label="Ledger"
-      className="l-nav fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full px-2 py-2 backdrop-blur-xl"
+      className="l-nav fixed inset-x-0 bottom-0 z-40 px-2 pt-1.5 backdrop-blur-xl"
     >
-      <ul className="flex items-center gap-0.5">
+      <ul className="mx-auto flex max-w-3xl items-center justify-between gap-0.5 pb-1.5">
+
         {NAV.map((item) => {
           const active = item.exact
             ? pathname === item.to
