@@ -46,10 +46,10 @@ function CalendarPage() {
     <LedgerShell>
       <header className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Calendar</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Everything scheduled, at a glance.</p>
+        <p className="mt-1 text-sm l-muted">Everything scheduled, at a glance.</p>
       </header>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)] md:p-6">
+      <section className="l-card p-5 md:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">{monthLabel}</h2>
           <div className="flex items-center gap-1">
@@ -58,7 +58,7 @@ function CalendarPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wider l-muted">
           {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <div key={i} className="py-1">{d}</div>)}
         </div>
         <div className="mt-1 grid grid-cols-7 gap-1">
@@ -71,7 +71,7 @@ function CalendarPage() {
               <div key={i} className={
                 "aspect-square rounded-xl p-1.5 text-left text-xs " +
                 (isToday ? "bg-primary text-primary-foreground"
-                  : inMonth ? "bg-secondary/40 text-foreground" : "text-muted-foreground/50")
+                  : inMonth ? "bg-secondary/40 text-foreground" : "l-muted/50")
               }>
                 <div className="font-medium tabular-nums">{d.date.getDate()}</div>
                 {dayJobs.length > 0 && (
@@ -90,7 +90,7 @@ function CalendarPage() {
       <section className="mt-8">
         <h2 className="mb-3 px-1 text-[15px] font-semibold tracking-tight">Upcoming</h2>
         {upcoming.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground shadow-[var(--shadow-card)]">
+          <div className="l-card px-4 py-8 text-center text-sm l-muted">
             Nothing scheduled.
           </div>
         ) : (
@@ -102,17 +102,17 @@ function CalendarPage() {
                   key={j.id}
                   to="/ledger/jobs/$jobId"
                   params={{ jobId: j.id }}
-                  className="flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3.5 shadow-[var(--shadow-card)] hover:bg-secondary/60"
+                  className="flex items-center gap-4 l-card px-4 py-3.5"
                 >
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary text-center">
-                    <div className="text-[10px] font-medium uppercase text-muted-foreground">
+                    <div className="text-[10px] font-medium uppercase l-muted">
                       {d.toLocaleDateString(undefined, { month: "short" })}
                     </div>
                     <div className="-mt-0.5 text-base font-semibold tabular-nums">{d.getDate()}</div>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{j.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{j.address}</p>
+                    <p className="truncate text-xs l-muted">{j.address}</p>
                   </div>
                   <span className={"shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium " + statusTone(j.status)}>
                     {j.status}
@@ -129,7 +129,7 @@ function CalendarPage() {
 
 function IconBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="grid h-8 w-8 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground">
+    <button onClick={onClick} className="grid h-8 w-8 place-items-center rounded-full border border-border bg-card l-muted hover:text-foreground">
       {children}
     </button>
   );

@@ -16,7 +16,7 @@ export const Route = createFileRoute("/ledger")({
 
 function LedgerLayout() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="ledger-scope min-h-screen flex flex-col">
       <AppSwitcherBar />
       <Outlet />
       <LedgerBottomNav />

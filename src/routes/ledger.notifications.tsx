@@ -31,13 +31,13 @@ function NotificationsPage() {
     <LedgerShell>
       <header className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Notifications</h1>
-        <p className="mt-1 text-sm text-muted-foreground">The latest movement across every job.</p>
+        <p className="mt-1 text-sm l-muted">The latest movement across every job.</p>
       </header>
 
       {feed.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center shadow-[var(--shadow-card)]">
-          <Bell className="mx-auto h-6 w-6 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">Nothing new yet.</p>
+        <div className="l-card px-6 py-16 text-center">
+          <Bell className="mx-auto h-6 w-6 l-muted" />
+          <p className="mt-3 text-sm l-muted">Nothing new yet.</p>
         </div>
       ) : (
         <ol className="grid gap-3">
@@ -46,18 +46,18 @@ function NotificationsPage() {
               <Link
                 to="/ledger/jobs/$jobId"
                 params={{ jobId: job.id }}
-                className="flex items-start gap-4 rounded-2xl border border-border bg-card px-4 py-3.5 shadow-[var(--shadow-card)] hover:bg-secondary/60"
+                className="flex items-start gap-4 l-card px-4 py-3.5"
               >
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary">
                   <Bell className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium">{job.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs l-muted">
                     {job.status} · {job.client.name}
                   </p>
                 </div>
-                <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                <span className="shrink-0 text-[11px] l-muted tabular-nums">
                   {relativeTime(at)}
                 </span>
               </Link>

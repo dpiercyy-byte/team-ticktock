@@ -1,4 +1,4 @@
-import type { LedgerStatus } from "@/lib/ledger.functions";
+import { LEDGER_STATUSES, type LedgerStatus } from "@/lib/ledger.functions";
 
 export function formatCurrency(n: number) {
   return new Intl.NumberFormat("en-CA", {
@@ -8,25 +8,78 @@ export function formatCurrency(n: number) {
   }).format(n);
 }
 
-export function statusTone(s: LedgerStatus | string) {
+/** Short slug used by the .l-s-* CSS classes in styles.css */
+export function statusSlug(s: LedgerStatus | string) {
   switch (s) {
     case "Lead":
-      return "bg-muted text-muted-foreground";
+      return "lead";
     case "Site Visit Required":
+      return "visit";
     case "Estimate Required":
-      return "bg-blue-100 text-blue-700";
+      return "estimate";
     case "Waiting For Approval":
-      return "bg-amber-100 text-amber-800";
+      return "approval";
     case "Scheduled":
-      return "bg-orange-100 text-orange-700";
+      return "scheduled";
     case "Active":
-      return "bg-emerald-100 text-emerald-700";
+      return "active";
     case "Completed":
-      return "bg-secondary text-secondary-foreground";
+      return "completed";
     default:
-      return "bg-muted text-muted-foreground";
+      return "lead";
   }
 }
+
+/** Chip classes for a status pill. */
+export function statusTone(s: LedgerStatus | string) {
+  return `l-chip l-s-${statusSlug(s)}`;
+}
+
+/** Solid background class (for dots / bars) matching a status. */
+export function statusDotClass(s: LedgerStatus | string) {
+  return `l-dot l-s-${statusSlug(s)}-bg`;
+}
+
+/** Short label for tight spaces. */
+export function statusShort(s: LedgerStatus | string) {
+  switch (s) {
+    case "Site Visit Required":
+      return "Site Visit";
+    case "Estimate Required":
+      return "Estimate";
+    case "Waiting For Approval":
+      return "Approval";
+    default:
+      return String(s);
+  }
+}
+
+/* ---------------- Journey ---------------- */
+
+export const JOURNEY = LEDGER_STATUSES;
+
+export const JOURNEY_SHORT: string[] = JOURNEY.map((s) => statusShort(s));
+
+export function journeyIndex(s: LedgerStatus | string) {
+  const i = (JOURNEY as readonly string[]).indexOf(String(s));
+  return i < 0 ? 0 : i;
+}
+
+/* ---------------- Hero gradients ---------------- */
+
+export function heroClass(projectType: string) {
+  const p = (projectType || "").toLowerCase();
+  if (p.includes("bathroom")) return "l-hero l-hero--bathroom";
+  if (p.includes("kitchen")) return "l-hero l-hero--kitchen";
+  if (p.includes("basement")) return "l-hero l-hero--basement";
+  if (p.includes("addition")) return "l-hero l-hero--addition";
+  if (p.includes("whole")) return "l-hero l-hero--whole";
+  if (p.includes("commercial")) return "l-hero l-hero--commercial";
+  if (p.includes("maintenance")) return "l-hero l-hero--maintenance";
+  return "l-hero l-hero--custom";
+}
+
+/* ---------------- Time ---------------- */
 
 export function relativeTime(iso: string) {
   const diff = Date.now() - +new Date(iso);
@@ -37,4 +90,13 @@ export function relativeTime(iso: string) {
   if (h < 24) return `${h}h ago`;
   const d = Math.round(h / 24);
   return `${d}d ago`;
+}
+
+export function shortDateTime(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

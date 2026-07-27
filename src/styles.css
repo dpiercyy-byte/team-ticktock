@@ -180,14 +180,51 @@
  * ================================================================ */
 
 .ledger-scope {
+  /* Re-point shared shadcn tokens at the Ledger palette so any stray
+     bg-primary / text-muted-foreground utility stays on-brand. */
+  --background: oklch(0.978 0.011 80);
+  --foreground: oklch(0.26 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.26 0.02 250);
+  --primary: oklch(0.6 0.16 38);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.955 0.012 75);
+  --secondary-foreground: oklch(0.3 0.02 250);
+  --muted: oklch(0.955 0.012 75);
+  --muted-foreground: oklch(0.55 0.015 250);
+  --accent: oklch(0.95 0.03 40);
+  --accent-foreground: oklch(0.32 0.05 40);
+  --border: oklch(0.92 0.012 70);
+  --input: oklch(0.92 0.012 70);
+  --ring: oklch(0.6 0.16 38);
+
+  /* --- Ledger design tokens (light, warm) --- */
+
+  --l-bg: hsl(38 32% 97%);
+  --l-surface: #ffffff;
+  --l-surface-2: hsl(38 24% 95%);
+  --l-ink: hsl(215 30% 15%);
+  --l-muted: hsl(215 14% 47%);
+  --l-line: hsl(35 18% 90%);
+  --l-accent: hsl(14 74% 52%);
+  --l-accent-soft: hsl(14 74% 95%);
+  --l-green: hsl(152 48% 32%);
+  --l-red: hsl(2 68% 48%);
+  --l-radius-sheet: 28px;
+  --l-radius-card: 20px;
+  --shadow-sheet: 0 1px 2px rgba(23, 20, 15, 0.04), 0 18px 46px -18px rgba(23, 20, 15, 0.22);
+  --shadow-card: 0 1px 2px rgba(23, 20, 15, 0.04), 0 10px 26px -14px rgba(23, 20, 15, 0.18);
+  --shadow-float: 0 8px 30px -6px rgba(23, 20, 15, 0.28);
+
   font-family: "Manrope", system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
   letter-spacing: -0.01em;
-  background: hsl(40 30% 97%);
-  color: hsl(215 28% 17%);
+  background: var(--l-bg);
+  color: var(--l-ink);
   min-height: 100vh;
   position: relative;
 }
+
 .ledger-scope h1,
 .ledger-scope h2,
 .ledger-scope h3,
@@ -245,6 +282,220 @@
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.9 0 0 0 0 0.9 0 0 0 0.08 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
+
+/* ---- Ledger surfaces ---- */
+.ledger-scope .l-sheet {
+  background: var(--l-surface);
+  border-radius: var(--l-radius-sheet);
+  box-shadow: var(--shadow-sheet);
+}
+.ledger-scope .l-card {
+  background: var(--l-surface);
+  border-radius: var(--l-radius-card);
+  box-shadow: var(--shadow-card);
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ledger-scope .l-card:active {
+  transform: scale(0.988);
+}
+.ledger-scope .l-muted {
+  color: var(--l-muted);
+}
+.ledger-scope .l-green {
+  color: var(--l-green);
+}
+.ledger-scope .l-red {
+  color: var(--l-red);
+}
+.ledger-scope .l-accent {
+  color: var(--l-accent);
+}
+.ledger-scope .l-divider {
+  border-color: var(--l-line);
+}
+.ledger-scope .l-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--l-muted);
+}
+
+/* ---- Status chips + dots ---- */
+.ledger-scope .l-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+.ledger-scope .l-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+  flex: none;
+}
+
+.ledger-scope .l-s-lead {
+  background: hsl(220 14% 94%);
+  color: hsl(220 12% 38%);
+}
+.ledger-scope .l-s-lead-bg {
+  background: hsl(220 12% 55%);
+}
+.ledger-scope .l-s-visit {
+  background: hsl(210 92% 95%);
+  color: hsl(212 76% 40%);
+}
+.ledger-scope .l-s-visit-bg {
+  background: hsl(212 76% 48%);
+}
+.ledger-scope .l-s-estimate {
+  background: hsl(258 88% 96%);
+  color: hsl(258 60% 48%);
+}
+.ledger-scope .l-s-estimate-bg {
+  background: hsl(258 60% 55%);
+}
+.ledger-scope .l-s-approval {
+  background: hsl(42 94% 92%);
+  color: hsl(32 82% 36%);
+}
+.ledger-scope .l-s-approval-bg {
+  background: hsl(36 88% 47%);
+}
+.ledger-scope .l-s-scheduled {
+  background: hsl(20 92% 94%);
+  color: hsl(16 74% 42%);
+}
+.ledger-scope .l-s-scheduled-bg {
+  background: hsl(16 74% 50%);
+}
+.ledger-scope .l-s-active {
+  background: hsl(152 52% 92%);
+  color: hsl(152 58% 26%);
+}
+.ledger-scope .l-s-active-bg {
+  background: hsl(152 54% 34%);
+}
+.ledger-scope .l-s-completed {
+  background: hsl(200 18% 92%);
+  color: hsl(205 20% 34%);
+}
+.ledger-scope .l-s-completed-bg {
+  background: hsl(205 18% 44%);
+}
+
+/* ---- Hero gradient bands (per project type) ---- */
+.ledger-scope .l-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.ledger-scope .l-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.5;
+  background:
+    radial-gradient(60% 90% at 88% 8%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(50% 70% at 4% 96%, rgba(0, 0, 0, 0.22), transparent 62%);
+}
+.ledger-scope .l-hero--bathroom {
+  background: linear-gradient(145deg, hsl(196 62% 40%), hsl(212 70% 26%));
+}
+.ledger-scope .l-hero--kitchen {
+  background: linear-gradient(145deg, hsl(24 72% 47%), hsl(8 62% 28%));
+}
+.ledger-scope .l-hero--basement {
+  background: linear-gradient(145deg, hsl(258 40% 46%), hsl(248 52% 24%));
+}
+.ledger-scope .l-hero--addition {
+  background: linear-gradient(145deg, hsl(152 46% 38%), hsl(168 56% 20%));
+}
+.ledger-scope .l-hero--whole {
+  background: linear-gradient(145deg, hsl(38 60% 46%), hsl(22 62% 25%));
+}
+.ledger-scope .l-hero--commercial {
+  background: linear-gradient(145deg, hsl(212 22% 44%), hsl(215 34% 20%));
+}
+.ledger-scope .l-hero--maintenance {
+  background: linear-gradient(145deg, hsl(178 48% 38%), hsl(196 56% 21%));
+}
+.ledger-scope .l-hero--custom {
+  background: linear-gradient(145deg, hsl(330 44% 46%), hsl(300 46% 24%));
+}
+.ledger-scope .l-hero-ink {
+  color: #fff;
+}
+.ledger-scope .l-hero-ink-soft {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+/* ---- Journey rail ---- */
+.ledger-scope .l-node {
+  height: 9px;
+  border-radius: 999px;
+  flex: 1 1 0;
+  background: var(--l-line);
+  transition: background 200ms ease;
+}
+.ledger-scope .l-node--done {
+  background: hsl(215 16% 72%);
+}
+.ledger-scope .l-node--current {
+  background: var(--l-accent);
+}
+
+/* ---- Floating action button ---- */
+.ledger-scope .l-fab {
+  background: var(--l-accent);
+  color: #fff;
+  box-shadow: var(--shadow-float);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ledger-scope .l-fab:active {
+  transform: scale(0.94);
+}
+
+/* ---- Bottom nav ---- */
+.ledger-scope .l-nav {
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow-float);
+}
+.ledger-scope .l-nav-item--active {
+  color: var(--l-ink);
+}
+.ledger-scope .l-nav-item--active .l-nav-icon {
+  background: var(--l-accent-soft);
+  color: var(--l-accent);
+}
+
+/* ---- Inputs / soft controls ---- */
+.ledger-scope .l-input {
+  background: var(--l-surface);
+  border-radius: 999px;
+  box-shadow: var(--shadow-card);
+}
+.ledger-scope .l-seg {
+  background: var(--l-surface-2);
+  color: var(--l-muted);
+  border-radius: 999px;
+}
+.ledger-scope .l-seg--active {
+  background: var(--l-ink);
+  color: #fff;
+}
+
+
 
 /* ================================================================
  * Swipeable tab panel transitions

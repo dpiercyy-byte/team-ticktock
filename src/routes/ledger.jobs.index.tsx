@@ -4,6 +4,7 @@ import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobCard } from "@/components/ledger/JobCard";
+import { statusShort } from "@/components/ledger/ledger-ui";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
 import { LEDGER_STATUSES, type LedgerStatus } from "@/lib/ledger.functions";
 
@@ -16,6 +17,14 @@ export const Route = createFileRoute("/ledger/jobs/")({
       { property: "og:description", content: "Every job in one calm, searchable list." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => {
+    const stage = typeof search.stage === "string" ? search.stage : undefined;
+    return {
+      stage: stage && (LEDGER_STATUSES as readonly string[]).includes(stage)
+        ? (stage as LedgerStatus)
+        : undefined,
+    };
+  },
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(ledgerJobsQuery());
   },
@@ -24,8 +33,9 @@ export const Route = createFileRoute("/ledger/jobs/")({
 
 function JobsPage() {
   const { data: jobs } = useSuspenseQuery(ledgerJobsQuery());
+  const { stage } = Route.useSearch();
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<LedgerStatus | "All">("All");
+  const [filter, setFilter] = useState<LedgerStatus | "All">(stage ?? "All");
 
   const filtered = useMemo(() => {
     const query = q.toLowerCase().trim();
@@ -42,55 +52,54 @@ function JobsPage() {
 
   return (
     <LedgerShell>
-      <header className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Jobs</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <header className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
+        <div className="min-w-0">
+          <h1 className="display text-[34px] leading-none md:text-4xl">Jobs</h1>
+          <p className="mt-1.5 text-[13px] l-muted">
             {jobs.length} total · {jobs.filter((j) => j.status === "Active").length} active
           </p>
         </div>
         <Link
           to="/ledger/jobs/new"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-[13px] font-bold"
+          style={{ background: "var(--l-ink)", color: "#fff" }}
         >
           <Plus className="h-4 w-4" /> New
         </Link>
       </header>
 
-      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
-        <Search className="h-4 w-4 text-muted-foreground" />
+      <div className="l-input mb-4 flex items-center gap-3 px-4 py-3">
+        <Search className="h-4 w-4 shrink-0 l-muted" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by job, client, or address"
-          className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          placeholder="Search job, client, or address"
+          className="w-full bg-transparent text-[14px] outline-none placeholder:opacity-60"
         />
       </div>
 
-      <div className="mb-6 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 tab-scroll">
+      <div className="-mx-5 mb-6 flex gap-2 overflow-x-auto px-5 pb-2 tab-scroll md:-mx-8 md:px-8">
         {(["All", ...LEDGER_STATUSES] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
             className={
-              "shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors " +
-              (filter === s
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-muted-foreground hover:text-foreground")
+              "l-seg shrink-0 px-3.5 py-2 text-[12px] font-semibold transition-colors " +
+              (filter === s ? "l-seg--active" : "")
             }
           >
-            {s}
+            {s === "All" ? "All" : statusShort(s)}
           </button>
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center shadow-[var(--shadow-card)]">
-          <p className="text-sm text-muted-foreground">No jobs match.</p>
-        </div>
+        <div className="l-card px-6 py-16 text-center text-[13px] l-muted">No jobs match.</div>
       ) : (
-        <div className="grid gap-4">
-          {filtered.map((j) => <JobCard key={j.id} job={j} />)}
+        <div className="grid gap-3.5">
+          {filtered.map((j) => (
+            <JobCard key={j.id} job={j} />
+          ))}
         </div>
       )}
     </LedgerShell>

@@ -93,10 +93,10 @@ function NewJob() {
   return (
     <LedgerShell>
       <div className="mb-6 flex items-center justify-between">
-        <button onClick={back} className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+        <button onClick={back} className="inline-flex items-center gap-1.5 text-sm font-medium l-muted hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <span className="text-xs font-medium text-muted-foreground tabular-nums">Step {step} of 5</span>
+        <span className="text-xs font-medium l-muted tabular-nums">Step {step} of 5</span>
       </div>
 
       <div className="mb-8 h-1 w-full overflow-hidden rounded-full bg-muted">
@@ -140,12 +140,12 @@ function NewJob() {
                 >
                   <div>
                     <p className="text-sm font-medium">{c.name}</p>
-                    {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                    {c.phone && <p className="text-xs l-muted">{c.phone}</p>}
                   </div>
                   {clientName === c.name && <Check className="h-5 w-5 text-primary" />}
                 </button>
               ))}
-              <button onClick={() => setClientMode(null)} className="mt-2 text-xs text-muted-foreground hover:text-foreground">
+              <button onClick={() => setClientMode(null)} className="mt-2 text-xs l-muted hover:text-foreground">
                 ← Choose different option
               </button>
             </div>
@@ -155,17 +155,17 @@ function NewJob() {
             <div className="grid gap-3">
               <Field label="Full name">
                 <input autoFocus value={clientName} onChange={(e) => setClientName(e.target.value)}
-                  placeholder="e.g. Sarah Whitfield" className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" />
+                  placeholder="e.g. Sarah Whitfield" className="w-full bg-transparent text-base outline-none placeholder:l-muted" />
               </Field>
               <Field label="Phone (optional)">
                 <input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="(555) 000-0000" className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" />
+                  placeholder="(555) 000-0000" className="w-full bg-transparent text-base outline-none placeholder:l-muted" />
               </Field>
               <Field label="Email (optional)">
                 <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)}
-                  placeholder="sarah@example.com" className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" />
+                  placeholder="sarah@example.com" className="w-full bg-transparent text-base outline-none placeholder:l-muted" />
               </Field>
-              <button onClick={() => setClientMode(null)} className="mt-1 text-xs text-muted-foreground hover:text-foreground">
+              <button onClick={() => setClientMode(null)} className="mt-1 text-xs l-muted hover:text-foreground">
                 ← Choose different option
               </button>
             </div>
@@ -175,10 +175,10 @@ function NewJob() {
 
       {step === 2 && (
         <StepShell title="Where is the property?" subtitle="Type the address of the job site.">
-          <Field label="Property address" icon={<MapPin className="h-4 w-4 text-muted-foreground" />}>
+          <Field label="Property address" icon={<MapPin className="h-4 w-4 l-muted" />}>
             <input autoFocus value={address} onChange={(e) => setAddress(e.target.value)}
               placeholder="123 Rosewood Ave, Ottawa, ON"
-              className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" />
+              className="w-full bg-transparent text-base outline-none placeholder:l-muted" />
           </Field>
         </StepShell>
       )}
@@ -226,7 +226,7 @@ function NewJob() {
             })}
           </div>
           {trades.length > 0 && (
-            <p className="mt-4 text-xs text-muted-foreground">
+            <p className="mt-4 text-xs l-muted">
               {trades.length} trade{trades.length === 1 ? "" : "s"} selected
             </p>
           )}
@@ -273,7 +273,7 @@ function NewJob() {
       </div>
 
       <div className="mt-6 text-center">
-        <Link to="/ledger/jobs" className="text-xs text-muted-foreground hover:text-foreground">
+        <Link to="/ledger/jobs" className="text-xs l-muted hover:text-foreground">
           Cancel
         </Link>
       </div>
@@ -285,7 +285,7 @@ function StepShell({ title, subtitle, children }: { title: string; subtitle: str
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
-      <p className="mt-2 text-sm text-muted-foreground md:text-base">{subtitle}</p>
+      <p className="mt-2 text-sm l-muted md:text-base">{subtitle}</p>
       <div className="mt-8">{children}</div>
     </div>
   );
@@ -293,8 +293,8 @@ function StepShell({ title, subtitle, children }: { title: string; subtitle: str
 
 function Field({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <label className="block rounded-2xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
-      <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+    <label className="block l-card px-4 py-3">
+      <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider l-muted">
         {icon}
         {label}
       </div>
@@ -310,16 +310,16 @@ function BigChoice({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-40"
+      className="flex items-center gap-4 l-card p-5 text-left transition-transform hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-40"
     >
       <span className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-foreground">
         {icon}
       </span>
       <span className="flex-1">
         <span className="block text-base font-semibold">{title}</span>
-        <span className="block text-xs text-muted-foreground">{subtitle}</span>
+        <span className="block text-xs l-muted">{subtitle}</span>
       </span>
-      <ArrowRight className="h-5 w-5 text-muted-foreground" />
+      <ArrowRight className="h-5 w-5 l-muted" />
     </button>
   );
 }
