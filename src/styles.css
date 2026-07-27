@@ -180,7 +180,26 @@
  * ================================================================ */
 
 .ledger-scope {
+  /* Re-point shared shadcn tokens at the Ledger palette so any stray
+     bg-primary / text-muted-foreground utility stays on-brand. */
+  --background: oklch(0.978 0.011 80);
+  --foreground: oklch(0.26 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.26 0.02 250);
+  --primary: oklch(0.6 0.16 38);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.955 0.012 75);
+  --secondary-foreground: oklch(0.3 0.02 250);
+  --muted: oklch(0.955 0.012 75);
+  --muted-foreground: oklch(0.55 0.015 250);
+  --accent: oklch(0.95 0.03 40);
+  --accent-foreground: oklch(0.32 0.05 40);
+  --border: oklch(0.92 0.012 70);
+  --input: oklch(0.92 0.012 70);
+  --ring: oklch(0.6 0.16 38);
+
   /* --- Ledger design tokens (light, warm) --- */
+
   --l-bg: hsl(38 32% 97%);
   --l-surface: #ffffff;
   --l-surface-2: hsl(38 24% 95%);
