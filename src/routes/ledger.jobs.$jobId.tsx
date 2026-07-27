@@ -12,7 +12,7 @@ import { JobHero, heroClass } from "@/components/ledger/JobHero";
 
 import { JobJourney } from "@/components/ledger/JobJourney";
 import { LedgerFab } from "@/components/ledger/LedgerFab";
-import { formatCurrency, shortDateTime } from "@/components/ledger/ledger-ui";
+import { formatCurrency, shortDateTime, heroImage } from "@/components/ledger/ledger-ui";
 import { ledgerJobQuery } from "@/lib/ledger-client";
 import { addLedgerJobEvent, type LedgerTimelineEvent } from "@/lib/ledger.functions";
 import { getAdminToken } from "@/lib/session";
