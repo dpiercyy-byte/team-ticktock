@@ -33,24 +33,16 @@ export function JobCard({ job, compact = false }: { job: LedgerJob; compact?: bo
       {!compact && job.trades.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {job.trades.slice(0, 4).map((t) => (
-            <span
-              key={t}
-              className="rounded-full px-2.5 py-1 text-[11px] font-medium l-muted"
-              style={{ background: "var(--l-surface-2)" }}
-            >
+            <span key={t} className="l-pill l-pill--sm">
               {t}
             </span>
           ))}
           {job.trades.length > 4 && (
-            <span
-              className="rounded-full px-2.5 py-1 text-[11px] font-medium l-muted"
-              style={{ background: "var(--l-surface-2)" }}
-            >
-              +{job.trades.length - 4}
-            </span>
+            <span className="l-pill l-pill--sm">+{job.trades.length - 4}</span>
           )}
         </div>
       )}
+
 
       <div className="mt-4">
         <JobJourney status={job.status} compact />

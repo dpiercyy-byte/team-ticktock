@@ -143,17 +143,14 @@ function JobDetail() {
             <h2 className="l-eyebrow mb-3 px-1">Trades</h2>
             <div className="flex flex-wrap gap-2">
               {job.trades.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
-                  style={{ background: "var(--l-surface)", boxShadow: "var(--shadow-card)" }}
-                >
+                <span key={t} className="l-pill l-pill--raised">
                   {t}
                 </span>
               ))}
             </div>
           </section>
         )}
+
 
         <section className="mt-8">
           <h2 className="l-eyebrow mb-1 px-1">Activity</h2>
