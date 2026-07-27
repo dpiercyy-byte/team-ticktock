@@ -155,7 +155,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
             <div className="text-center pt-2">
               <a
                 href="/admin"
-                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground active:bg-secondary active:text-secondary-foreground active:scale-[0.98]"
               >
                 Admin sign in
                 <ChevronRight className="h-4 w-4" />
