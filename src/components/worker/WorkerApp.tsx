@@ -195,7 +195,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
               <button
                 type="button"
                 onClick={() => { setWorkerId(null); setPin(""); }}
-                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground active:bg-secondary active:text-secondary-foreground active:scale-[0.98]"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Choose a different name
