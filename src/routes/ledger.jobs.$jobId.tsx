@@ -46,8 +46,10 @@ function JobDetail() {
   const qc = useQueryClient();
   const router = useRouter();
   const addEvent = useServerFn(addLedgerJobEvent);
+  const removeJob = useServerFn(deleteLedgerJob);
   const [note, setNote] = useState("");
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const noteMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -61,6 +63,20 @@ function JobDetail() {
       qc.invalidateQueries({ queryKey: ["ledger", "jobs", jobId] });
       qc.invalidateQueries({ queryKey: ["ledger", "jobs"] });
       router.invalidate();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const token = getAdminToken();
+      if (!token) throw new Error("Not signed in");
+      return removeJob({ data: { token, id: jobId } });
+    },
+    onSuccess: async () => {
+      setConfirmDelete(false);
+      qc.removeQueries({ queryKey: ["ledger", "jobs", jobId] });
+      await qc.invalidateQueries({ queryKey: ["ledger", "jobs"] });
+      await router.navigate({ to: "/ledger/jobs", replace: true });
     },
   });
 
