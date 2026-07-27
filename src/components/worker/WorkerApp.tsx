@@ -147,7 +147,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
               type="button"
               disabled
               style={{ background: "var(--gradient-primary)" }}
-              className="w-full h-[60px] rounded-2xl text-base font-semibold text-primary-foreground shadow-sm"
+              className="w-full h-[60px] rounded-2xl text-base font-semibold text-primary-foreground shadow-sm transition-all active:scale-[0.98] active:brightness-105 hover:brightness-110 hover:shadow-md"
             >
               Continue
             </Button>
@@ -155,7 +155,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
             <div className="text-center pt-2">
               <a
                 href="/admin"
-                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground active:bg-secondary active:text-secondary-foreground active:scale-[0.98]"
               >
                 Admin sign in
                 <ChevronRight className="h-4 w-4" />
@@ -195,7 +195,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
               <button
                 type="button"
                 onClick={() => { setWorkerId(null); setPin(""); }}
-                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground active:bg-secondary active:text-secondary-foreground active:scale-[0.98]"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Choose a different name

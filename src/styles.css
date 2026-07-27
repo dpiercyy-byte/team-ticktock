@@ -567,3 +567,16 @@
 .tab-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* Touch-device interaction consistency:
+   hover styles never stick after a tap, and taps get real feedback instead. */
+@media (hover: none) {
+  a,
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
