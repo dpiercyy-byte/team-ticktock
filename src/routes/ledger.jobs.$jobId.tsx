@@ -3,12 +3,15 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { useServerFn } from "@tanstack/react-start";
 import type { ComponentType } from "react";
 import {
-  ArrowLeft, Calendar, CheckCircle2, ClipboardList, Clock, DollarSign,
+  ArrowLeft, Calendar, CheckCircle2, Clock, DollarSign,
   FileText, Hammer, MapPin, Package, PenSquare, Phone, Plus, Receipt,
-  ShieldCheck, Sparkles, Users,
+  ShieldCheck, Sparkles, Users, X,
 } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
-import { formatCurrency, statusTone } from "@/components/ledger/ledger-ui";
+import { JobHero, heroClass } from "@/components/ledger/JobHero";
+import { JobJourney } from "@/components/ledger/JobJourney";
+import { LedgerFab } from "@/components/ledger/LedgerFab";
+import { formatCurrency, shortDateTime } from "@/components/ledger/ledger-ui";
 import { ledgerJobQuery } from "@/lib/ledger-client";
 import { addLedgerJobEvent, type LedgerTimelineEvent } from "@/lib/ledger.functions";
 import { getAdminToken } from "@/lib/session";
@@ -56,154 +59,191 @@ function JobDetail() {
   });
 
   return (
-    <LedgerShell>
-      <Link
-        to="/ledger/jobs"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+    <>
+      <LedgerShell
+        heroClassName={heroClass(job.projectType)}
+        hero={
+          <>
+            <Link
+              to="/ledger/jobs"
+              className="mb-3 inline-flex items-center gap-1.5 text-[13px] font-semibold l-hero-ink-soft"
+            >
+              <ArrowLeft className="h-4 w-4" /> All jobs
+            </Link>
+            <JobHero
+              projectType={job.projectType}
+              status={job.status}
+              name={job.name}
+              client={job.client.name}
+              address={job.address}
+            />
+          </>
+        }
       >
-        <ArrowLeft className="h-4 w-4" /> All jobs
-      </Link>
-
-      <section className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] md:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {job.projectType}
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">{job.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{job.client.name}</p>
+        {/* Financial snapshot sheet, overlapping the hero */}
+        <section className="l-sheet p-5 md:p-7">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3">
+            <h2 className="l-eyebrow truncate">Financial snapshot</h2>
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums l-muted">
+              {job.progress}% complete
+            </span>
           </div>
-          <span className={"rounded-full px-3 py-1 text-xs font-medium " + statusTone(job.status)}>
-            {job.status}
-          </span>
-        </div>
 
-        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="h-4 w-4" /> {job.address}
+          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-5">
+            <Money label="Budget" value={formatCurrency(job.budget)} />
+            <Money label="Collected" value={formatCurrency(job.collected)} tone="green" />
+            <Money label="Expenses" value={formatCurrency(job.expenses)} />
+            <Money
+              label="Profit"
+              value={formatCurrency(profit)}
+              tone={profit >= 0 ? "green" : "red"}
+            />
+          </div>
+
+          <div className="mt-5 h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--l-surface-2)" }}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${job.progress}%`, background: "var(--l-accent)" }}
+            />
+          </div>
+        </section>
+
+        {/* Worker status banner */}
+        <div
+          className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[20px] px-4 py-3.5"
+          style={{
+            background: job.workersOnSite > 0 ? "hsl(152 46% 94%)" : "var(--l-surface-2)",
+          }}
+        >
+          <span className="inline-flex min-w-0 items-center gap-2 text-[13px] font-semibold">
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">
+              {job.workersOnSite === 0
+                ? "No workers on site"
+                : `${job.workersOnSite} worker${job.workersOnSite === 1 ? "" : "s"} on site`}
+            </span>
           </span>
           {job.client.phone && (
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="h-4 w-4" /> {job.client.phone}
-            </span>
+            <a
+              href={`tel:${job.client.phone}`}
+              className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-semibold l-accent"
+            >
+              <Phone className="h-3.5 w-3.5" /> Call
+            </a>
           )}
         </div>
 
-        <div className="mt-6">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Progress</span>
-            <span className="tabular-nums">{job.progress}%</span>
-          </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${job.progress}%` }} />
-          </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <BigStat icon={DollarSign} label="Budget" value={formatCurrency(job.budget)} />
-          <BigStat icon={ClipboardList} label="Collected" value={formatCurrency(job.collected)} />
-          <BigStat icon={Receipt} label="Expenses" value={formatCurrency(job.expenses)} />
-          <BigStat icon={Sparkles} label="Profit" value={formatCurrency(profit)} tone={profit >= 0 ? "positive" : "negative"} />
-        </div>
-
-        <div className="mt-6 flex items-center gap-2 border-t border-border pt-5 text-sm text-muted-foreground">
-          <Users className="h-4 w-4" />
-          <span>
-            {job.workersOnSite === 0
-              ? "No workers on site"
-              : `${job.workersOnSite} worker${job.workersOnSite === 1 ? "" : "s"} on site`}
-          </span>
-        </div>
-      </section>
-
-      {job.trades.length > 0 && (
-        <section className="mt-6">
-          <SectionHeader title="Trades" />
-          <div className="flex flex-wrap gap-2">
-            {job.trades.map((t) => (
-              <span key={t} className="rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium">
-                {t}
-              </span>
-            ))}
-          </div>
+        {/* Journey */}
+        <section className="l-card mt-3 p-5">
+          <JobJourney status={job.status} onLight />
         </section>
-      )}
 
-      <section className="mt-8">
-        <SectionHeader title="Activity" hint="Everything that has happened on this job" />
-        <div className="relative">
-          <div className="absolute left-[19px] top-2 bottom-2 w-px bg-border" aria-hidden />
-          <ol className="grid gap-3">
-            {timeline.map((e) => <TimelineRow key={e.id} event={e} />)}
-          </ol>
-        </div>
-
-        {open ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const t = note.trim();
-              if (t) noteMutation.mutate(t);
-            }}
-            className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]"
-          >
-            <textarea
-              autoFocus
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a note about this job…"
-              rows={3}
-              className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
-            <div className="mt-3 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => { setOpen(false); setNote(""); }}
-                className="rounded-full px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!note.trim() || noteMutation.isPending}
-                className="rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {noteMutation.isPending ? "Saving…" : "Save note"}
-              </button>
+        {job.trades.length > 0 && (
+          <section className="mt-6">
+            <h2 className="l-eyebrow mb-3 px-1">Trades</h2>
+            <div className="flex flex-wrap gap-2">
+              {job.trades.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full px-3.5 py-1.5 text-[12px] font-semibold"
+                  style={{ background: "var(--l-surface)", boxShadow: "var(--shadow-card)" }}
+                >
+                  {t}
+                </span>
+              ))}
             </div>
-          </form>
-        ) : (
-          <button
-            onClick={() => setOpen(true)}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-transparent px-4 py-4 text-sm font-medium text-muted-foreground hover:bg-secondary/60"
-          >
-            <Plus className="h-4 w-4" /> Add a note
-          </button>
+          </section>
         )}
-      </section>
-    </LedgerShell>
+
+        <section className="mt-8">
+          <h2 className="l-eyebrow mb-1 px-1">Activity</h2>
+          <p className="mb-4 px-1 text-[12px] l-muted">Everything that has happened on this job</p>
+          <div className="relative">
+            <div
+              className="absolute left-[19px] bottom-3 top-3 w-px"
+              style={{ background: "var(--l-line)" }}
+              aria-hidden
+            />
+            <ol className="grid gap-3">
+              {timeline.map((e) => (
+                <TimelineRow key={e.id} event={e} />
+              ))}
+            </ol>
+          </div>
+
+          {open && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const t = note.trim();
+                if (t) noteMutation.mutate(t);
+              }}
+              className="l-card mt-4 p-4"
+            >
+              <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <p className="l-eyebrow truncate">New note</p>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={() => {
+                    setOpen(false);
+                    setNote("");
+                  }}
+                  className="shrink-0 l-muted"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <textarea
+                autoFocus
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add a note about this job…"
+                rows={3}
+                className="w-full resize-none bg-transparent text-[14px] outline-none placeholder:opacity-60"
+              />
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={!note.trim() || noteMutation.isPending}
+                  className="rounded-full px-4 py-2 text-[12px] font-bold disabled:opacity-50"
+                  style={{ background: "var(--l-accent)", color: "#fff" }}
+                >
+                  {noteMutation.isPending ? "Saving…" : "Save note"}
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+      </LedgerShell>
+
+      {!open && (
+        <LedgerFab label="Add a note" onClick={() => setOpen(true)}>
+          <Plus className="h-6 w-6" strokeWidth={2.4} />
+        </LedgerFab>
+      )}
+    </>
   );
 }
 
-function SectionHeader({ title, hint }: { title: string; hint?: string }) {
+function Money({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "green" | "red";
+}) {
   return (
-    <div className="mb-3 px-1">
-      <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
-  );
-}
-
-function BigStat({
-  icon: Icon, label, value, tone,
-}: { icon: ComponentType<{ className?: string }>; label: string; value: string; tone?: "positive" | "negative" }) {
-  return (
-    <div className="rounded-2xl border border-border bg-background p-4">
-      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <p className={"mt-1.5 text-lg font-semibold tabular-nums " + (tone === "negative" ? "text-destructive" : "")}>
+    <div className="min-w-0">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] l-muted">{label}</p>
+      <p
+        className={
+          "mt-1 truncate text-[22px] font-bold tabular-nums md:text-2xl " +
+          (tone === "green" ? "l-green" : tone === "red" ? "l-red" : "")
+        }
+      >
         {value}
       </p>
     </div>
@@ -219,21 +259,22 @@ const TIMELINE_ICON: Record<string, ComponentType<{ className?: string }>> = {
 
 function TimelineRow({ event }: { event: LedgerTimelineEvent }) {
   const Icon = TIMELINE_ICON[event.kind] ?? Calendar;
-  const when = new Date(event.occurredAt);
-  const label = when.toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-  });
   return (
     <li className="relative flex items-start gap-4">
-      <div className="relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border bg-card shadow-[var(--shadow-card)]">
+      <div
+        className="relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full"
+        style={{ background: "var(--l-surface)", boxShadow: "var(--shadow-card)" }}
+      >
         <Icon className="h-4 w-4" />
       </div>
-      <div className="flex-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)]">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm font-medium">{event.title}</p>
-          <p className="shrink-0 text-[11px] text-muted-foreground tabular-nums">{label}</p>
+      <div className="l-card min-w-0 flex-1 px-4 py-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3">
+          <p className="truncate text-[14px] font-semibold">{event.title}</p>
+          <p className="shrink-0 text-[11px] tabular-nums l-muted">
+            {shortDateTime(event.occurredAt)}
+          </p>
         </div>
-        {event.detail && <p className="mt-0.5 text-xs text-muted-foreground">{event.detail}</p>}
+        {event.detail && <p className="mt-0.5 text-[12px] l-muted">{event.detail}</p>}
       </div>
     </li>
   );
