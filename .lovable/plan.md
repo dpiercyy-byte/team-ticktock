@@ -1,31 +1,27 @@
-## 1. Photo heroes instead of gradients
+## Goal
 
-Generate one landscape photo per project type (8 total: Bathroom, Kitchen, Basement, Addition, Whole Home, Commercial, Maintenance, Custom) into `src/assets/ledger/`, imported as ES6 modules and mapped by project type.
+Replace the Clockwise admin's scrollable top tab strip with a docked bottom navigation bar that mirrors Ledger's footer nav: icon in a rounded pill above a small label, active state tinted, full-width bar with blur, border-top, and safe-area padding.
 
-- `ledger-ui.ts`: replace `heroClass()` with `heroImage(projectType)` returning the imported asset URL.
-- `LedgerShell`: accept a `heroImage` prop, render the band with `background-image` + a dark scrim overlay (gradient from transparent to near-black at the bottom) so hero text stays legible. Keep the existing overlap (`-mt-16`, rounded sheet).
-- `JobHero` text keeps the light ink tokens; status chip stays.
-- Fallback to the current gradient class if an image is missing.
+## Layout
 
-## 2. Consistent trade pills
+Bottom bar shows 5 items plus a More menu:
 
-Pills currently size to their text, so rows look ragged. Make them uniform:
-- Fixed height, equal horizontal padding, single line, and a shared min-width so short words ("Tile", "HVAC") match longer ones.
-- Same treatment in both `JobCard.tsx` and the job detail trades section, driven by one `.l-pill` class in `styles.css` (min-width ~86px, centered text, no wrap).
+```text
+[ Entries ] [ Payout ] [ Receipts ] [ Workers ] [ Sites ] [ More ]
+```
 
-## 3. Stationary Continue footer in the new-job wizard
+More opens a sheet/popover containing Audit Log and Settings. Selecting either switches the active tab and marks More as active while one of those tabs is showing.
 
-In `ledger.jobs.new.tsx`, move the Continue/Finish button out of the scrolling flow into a fixed bottom bar:
-- Fixed, full-width, blurred/solid surface strip with a top hairline, safe-area padding.
-- Contains the primary button (full-width) plus the small Cancel link; the step content gets bottom padding so nothing is hidden behind it.
-- Error text moves just above the button inside the bar.
+Icons: Clock (Entries), DollarSign (Payout), Receipt (Receipts), Users (Workers), MapPin (Sites), MoreHorizontal (More); Settings and ShieldCheck inside the More sheet.
 
-## 4. Bottom nav docked as a real footer
+## Changes
 
-`LedgerBottomNav`: drop the floating detached pill. Make it a full-width fixed footer bar flush to the bottom edge — top hairline border, surface background with blur, safe-area inset padding, no side margins or pill radius. Reduce `LedgerShell`'s `pb-32` to match the shorter footer so pages don't leave a dead gap.
+- New `src/components/admin/AdminBottomNav.tsx` — the docked nav, driven by the existing `activeTab` / `setActiveTab` state, matching `LedgerBottomNav`'s markup and sizing.
+- `src/components/admin/AdminApp.tsx` — remove the `TabsList` / `TabsTrigger` strip and its scroll-fade overlay; render `AdminBottomNav` after the tab panels. Keep `Tabs`, `TabsContent`, and the existing swipe navigation untouched, so swipe order still follows `ADMIN_TABS`. Add bottom padding to the content container so the last rows clear the nav.
+- `src/styles.css` — add Clockwise equivalents of the `.l-nav` / `.l-nav-item--active` rules using the app's existing semantic tokens (primary tint for the active pill), scoped so they don't affect `.ledger-scope`.
 
-On the wizard route the fixed Continue bar sits above the nav footer (stacked), so both remain reachable.
+The top `AppSwitcherBar` (Clockwise / Ledger toggle + Sign out) stays where it is.
 
-### Technical notes
-- Files touched: `src/components/ledger/ledger-ui.ts`, `LedgerShell.tsx`, `JobHero.tsx`, `JobCard.tsx`, `LedgerBottomNav.tsx`, `src/routes/ledger.jobs.$jobId.tsx`, `src/routes/ledger.jobs.new.tsx`, `src/styles.css`, plus new image assets.
-- All styling stays inside `.ledger-scope`, so Clockwise is unaffected.
+## Notes
+
+Worker app tabs are not touched; this covers the admin dashboard tabs only.

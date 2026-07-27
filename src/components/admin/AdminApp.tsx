@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
+import { AdminBottomNav } from "@/components/admin/AdminBottomNav";
+
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -342,36 +344,12 @@ function AdminDashboard({
 }) {
   const [activeTab, setActiveTab] = useState("entries");
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="min-h-dvh bg-background pb-24">
       <AppSwitcherBar onLogout={onLogout} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3">
         <SwipeableTabs tabs={[...ADMIN_TABS]} value={activeTab} onValueChange={setActiveTab}>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="-mx-4 sm:mx-0 mb-4 sm:mb-6 border-b border-border relative">
-              <TabsList
-                className="tab-scroll flex-nowrap overflow-x-auto whitespace-nowrap h-auto min-h-0 bg-transparent p-0 gap-1 rounded-none justify-start w-full pl-4 pr-8 sm:px-0"
-                style={{ WebkitOverflowScrolling: "touch", scrollBehavior: "smooth" }}
-              >
-                {[
-                  ["entries", "Time Entries"],
-                  ["payouts", "Payout"],
-                  ["receipts", "Receipts"],
-                  ["sites", "Job Sites"],
-                  ["workers", "Workers"],
-                  ["audit", "Audit Log"],
-                  ["settings", "Settings"],
-                ].map(([v, label]) => (
-                  <TabsTrigger
-                    key={v}
-                    value={v}
-                    className="shrink-0 rounded-none bg-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground border-b-2 border-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary data-[state=active]:border-primary transition-colors"
-                  >
-                    {label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-background to-transparent sm:hidden" />
-            </div>
+
 
 
             <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
@@ -400,9 +378,11 @@ function AdminDashboard({
           </Tabs>
         </SwipeableTabs>
       </div>
+      <AdminBottomNav value={activeTab} onValueChange={setActiveTab} />
     </div>
   );
 }
+
 
 // ===== Entries tab =====
 function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
