@@ -21,9 +21,9 @@ export function LedgerBottomNav() {
   return (
     <nav
       aria-label="Ledger"
-      className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-background/90 px-2 py-2 shadow-[0_10px_40px_rgba(15,23,42,0.15)] backdrop-blur-xl"
+      className="l-nav fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full px-2 py-2 backdrop-blur-xl"
     >
-      <ul className="flex items-center gap-1">
+      <ul className="flex items-center gap-0.5">
         {NAV.map((item) => {
           const active = item.exact
             ? pathname === item.to
@@ -34,13 +34,13 @@ export function LedgerBottomNav() {
               <Link
                 to={item.to}
                 className={
-                  "flex min-w-[60px] flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors " +
-                  (active
-                    ? "bg-slate-900 text-white"
-                    : "text-muted-foreground hover:text-foreground")
+                  "flex min-w-[58px] flex-col items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors " +
+                  (active ? "l-nav-item--active" : "l-muted")
                 }
               >
-                <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                <span className="l-nav-icon grid h-9 w-9 place-items-center rounded-full transition-colors">
+                  <Icon className="h-[19px] w-[19px]" strokeWidth={2.1} />
+                </span>
                 <span className="tracking-tight">{item.label}</span>
               </Link>
             </li>
