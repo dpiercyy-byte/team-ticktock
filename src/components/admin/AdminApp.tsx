@@ -378,8 +378,9 @@ function AdminDashboard({
       </div>
       <AdminBottomNav value={activeTab} onValueChange={setActiveTab} />
     </div>
-
+  );
 }
+
 
 // ===== Entries tab =====
 function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
