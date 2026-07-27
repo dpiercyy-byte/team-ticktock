@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobHero, heroClass } from "@/components/ledger/JobHero";
+import { heroImage } from "@/components/ledger/ledger-ui";
 import { JobJourney } from "@/components/ledger/JobJourney";
 import { LedgerFab } from "@/components/ledger/LedgerFab";
 import { formatCurrency, shortDateTime } from "@/components/ledger/ledger-ui";
@@ -62,6 +63,7 @@ function JobDetail() {
     <>
       <LedgerShell
         heroClassName={heroClass(job.projectType)}
+        heroImage={heroImage(job.projectType)}
         hero={
           <>
             <Link
