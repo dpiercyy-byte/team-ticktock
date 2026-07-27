@@ -214,7 +214,51 @@ function JobDetail() {
             </form>
           )}
         </section>
+
+        {/* Danger zone */}
+        <section className="mt-10">
+          <h2 className="l-eyebrow mb-3 px-1">Danger zone</h2>
+          <div className="l-card p-4">
+            <p className="text-[12px] l-muted">
+              Deleting this job permanently removes it and its entire activity timeline. This
+              cannot be undone.
+            </p>
+            <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="mt-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-bold l-red"
+                  style={{ background: "hsl(6 78% 96%)" }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete job
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete “{job.name}”?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes the job and all of its timeline events. This cannot
+                    be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => {
+                      e.preventDefault();
+                      deleteMutation.mutate();
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? "Deleting…" : "Delete job"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </section>
       </LedgerShell>
+
 
       {!open && (
         <LedgerFab label="Add a note" onClick={() => setOpen(true)}>
