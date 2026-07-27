@@ -487,10 +487,12 @@
   transform: scale(0.94);
 }
 
-/* ---- Bottom nav ---- */
+/* ---- Bottom nav (docked footer) ---- */
 .ledger-scope .l-nav {
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: var(--shadow-float);
+  background: color-mix(in oklab, var(--l-surface) 94%, transparent);
+  border-top: 1px solid var(--l-line);
+  box-shadow: 0 -6px 24px -18px rgba(15, 23, 42, 0.45);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .ledger-scope .l-nav-item--active {
   color: var(--l-ink);
