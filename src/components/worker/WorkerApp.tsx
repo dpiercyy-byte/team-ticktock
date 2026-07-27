@@ -155,11 +155,12 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
             <div className="text-center pt-2">
               <a
                 href="/admin"
-                className="inline-flex items-center gap-1 text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
               >
                 Admin sign in
                 <ChevronRight className="h-4 w-4" />
               </a>
+
             </div>
           </div>
         ) : (
@@ -184,7 +185,7 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
             <Button
               type="submit"
               style={{ background: "var(--gradient-primary)" }}
-              className="w-full h-[60px] rounded-2xl text-base font-semibold text-primary-foreground shadow-sm transition-transform active:scale-[0.98] hover:opacity-95"
+              className="w-full h-[60px] rounded-2xl text-base font-semibold text-primary-foreground shadow-sm transition-all active:scale-[0.98] hover:brightness-110 hover:shadow-md"
               disabled={pin.length < 4 || m.isPending}
             >
               {m.isPending ? "Signing in…" : "Continue"}
@@ -194,12 +195,13 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
               <button
                 type="button"
                 onClick={() => { setWorkerId(null); setPin(""); }}
-                className="inline-flex items-center gap-1 text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Choose a different name
               </button>
             </div>
+
           </form>
         )}
       </div>
