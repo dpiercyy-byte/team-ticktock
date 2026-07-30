@@ -1,6 +1,28 @@
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 const BASE_URL = process.env.VISUAL_BASE_URL ?? "http://localhost:8080";
+
+/**
+ * The sandbox ships a preinstalled Chromium whose build number may not match
+ * this @playwright/test version. Reuse it instead of downloading another.
+ */
+function findChromium(): string | undefined {
+  if (process.env.VISUAL_CHROMIUM) return process.env.VISUAL_CHROMIUM;
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  if (!root || !existsSync(root)) return undefined;
+  const dir = readdirSync(root)
+    .filter((d) => /^chromium-\d+$/.test(d))
+    .sort()
+    .pop();
+  if (!dir) return undefined;
+  const bin = join(root, dir, "chrome-linux", "chrome");
+  return existsSync(bin) ? bin : undefined;
+}
+
+const executablePath = findChromium();
+
 
 /**
  * Visual regression config.
