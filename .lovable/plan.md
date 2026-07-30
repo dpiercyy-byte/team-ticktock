@@ -1,43 +1,65 @@
-# Bringing Ledger's look to Clockwise
+## Goal
 
-## What I found
+Catch two classes of regression as Clockwise adopts Ledger's look:
+1. **Visual drift** — a screenshot of a screen changes unexpectedly.
+2. **Style-contract violations** — hardcoded colors / ad-hoc card styling creeping back in instead of the `cw-scope` tokens and helper classes.
 
-Ledger's entire visual identity lives in **one place**: a `.ledger-scope` block in `src/styles.css` (~340 lines). Every rule is namespaced under that class, so nothing about Ledger currently leaks into Clockwise — and nothing in Clockwise depends on it.
+## What gets built
 
-The pieces that make Ledger feel the way it does:
+### 1. Visual regression harness (Playwright)
 
-- **Typography** — Bricolage Grotesque for headings, Manrope for body, tight letter-spacing (-0.01em body, -0.03em headings), tabular numerals for figures. Both fonts are already loaded globally in the root route, so Clockwise can use them today at zero cost.
-- **Surfaces** — two card treatments (`l-sheet` 28px radius, `l-card` 20px radius) with soft layered shadows instead of borders, plus a subtle press-scale on tap.
-- **Small parts** — status chips (`l-chip`), uniform trade pills (`l-pill`, fixed 32px height so wording length doesn't shift the row), an uppercase tracked eyebrow label, rounded soft inputs, and segmented controls.
-- **Palette** — warm off-white background with a terracotta accent. This is the part we're *not* taking; Clockwise keeps its blue.
+- Add dev deps: `@playwright/test`, plus scripts `test:visual` and `test:visual:update`.
+- `playwright.config.ts`: runs against the dev server on `http://localhost:8080`, Chromium only, fixed viewports (mobile 390x844 and desktop 1280x900), animations disabled, `maxDiffPixelRatio` ~0.01 so font antialiasing doesn't cause false failures.
+- Baselines committed under `tests/visual/__screenshots__/`.
 
-**Feasibility: low risk.** Clockwise has only ~6 hardcoded color utility spots to check, no conflicting global styles, and the change is purely presentational — no data, auth, or server code is touched.
+**Screens covered** (both viewports):
 
-## The plan
+```text
+Worker    /            login screen
+Worker    /            clocked-out home, clocked-in home, reimbursement sheet
+Admin     /admin       login screen
+Admin     /admin       Entries, Payout (Weekly + Lifetime), Receipts,
+                       Workers, Sites, More popover
+Ledger    /ledger      home, jobs list, job detail, new-job wizard step 1
+```
 
-**1. Create a shared surface layer**
-Extract the font, radius, shadow, chip, pill, eyebrow and input rules from `.ledger-scope` into a neutral `.cw-scope` block in `src/styles.css`. Colors stay tied to Clockwise's existing semantic tokens (primary blue, background, border) — only the *shape, type, and depth* come from Ledger. Ledger's own scope is untouched and keeps working exactly as it does now.
+Ledger screens are included as the reference side: if Clockwise and Ledger are meant to match, both need to be locked.
 
-**2. Apply it in two spots**
-Add the scope class to the admin shell and the worker shell wrappers. That single class propagates the new look through every tab, dialog, and card underneath.
+### 2. Deterministic state (no live DB in snapshots)
 
-**3. Adopt the surfaces where it counts**
-- Stat cards, entry rows, receipt cards, worker/site cards → Ledger's shadow-and-radius card instead of bordered boxes
-- Status/state labels → the chip treatment
-- Filter and toggle groups → the soft segmented control
-- Dollar and hour figures → tabular numerals so columns line up
-- Search and select inputs → rounded soft inputs
+Screenshots must not depend on real hours/receipts or they'd fail daily. Tests intercept the app's server-function calls via `page.route` and return a small fixed fixture set (`tests/visual/fixtures.ts`) — fixed worker list, fixed entries, fixed jobs, frozen clock. Auth is seeded by writing the same tokens the app already stores in `localStorage` / `sessionStorage` before navigation.
 
-**4. Reversibility**
-The whole thing is gated on one class name. Removing it from the two shell files restores today's appearance instantly — no other file needs reverting.
+### 3. Layout-integrity assertions (the "without breaking layouts" half)
 
-## What stays the same
+Pure pixel diffs tell you *something* changed but not *what*. Alongside each snapshot, assert:
 
-- Clockwise's blue accent and all semantic color tokens
-- Every layout, tab order, and workflow
-- All backend, auth, sync, and export behavior
-- Ledger itself — completely unchanged
+- **No horizontal overflow**: `document.documentElement.scrollWidth <= clientWidth` on every screen at 390px wide.
+- **No clipped/overlapped bottom nav**: the docked footer nav is fully in the viewport and no tab label is truncated.
+- **Tap targets ≥ 44px**: every button/link/tab has a rendered height ≥ 44 at mobile width.
+- **Typography contract**: headings resolve to Bricolage Grotesque, body to Manrope inside `.cw-scope`.
+
+These run as normal assertions so a failure names the actual problem.
+
+### 4. Style-contract check
+
+A small Node script (`scripts/check-style-contract.mjs`, wired to `npm run lint:style`) greps `src/components/admin`, `src/components/worker`, and `src/routes` for:
+
+- literal color utilities: `bg-gray-*`, `bg-slate-*`, `text-white`, `text-black`, `bg-[#...]`, `text-[#...]`
+- inline `style={{ color/background }}` with literal hex
+
+and fails with file:line. Existing known violations are captured in an allowlist file so the check starts green and can only ratchet down.
+
+### 5. Docs
+
+`tests/visual/README.md`: how to run, how to review a diff, how to intentionally update a baseline (`npm run test:visual:update`), and why baselines are committed.
 
 ## Technical notes
 
-New `.cw-scope` block in `src/styles.css` mirroring the structural half of `.ledger-scope`, using `var(--primary)` / `var(--border)` rather than the `--l-*` warm tokens. Applied at the root `div` of `src/components/admin/AdminApp.tsx` and `src/components/worker/WorkerApp.tsx`. The handful of hardcoded `bg-gray-*` / `bg-slate-*` utilities in `AdminApp.tsx` get swapped for semantic equivalents so the scope applies cleanly. `AdminBottomNav.tsx` already mirrors Ledger's footer nav and needs no change. Fonts require no new loading. Verified with a typecheck and a preview pass over both admin and worker screens.
+- Playwright's bundled Chromium is already available in this environment; the config will not pin an `executablePath`.
+- Snapshots are Chromium-only and generated in this Linux sandbox, so local runs on macOS will show font-rendering diffs — the README states that baselines are authoritative from CI/sandbox runs only.
+- No application source is modified by this work except the allowlist-driven style cleanups, which are reported first rather than auto-applied.
+
+## Out of scope
+
+- CI wiring (no CI config exists in this project yet) — scripts are runnable on demand.
+- Cross-browser (Firefox/WebKit) baselines.
