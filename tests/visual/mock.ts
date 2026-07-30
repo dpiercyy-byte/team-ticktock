@@ -27,11 +27,13 @@ export async function mockServerFns(page: Page, overrides: Record<string, unknow
   await page.route("**/_serverFn/**", async (route) => {
     const name = decodeServerFnName(route.request().url());
     const body = name && name in table ? table[name] : FALLBACK_RESPONSE;
+    // TanStack Start's client unwraps `{ result, error, context }`.
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(body ?? null),
+      body: JSON.stringify({ result: body ?? null, error: null, context: {} }),
     });
+
   });
   // Never let a snapshot depend on remote images / fonts / analytics.
   await page.route(/^https?:\/\/(?!localhost)/, (route) => route.abort());
