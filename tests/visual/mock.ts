@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { FALLBACK_RESPONSE, FIXTURES, FROZEN_NOW } from "./fixtures";
 
 const WORKER_KEY = "tt.worker";
