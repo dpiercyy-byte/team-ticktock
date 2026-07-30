@@ -538,7 +538,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
       <div className="w-full">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Worker</p>
         <Select value={workerId ?? ""} onValueChange={setWorkerId}>
-          <SelectTrigger className="w-full h-12 bg-gray-100 rounded-lg border-0 shadow-none px-4 text-lg font-bold gap-3 focus:ring-2 focus:ring-ring">
+          <SelectTrigger className="cw-input w-full h-12 border-0 shadow-none px-4 text-lg font-bold gap-3 focus:ring-2 focus:ring-ring">
             {(() => {
               const w = wq.data?.find((x: any) => x.id === workerId);
               if (!w) return <SelectValue placeholder="Select worker" />;
@@ -551,7 +551,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                 .toUpperCase();
               return (
                 <>
-                  <span className="h-8 w-8 shrink-0 rounded-full bg-slate-900 text-white inline-flex items-center justify-center text-sm font-semibold">
+                  <span className="h-8 w-8 shrink-0 rounded-full bg-foreground text-background inline-flex items-center justify-center text-sm font-semibold">
                     {initials || "?"}
                   </span>
                   <SelectValue placeholder="Select worker" />
@@ -2586,7 +2586,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search vendor or description…"
-          className="h-11 pl-10 pr-14 bg-gray-100 border-0 rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
+          className="cw-input h-11 pl-10 pr-14 border-0 focus-visible:ring-2 focus-visible:ring-ring"
         />
         <Popover>
           <PopoverTrigger asChild>

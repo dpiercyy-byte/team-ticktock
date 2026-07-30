@@ -595,3 +595,117 @@
   background: color-mix(in oklab, var(--primary) 14%, transparent);
   color: var(--primary);
 }
+
+/* ================================================================
+ * CLOCKWISE SURFACE LAYER (.cw-scope)
+ * Ledger's typography + surface treatment, on Clockwise's own colors.
+ * Fully reversible: remove the `cw-scope` class from the admin/worker
+ * route shells and everything returns to the previous look.
+ * ================================================================ */
+
+.cw-scope {
+  --cw-radius-sheet: 24px;
+  --cw-radius-card: 18px;
+  --cw-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 26px -14px rgba(15, 23, 42, 0.18);
+  --cw-shadow-sheet: 0 1px 2px rgba(15, 23, 42, 0.04), 0 18px 46px -18px rgba(15, 23, 42, 0.22);
+  --cw-soft: color-mix(in oklab, var(--muted) 88%, var(--background));
+
+  font-family: "Manrope", system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.cw-scope h1,
+.cw-scope h2,
+.cw-scope h3,
+.cw-scope .display {
+  font-family: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.cw-scope .num,
+.cw-scope .tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Shadcn <Card> surfaces: soft depth instead of a hard border. */
+.cw-scope .bg-card.border {
+  border-color: color-mix(in oklab, var(--border) 55%, transparent);
+  border-radius: var(--cw-radius-card);
+  box-shadow: var(--cw-shadow-card);
+}
+
+/* Reusable Ledger-style parts */
+.cw-scope .cw-sheet {
+  background: var(--card);
+  border-radius: var(--cw-radius-sheet);
+  box-shadow: var(--cw-shadow-sheet);
+}
+.cw-scope .cw-card {
+  background: var(--card);
+  border-radius: var(--cw-radius-card);
+  box-shadow: var(--cw-shadow-card);
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cw-scope .cw-card:active {
+  transform: scale(0.988);
+}
+.cw-scope .cw-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.cw-scope .cw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+  background: var(--cw-soft);
+  color: var(--muted-foreground);
+}
+.cw-scope .cw-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 92px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  background: var(--cw-soft);
+  color: var(--muted-foreground);
+}
+.cw-scope .cw-pill--raised {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--cw-shadow-card);
+}
+.cw-scope .cw-input {
+  background: var(--cw-soft);
+  border-radius: 14px;
+  border-color: transparent;
+}
+.cw-scope .cw-seg {
+  background: var(--cw-soft);
+  color: var(--muted-foreground);
+  border-radius: 999px;
+}
+.cw-scope .cw-seg--active {
+  background: var(--foreground);
+  color: var(--background);
+}

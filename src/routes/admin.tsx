@@ -8,5 +8,9 @@ export const Route = createFileRoute("/admin")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: () => <AdminApp />,
+  component: () => (
+    <div className="cw-scope">
+      <AdminApp />
+    </div>
+  ),
 });
