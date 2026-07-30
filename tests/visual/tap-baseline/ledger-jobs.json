@@ -1,0 +1,11 @@
+[
+  "a(\"New\") h=40",
+  "button(\"Active\") h=34",
+  "button(\"All\") h=34",
+  "button(\"Approval\") h=34",
+  "button(\"Completed\") h=34",
+  "button(\"Estimate\") h=34",
+  "button(\"Lead\") h=34",
+  "button(\"Scheduled\") h=34",
+  "button(\"Site Visit\") h=34"
+]
