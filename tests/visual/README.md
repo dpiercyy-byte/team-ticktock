@@ -57,3 +57,18 @@ Auth is seeded by writing the same keys the app uses: `tt.worker`
    its export name.
 2. Add a test that navigates there and calls `checkScreen(page, { name, scope, nav })`.
 3. `npm run test:visual:update` to record the baseline.
+
+## Baselines
+
+- Screenshots: `tests/visual/__screenshots__/<spec>/<name>-<project>.png`
+  (re-record with `npm run test:visual:update`).
+- Tap-target ratchet: `tests/visual/tap-baseline/<name>-<project>.json` records the
+  controls that are already under 40px tall, so the suite fails only on *new*
+  offenders. Re-record with `VISUAL_UPDATE_BASELINES=1 npx playwright test`.
+
+## Environment notes
+
+- Server-function responses are intercepted at `/_serverFn/*` and must be
+  fulfilled with the TanStack envelope `{ result, error, context }`.
+- The sandbox's preinstalled Chromium is auto-detected from
+  `PLAYWRIGHT_BROWSERS_PATH`; override with `VISUAL_CHROMIUM=/path/to/chrome`.
