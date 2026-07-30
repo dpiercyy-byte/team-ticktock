@@ -1,0 +1,8 @@
+[
+  "button(\"\") h=36",
+  "button(\"Lifetime\") h=28",
+  "button(\"Mark paid\") h=32",
+  "button(\"Pending\") h=28",
+  "button(\"Reimb.\") h=32",
+  "button(\"Weekly\") h=28"
+]

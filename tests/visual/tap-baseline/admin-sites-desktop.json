@@ -1,0 +1,7 @@
+[
+  "button(\"Active jobs (2)\") h=30",
+  "button(\"Add Location\") h=32",
+  "button(\"Archived (0)\") h=30",
+  "button(\"Bulk add\") h=32",
+  "button(\"Suppliers (1)\") h=30"
+]

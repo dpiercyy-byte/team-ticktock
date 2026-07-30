@@ -1,0 +1,10 @@
+[
+  "button(\"\") h=36",
+  "button(\"Add entry\") h=36",
+  "button(\"In: 16 Ostick Ave\") h=16",
+  "button(\"In: 50 Red Maple Rd\") h=16",
+  "button(\"In: No GPS\") h=16",
+  "button(\"Out: 16 Ostick Ave\") h=16",
+  "button(\"Out: 88 Wilcox Crt\") h=16",
+  "button(\"Out: No GPS\") h=16"
+]

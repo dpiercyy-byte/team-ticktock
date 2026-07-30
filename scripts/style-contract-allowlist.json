@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-07-30T03:05:18.581Z",
+  "allowed": [
+    "src/components/AppSwitcherBar.tsx:21:bg-slate-900",
+    "src/components/AppSwitcherBar.tsx:21:text-white",
+    "src/components/admin/AdminApp.tsx:2135:text-white",
+    "src/components/admin/AdminApp.tsx:3219:text-white",
+    "src/components/admin/AdminApp.tsx:3452:text-white",
+    "src/routes/ledger.index.tsx:68:color: \"#fff",
+    "src/routes/ledger.jobs.$jobId.tsx:230:color: \"#fff",
+    "src/routes/ledger.jobs.index.tsx:65:color: \"#fff"
+  ]
+}
