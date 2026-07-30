@@ -1,5 +1,5 @@
 import { test } from "@playwright/test";
-import { mockServerFns, freezeClock, seedAdminSession, settle } from "./tests/visual/mock";
+import { mockServerFns, freezeClock, seedAdminSession, settle } from "./mock";
 test("dbg", async ({ page }) => {
   page.on("console", (m) => console.log("CONSOLE", m.type(), m.text().slice(0,200)));
   await freezeClock(page);
