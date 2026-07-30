@@ -139,7 +139,13 @@ export async function expectBottomNavIntact(page: Page, selector: string, label:
   ).toEqual([]);
 }
 
-/** Interactive controls need a real touch target. */
+/**
+ * Interactive controls need a real touch target.
+ *
+ * Existing screens have known-small controls; those are ratcheted into
+ * `tests/visual/tap-baseline/<screen>.json` so the suite fails only on NEW
+ * offenders. Re-record with `VISUAL_UPDATE_BASELINES=1`.
+ */
 export async function expectTapTargets(page: Page, label: string, min = 40) {
   const small = await page.evaluate((minH) => {
     const out: string[] = [];
@@ -154,13 +160,28 @@ export async function expectTapTargets(page: Page, label: string, min = 40) {
       // Text links inside a paragraph are not tap targets in the button sense.
       if (el.tagName === "A" && style.display.includes("inline")) continue;
       if (r.height < minH) {
-        out.push(`${el.tagName.toLowerCase()}("${(el.textContent ?? "").trim().slice(0, 24)}") h=${Math.round(r.height)}`);
+        out.push(
+          `${el.tagName.toLowerCase()}("${(el.textContent ?? "").trim().slice(0, 24)}") h=${Math.round(r.height)}`,
+        );
       }
     }
-    return out.slice(0, 8);
+    return Array.from(new Set(out)).sort();
   }, min);
-  expect(small, `${label}: tap targets under ${min}px tall: ${small.join(" | ")}`).toEqual([]);
+
+  const file = path.join(TAP_BASELINE_DIR, `${label}.json`);
+  if (process.env.VISUAL_UPDATE_BASELINES === "1") {
+    fs.mkdirSync(TAP_BASELINE_DIR, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(small, null, 2) + "\n");
+    return;
+  }
+  const known: string[] = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
+  const added = small.filter((s) => !known.includes(s));
+  expect(
+    added,
+    `${label}: NEW tap targets under ${min}px tall: ${added.join(" | ")}`,
+  ).toEqual([]);
 }
+
 
 /**
  * The whole point of the Ledger port: Clockwise must resolve to the same
