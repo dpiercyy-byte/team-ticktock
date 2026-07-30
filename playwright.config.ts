@@ -61,13 +61,22 @@ export default defineConfig({
   projects: [
     {
       name: "mobile",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: false },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 390, height: 844 },
+        launchOptions: { executablePath },
+      },
     },
     {
       name: "desktop",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 900 } },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 900 },
+        launchOptions: { executablePath },
+      },
     },
   ],
+
   webServer: process.env.VISUAL_BASE_URL
     ? undefined
     : {
