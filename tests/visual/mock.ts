@@ -173,7 +173,11 @@ export async function expectTapTargets(page: Page, label: string, min = 40) {
     return Array.from(new Set(out)).sort();
   }, min);
 
-  const file = path.join(TAP_BASELINE_DIR, `${label}.json`);
+  // Per-project file: mobile and desktop have different layouts (and would
+  // otherwise race to overwrite one shared baseline).
+  const project = test.info().project.name;
+  const file = path.join(TAP_BASELINE_DIR, `${label}-${project}.json`);
+
   if (process.env.VISUAL_UPDATE_BASELINES === "1") {
     fs.mkdirSync(TAP_BASELINE_DIR, { recursive: true });
     fs.writeFileSync(file, JSON.stringify(small, null, 2) + "\n");
