@@ -402,6 +402,40 @@ export const FIXTURES: Record<string, unknown> = {
   // --- ledger ---
   listLedgerJobs: { ...refreshed, jobs: LEDGER_JOBS },
   getLedgerJob: { ...refreshed, job: LEDGER_JOBS[0], timeline: LEDGER_TIMELINE },
+  getActivationPreview: {
+    ...refreshed,
+    project: {
+      id: LEDGER_JOBS[0].id,
+      name: LEDGER_JOBS[0].name,
+      salesStage: "Won",
+      deliveryStatus: "Not Started",
+      activatedAt: null,
+      clientId: "c1111111-1111-4111-8111-111111111111",
+      clientName: "M. Tremblay",
+      propertyId: "p1111111-1111-4111-8111-111111111111",
+      propertyAddress: "16 Ostick Ave, Toronto, ON",
+      propertyLat: 43.6532,
+      propertyLng: -79.3832,
+      address: "16 Ostick Ave, Toronto, ON",
+      contractValue: 48000,
+      estimatedValue: 48000,
+      expectedStartDate: "2026-03-16",
+    },
+    site: null,
+    crew: [],
+  },
+  geocodeForActivation: {
+    ...refreshed,
+    lat: 43.6532,
+    lng: -79.3832,
+    formatted: "16 Ostick Ave, Toronto, ON",
+  },
+  activateProjectFn: {
+    ...refreshed,
+    jobSiteId: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+    created: true,
+    alreadyActivated: false,
+  },
 };
 
 export const FALLBACK_RESPONSE = refreshed;
