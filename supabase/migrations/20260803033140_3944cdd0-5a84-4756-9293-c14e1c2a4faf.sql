@@ -1,0 +1,3 @@
+COMMENT ON TABLE public.clients IS 'DEPRECATED (Ledger v1 residue) - not referenced by any application code. Do not build on this table. Canonical: job_sites (locations), ledger_jobs (projects).';
+COMMENT ON TABLE public.os_jobs IS 'DEPRECATED (Ledger v1 residue) - not referenced by any application code. Do not build on this table. Canonical: job_sites (locations), ledger_jobs (projects).';
+COMMENT ON TABLE public.job_events IS 'DEPRECATED (Ledger v1 residue) - not referenced by any application code. Do not build on this table. Canonical: ledger_job_events.';

@@ -44,6 +44,39 @@ export async function mockServerFns(page: Page, overrides: Record<string, unknow
   await page.route(/^https?:\/\/(?!localhost)/, (route) => route.abort());
 }
 
+/**
+ * Records every server-function call (name + payload) while letting the
+ * fixture mock answer it. Register AFTER `mockServerFns` so this handler
+ * runs first and then falls through.
+ */
+export async function recordServerFnCalls(page: Page) {
+  const calls: Array<{ name: string; data: unknown }> = [];
+  await page.route("**/_serverFn/**", async (route) => {
+    const req = route.request();
+    const name = decodeServerFnName(req.url());
+    let data: unknown = null;
+    try {
+      const post = req.postData();
+      if (post) data = JSON.parse(post);
+      else {
+        const p = new URL(req.url()).searchParams.get("payload");
+        if (p) data = JSON.parse(p);
+      }
+    } catch {
+      /* non-JSON body (file upload) */
+    }
+    if (name) calls.push({ name, data });
+    await route.fallback();
+  });
+  return {
+    calls,
+    names: () => calls.map((c) => c.name),
+    find: (name: string) => calls.find((c) => c.name === name),
+    count: (name: string) => calls.filter((c) => c.name === name).length,
+  };
+}
+
+
 /** Freezes the clock so live timers and "this week" labels stay stable. */
 export async function freezeClock(page: Page) {
   await page.clock.install({ time: FROZEN_NOW });

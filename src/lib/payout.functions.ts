@@ -3,26 +3,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin, requireWorker } from "./auth.server";
 import { logAudit } from "./audit.server";
+import { addDaysISO, endOfWeek, payoutStatus, startOfWeekISO } from "./payout-math";
 
-function startOfWeekISO(d: Date): string {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - x.getDay());
-  return x.toISOString().slice(0, 10);
-}
-
-function addDaysISO(iso: string, days: number): string {
-  const d = new Date(iso);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-
-function endOfWeek(weekStart: string) {
-  const d = new Date(weekStart);
-  d.setDate(d.getDate() + 7);
-  return d;
-}
 
 export const weeklyPayout = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
@@ -185,12 +167,8 @@ export const listPendingWeeks = createServerFn({ method: "POST" })
         const total = wages + b.reimbTotal;
         const paid = paidMap.get(`${b.workerId}|${b.weekStart}`) ?? null;
         const weekEnd = addDaysISO(b.weekStart, 6);
-        const endTs = new Date(weekEnd + "T23:59:59").getTime();
-        const ageDays = Math.floor((now - endTs) / 86_400_000);
-        let status: "paid" | "overdue" | "unpaid";
-        if (paid) status = "paid";
-        else if (ageDays >= 14) status = "overdue";
-        else status = "unpaid";
+        const status = payoutStatus(b.weekStart, !!paid, now);
+
         return {
           workerId: b.workerId,
           workerName: w?.name ?? "Unknown",
@@ -328,18 +306,13 @@ export const workerWeekSummary = createServerFn({ method: "POST" })
     const reimbTotal = (reimbs ?? []).reduce((s, r) => s + Number(r.amount), 0);
     const total = wages + reimbTotal;
 
-    const weekEnd = new Date(data.weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const endTs = new Date(weekEnd.toISOString().slice(0, 10) + "T23:59:59").getTime();
-    const ageDays = Math.floor((Date.now() - endTs) / 86_400_000);
-    let status: "paid" | "overdue" | "unpaid";
-    if (paid) status = "paid";
-    else if (ageDays >= 14) status = "overdue";
-    else status = "unpaid";
+    const weekEndISO = addDaysISO(data.weekStart, 6);
+    const status = payoutStatus(data.weekStart, !!paid);
 
     return {
       weekStart: data.weekStart,
-      weekEnd: weekEnd.toISOString().slice(0, 10),
+      weekEnd: weekEndISO,
+
       hours, hourlyRate: rate, wages, reimbTotal, total,
       reimbursements: reimbs ?? [],
       status,
