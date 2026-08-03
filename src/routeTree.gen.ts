@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LedgerIndexRouteImport } from './routes/ledger.index'
 import { Route as LedgerProfileRouteImport } from './routes/ledger.profile'
+import { Route as LedgerPipelineRouteImport } from './routes/ledger.pipeline'
 import { Route as LedgerNotificationsRouteImport } from './routes/ledger.notifications'
 import { Route as LedgerCalendarRouteImport } from './routes/ledger.calendar'
 import { Route as LedgerJobsIndexRouteImport } from './routes/ledger.jobs.index'
@@ -45,6 +46,11 @@ const LedgerIndexRoute = LedgerIndexRouteImport.update({
 const LedgerProfileRoute = LedgerProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerPipelineRoute = LedgerPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerNotificationsRoute = LedgerNotificationsRouteImport.update({
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/calendar': typeof LedgerCalendarRoute
   '/ledger/notifications': typeof LedgerNotificationsRoute
+  '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
   '/ledger/': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/ledger/calendar': typeof LedgerCalendarRoute
   '/ledger/notifications': typeof LedgerNotificationsRoute
+  '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
   '/ledger': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/calendar': typeof LedgerCalendarRoute
   '/ledger/notifications': typeof LedgerNotificationsRoute
+  '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
   '/ledger/': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/ledger'
     | '/ledger/calendar'
     | '/ledger/notifications'
+    | '/ledger/pipeline'
     | '/ledger/profile'
     | '/ledger/'
     | '/ledger/jobs/$jobId'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ledger/calendar'
     | '/ledger/notifications'
+    | '/ledger/pipeline'
     | '/ledger/profile'
     | '/ledger'
     | '/ledger/jobs/$jobId'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/ledger'
     | '/ledger/calendar'
     | '/ledger/notifications'
+    | '/ledger/pipeline'
     | '/ledger/profile'
     | '/ledger/'
     | '/ledger/jobs/$jobId'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/ledger/profile'
       preLoaderRoute: typeof LedgerProfileRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/ledger/pipeline': {
+      id: '/ledger/pipeline'
+      path: '/pipeline'
+      fullPath: '/ledger/pipeline'
+      preLoaderRoute: typeof LedgerPipelineRouteImport
       parentRoute: typeof LedgerRoute
     }
     '/ledger/notifications': {
@@ -271,6 +290,7 @@ declare module '@tanstack/react-router' {
 interface LedgerRouteChildren {
   LedgerCalendarRoute: typeof LedgerCalendarRoute
   LedgerNotificationsRoute: typeof LedgerNotificationsRoute
+  LedgerPipelineRoute: typeof LedgerPipelineRoute
   LedgerProfileRoute: typeof LedgerProfileRoute
   LedgerIndexRoute: typeof LedgerIndexRoute
   LedgerJobsJobIdRoute: typeof LedgerJobsJobIdRoute
@@ -281,6 +301,7 @@ interface LedgerRouteChildren {
 const LedgerRouteChildren: LedgerRouteChildren = {
   LedgerCalendarRoute: LedgerCalendarRoute,
   LedgerNotificationsRoute: LedgerNotificationsRoute,
+  LedgerPipelineRoute: LedgerPipelineRoute,
   LedgerProfileRoute: LedgerProfileRoute,
   LedgerIndexRoute: LedgerIndexRoute,
   LedgerJobsJobIdRoute: LedgerJobsJobIdRoute,
