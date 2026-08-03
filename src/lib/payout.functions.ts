@@ -167,12 +167,8 @@ export const listPendingWeeks = createServerFn({ method: "POST" })
         const total = wages + b.reimbTotal;
         const paid = paidMap.get(`${b.workerId}|${b.weekStart}`) ?? null;
         const weekEnd = addDaysISO(b.weekStart, 6);
-        const endTs = new Date(weekEnd + "T23:59:59").getTime();
-        const ageDays = Math.floor((now - endTs) / 86_400_000);
-        let status: "paid" | "overdue" | "unpaid";
-        if (paid) status = "paid";
-        else if (ageDays >= 14) status = "overdue";
-        else status = "unpaid";
+        const status = payoutStatus(b.weekStart, !!paid, now);
+
         return {
           workerId: b.workerId,
           workerName: w?.name ?? "Unknown",
