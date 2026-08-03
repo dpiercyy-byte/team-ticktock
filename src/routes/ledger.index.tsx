@@ -80,6 +80,37 @@ function LedgerHome() {
 
       <section className="mt-8">
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
+          <h2 className="l-eyebrow truncate">Follow-ups</h2>
+          <Link to="/ledger/pipeline" className="shrink-0 text-[12px] font-semibold l-muted">
+            Pipeline
+          </Link>
+        </div>
+        {followUps.length === 0 ? (
+          <EmptyLine text="No follow-ups due. Nice." />
+        ) : (
+          <div className="grid gap-3">
+            {followUps.slice(0, 6).map((c) => (
+              <Link
+                key={c.id}
+                to="/ledger/jobs/$jobId"
+                params={{ jobId: c.id }}
+                className="l-card block px-4 py-3.5"
+              >
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                  <p className="truncate text-[14px] font-bold">{c.clientName}</p>
+                  <span className="shrink-0 text-[12px] font-semibold l-muted">
+                    {c.salesStage}
+                  </span>
+                </div>
+                <NextActionLine card={c} className="mt-1.5" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
           <h2 className="l-eyebrow truncate">Pipeline</h2>
           <Link to="/ledger/jobs" className="shrink-0 text-[12px] font-semibold l-muted">
             See all
