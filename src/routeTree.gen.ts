@@ -17,6 +17,7 @@ import { Route as LedgerProfileRouteImport } from './routes/ledger.profile'
 import { Route as LedgerPipelineRouteImport } from './routes/ledger.pipeline'
 import { Route as LedgerNotificationsRouteImport } from './routes/ledger.notifications'
 import { Route as LedgerCalendarRouteImport } from './routes/ledger.calendar'
+import { Route as LedgerPeopleIndexRouteImport } from './routes/ledger.people.index'
 import { Route as LedgerJobsIndexRouteImport } from './routes/ledger.jobs.index'
 import { Route as LedgerLeadsNewRouteImport } from './routes/ledger.leads.new'
 import { Route as LedgerJobsNewRouteImport } from './routes/ledger.jobs.new'
@@ -62,6 +63,11 @@ const LedgerNotificationsRoute = LedgerNotificationsRouteImport.update({
 const LedgerCalendarRoute = LedgerCalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerPeopleIndexRoute = LedgerPeopleIndexRouteImport.update({
+  id: '/people/',
+  path: '/people/',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerJobsIndexRoute = LedgerJobsIndexRouteImport.update({
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
   '/ledger/leads/new': typeof LedgerLeadsNewRoute
   '/ledger/jobs/': typeof LedgerJobsIndexRoute
+  '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
   '/ledger/leads/new': typeof LedgerLeadsNewRoute
   '/ledger/jobs': typeof LedgerJobsIndexRoute
+  '/ledger/people': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
   '/ledger/leads/new': typeof LedgerLeadsNewRoute
   '/ledger/jobs/': typeof LedgerJobsIndexRoute
+  '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
 }
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/ledger/jobs/new'
     | '/ledger/leads/new'
     | '/ledger/jobs/'
+    | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
   fileRoutesByTo: FileRoutesByTo
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/ledger/jobs/new'
     | '/ledger/leads/new'
     | '/ledger/jobs'
+    | '/ledger/people'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
   id:
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/ledger/jobs/new'
     | '/ledger/leads/new'
     | '/ledger/jobs/'
+    | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
   fileRoutesById: FileRoutesById
@@ -261,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerCalendarRouteImport
       parentRoute: typeof LedgerRoute
     }
+    '/ledger/people/': {
+      id: '/ledger/people/'
+      path: '/people'
+      fullPath: '/ledger/people/'
+      preLoaderRoute: typeof LedgerPeopleIndexRouteImport
+      parentRoute: typeof LedgerRoute
+    }
     '/ledger/jobs/': {
       id: '/ledger/jobs/'
       path: '/jobs'
@@ -316,6 +335,7 @@ interface LedgerRouteChildren {
   LedgerJobsNewRoute: typeof LedgerJobsNewRoute
   LedgerLeadsNewRoute: typeof LedgerLeadsNewRoute
   LedgerJobsIndexRoute: typeof LedgerJobsIndexRoute
+  LedgerPeopleIndexRoute: typeof LedgerPeopleIndexRoute
 }
 
 const LedgerRouteChildren: LedgerRouteChildren = {
@@ -328,6 +348,7 @@ const LedgerRouteChildren: LedgerRouteChildren = {
   LedgerJobsNewRoute: LedgerJobsNewRoute,
   LedgerLeadsNewRoute: LedgerLeadsNewRoute,
   LedgerJobsIndexRoute: LedgerJobsIndexRoute,
+  LedgerPeopleIndexRoute: LedgerPeopleIndexRoute,
 }
 
 const LedgerRouteWithChildren =
