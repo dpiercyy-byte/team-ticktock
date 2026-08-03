@@ -16,6 +16,7 @@ import { Route as LedgerIndexRouteImport } from './routes/ledger.index'
 import { Route as LedgerProfileRouteImport } from './routes/ledger.profile'
 import { Route as LedgerPipelineRouteImport } from './routes/ledger.pipeline'
 import { Route as LedgerNotificationsRouteImport } from './routes/ledger.notifications'
+import { Route as LedgerMoreRouteImport } from './routes/ledger.more'
 import { Route as LedgerCalendarRouteImport } from './routes/ledger.calendar'
 import { Route as LedgerPeopleIndexRouteImport } from './routes/ledger.people.index'
 import { Route as LedgerJobsIndexRouteImport } from './routes/ledger.jobs.index'
@@ -59,6 +60,11 @@ const LedgerPipelineRoute = LedgerPipelineRouteImport.update({
 const LedgerNotificationsRoute = LedgerNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerMoreRoute = LedgerMoreRouteImport.update({
+  id: '/more',
+  path: '/more',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerCalendarRoute = LedgerCalendarRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/calendar': typeof LedgerCalendarRoute
+  '/ledger/more': typeof LedgerMoreRoute
   '/ledger/notifications': typeof LedgerNotificationsRoute
   '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/ledger/calendar': typeof LedgerCalendarRoute
+  '/ledger/more': typeof LedgerMoreRoute
   '/ledger/notifications': typeof LedgerNotificationsRoute
   '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/ledger': typeof LedgerRouteWithChildren
   '/ledger/calendar': typeof LedgerCalendarRoute
+  '/ledger/more': typeof LedgerMoreRoute
   '/ledger/notifications': typeof LedgerNotificationsRoute
   '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ledger'
     | '/ledger/calendar'
+    | '/ledger/more'
     | '/ledger/notifications'
     | '/ledger/pipeline'
     | '/ledger/profile'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/ledger/calendar'
+    | '/ledger/more'
     | '/ledger/notifications'
     | '/ledger/pipeline'
     | '/ledger/profile'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ledger'
     | '/ledger/calendar'
+    | '/ledger/more'
     | '/ledger/notifications'
     | '/ledger/pipeline'
     | '/ledger/profile'
@@ -278,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerNotificationsRouteImport
       parentRoute: typeof LedgerRoute
     }
+    '/ledger/more': {
+      id: '/ledger/more'
+      path: '/more'
+      fullPath: '/ledger/more'
+      preLoaderRoute: typeof LedgerMoreRouteImport
+      parentRoute: typeof LedgerRoute
+    }
     '/ledger/calendar': {
       id: '/ledger/calendar'
       path: '/calendar'
@@ -346,6 +365,7 @@ declare module '@tanstack/react-router' {
 
 interface LedgerRouteChildren {
   LedgerCalendarRoute: typeof LedgerCalendarRoute
+  LedgerMoreRoute: typeof LedgerMoreRoute
   LedgerNotificationsRoute: typeof LedgerNotificationsRoute
   LedgerPipelineRoute: typeof LedgerPipelineRoute
   LedgerProfileRoute: typeof LedgerProfileRoute
@@ -360,6 +380,7 @@ interface LedgerRouteChildren {
 
 const LedgerRouteChildren: LedgerRouteChildren = {
   LedgerCalendarRoute: LedgerCalendarRoute,
+  LedgerMoreRoute: LedgerMoreRoute,
   LedgerNotificationsRoute: LedgerNotificationsRoute,
   LedgerPipelineRoute: LedgerPipelineRoute,
   LedgerProfileRoute: LedgerProfileRoute,
