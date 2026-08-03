@@ -79,20 +79,63 @@ export type LedgerProjectType = (typeof LEDGER_PROJECT_TYPES)[number];
 export type LedgerTrade = (typeof LEDGER_TRADES)[number];
 export type LedgerEventKind = (typeof LEDGER_EVENT_KINDS)[number];
 
+export type LedgerClient = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  leadSource: string | null;
+  preferredContactMethod: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LedgerProperty = {
+  id: string;
+  clientId: string | null;
+  address: string;
+  unit: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type LedgerJob = {
   id: string;
   name: string;
   client: { name: string; email?: string | null; phone?: string | null };
+  clientId: string | null;
+  propertyId: string | null;
   address: string;
   projectType: LedgerProjectType | string;
   trades: string[];
   status: LedgerStatus | string;
+  salesStage: string;
+  deliveryStatus: string;
+  estimatedValue: number;
+  assignedOwner: string | null;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+  expectedStartDate: string | null;
+  actualStartDate: string | null;
+  expectedCompletionDate: string | null;
+  actualCompletionDate: string | null;
+  lostReason: string | null;
   progress: number;
   budget: number; // dollars
   collected: number;
   expenses: number;
   workersOnSite: number;
   scheduledFor: string | null;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -113,6 +156,19 @@ type JobRow = {
   client_email: string | null;
   client_phone: string | null;
   address: string;
+  client_id: string | null;
+  property_id: string | null;
+  sales_stage: string | null;
+  delivery_status: string | null;
+  estimated_value_cents: number | string | null;
+  assigned_owner: string | null;
+  next_action: string | null;
+  next_action_due_at: string | null;
+  expected_start_date: string | null;
+  actual_start_date: string | null;
+  expected_completion_date: string | null;
+  actual_completion_date: string | null;
+  lost_reason: string | null;
   project_type: string;
   trades: string[] | null;
   status: string;
@@ -122,35 +178,61 @@ type JobRow = {
   expenses_cents: number | string;
   workers_on_site: number;
   scheduled_for: string | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
+  clients?: { id: string; name: string; email: string | null; phone: string | null } | null;
+  properties?: { id: string; address: string } | null;
 };
 
 const centsToDollars = (n: number | string) => Number(n) / 100;
 const dollarsToCents = (n: number) => Math.round(n * 100);
 
 function rowToJob(r: JobRow): LedgerJob {
+  // Canonical relations win; embedded legacy fields are the fallback.
+  const client = r.clients ?? null;
+  const property = r.properties ?? null;
+  const mapped = statusToStages(r.status);
   return {
     id: r.id,
     name: r.name,
-    client: { name: r.client_name, email: r.client_email, phone: r.client_phone },
-    address: r.address,
+    client: {
+      name: client?.name ?? r.client_name,
+      email: client?.email ?? r.client_email,
+      phone: client?.phone ?? r.client_phone,
+    },
+    clientId: r.client_id ?? null,
+    propertyId: r.property_id ?? null,
+    address: property?.address ?? r.address,
     projectType: r.project_type,
     trades: r.trades ?? [],
     status: r.status,
+    salesStage: r.sales_stage ?? mapped.salesStage,
+    deliveryStatus: r.delivery_status ?? mapped.deliveryStatus,
+    estimatedValue: centsToDollars(r.estimated_value_cents ?? 0),
+    assignedOwner: r.assigned_owner ?? null,
+    nextAction: r.next_action ?? null,
+    nextActionDueAt: r.next_action_due_at ?? null,
+    expectedStartDate: r.expected_start_date ?? null,
+    actualStartDate: r.actual_start_date ?? null,
+    expectedCompletionDate: r.expected_completion_date ?? null,
+    actualCompletionDate: r.actual_completion_date ?? null,
+    lostReason: r.lost_reason ?? null,
     progress: r.progress,
     budget: centsToDollars(r.budget_cents),
     collected: centsToDollars(r.collected_cents),
     expenses: centsToDollars(r.expenses_cents),
     workersOnSite: r.workers_on_site,
     scheduledFor: r.scheduled_for,
+    archivedAt: r.archived_at ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
 }
 
 const JOB_COLS =
-  "id, name, client_name, client_email, client_phone, address, project_type, trades, status, progress, budget_cents, collected_cents, expenses_cents, workers_on_site, scheduled_for, created_at, updated_at";
+  "id, name, client_name, client_email, client_phone, address, client_id, property_id, sales_stage, delivery_status, estimated_value_cents, assigned_owner, next_action, next_action_due_at, expected_start_date, actual_start_date, expected_completion_date, actual_completion_date, lost_reason, project_type, trades, status, progress, budget_cents, collected_cents, expenses_cents, workers_on_site, scheduled_for, archived_at, created_at, updated_at, clients:client_id(id, name, email, phone), properties:property_id(id, address)";
+
 
 export const listLedgerJobs = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
