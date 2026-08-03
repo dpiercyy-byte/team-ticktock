@@ -471,7 +471,7 @@ function FollowUp({ jobId, job }: { jobId: string; job: LedgerJob }) {
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="rounded-full px-4 py-2 text-[12px] font-bold"
+                className="inline-flex min-h-[40px] items-center rounded-full px-4 text-[12px] font-bold"
                 style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
               >
                 {job.nextAction ? "Change" : "Set next step"}
@@ -481,7 +481,7 @@ function FollowUp({ jobId, job }: { jobId: string; job: LedgerJob }) {
                   type="button"
                   onClick={() => doneMutation.mutate()}
                   disabled={doneMutation.isPending}
-                  className="l-pill disabled:opacity-50"
+                  className="l-pill min-h-[40px] disabled:opacity-50"
                 >
                   {doneMutation.isPending ? "Marking…" : "Mark done"}
                 </button>

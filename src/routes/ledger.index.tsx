@@ -85,7 +85,7 @@ function LedgerHome() {
       <section className="mt-8">
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
           <h2 className="l-eyebrow truncate">Follow-ups</h2>
-          <Link to="/ledger/pipeline" className="shrink-0 text-[12px] font-semibold l-muted">
+          <Link to="/ledger/pipeline" className="inline-flex min-h-[40px] shrink-0 items-center text-[12px] font-semibold l-muted">
             Pipeline
           </Link>
         </div>
