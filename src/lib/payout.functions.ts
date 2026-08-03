@@ -3,26 +3,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin, requireWorker } from "./auth.server";
 import { logAudit } from "./audit.server";
+import { addDaysISO, endOfWeek, payoutStatus, startOfWeekISO } from "./payout-math";
 
-function startOfWeekISO(d: Date): string {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  x.setDate(x.getDate() - x.getDay());
-  return x.toISOString().slice(0, 10);
-}
-
-function addDaysISO(iso: string, days: number): string {
-  const d = new Date(iso);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-
-function endOfWeek(weekStart: string) {
-  const d = new Date(weekStart);
-  d.setDate(d.getDate() + 7);
-  return d;
-}
 
 export const weeklyPayout = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
