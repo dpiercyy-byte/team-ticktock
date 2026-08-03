@@ -306,18 +306,13 @@ export const workerWeekSummary = createServerFn({ method: "POST" })
     const reimbTotal = (reimbs ?? []).reduce((s, r) => s + Number(r.amount), 0);
     const total = wages + reimbTotal;
 
-    const weekEnd = new Date(data.weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const endTs = new Date(weekEnd.toISOString().slice(0, 10) + "T23:59:59").getTime();
-    const ageDays = Math.floor((Date.now() - endTs) / 86_400_000);
-    let status: "paid" | "overdue" | "unpaid";
-    if (paid) status = "paid";
-    else if (ageDays >= 14) status = "overdue";
-    else status = "unpaid";
+    const weekEndISO = addDaysISO(data.weekStart, 6);
+    const status = payoutStatus(data.weekStart, !!paid);
 
     return {
       weekStart: data.weekStart,
-      weekEnd: weekEnd.toISOString().slice(0, 10),
+      weekEnd: weekEndISO,
+
       hours, hourlyRate: rate, wages, reimbTotal, total,
       reimbursements: reimbs ?? [],
       status,
