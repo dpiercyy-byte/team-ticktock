@@ -2,8 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin } from "./auth.server";
+import { findOrCreateClient, findOrCreateProperty } from "./ledger-crm.server";
+import {
+  LEDGER_SALES_STAGES,
+  LEDGER_DELIVERY_STATUSES,
+  statusToStages,
+  stagesToStatus,
+} from "./ledger-stages";
+
+export { LEDGER_SALES_STAGES, LEDGER_DELIVERY_STATUSES } from "./ledger-stages";
+export type { LedgerSalesStage, LedgerDeliveryStatus } from "./ledger-stages";
 
 const adminBase = z.object({ token: z.string() });
+
 
 export const LEDGER_STATUSES = [
   "Lead",
