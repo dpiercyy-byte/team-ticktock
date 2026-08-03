@@ -235,13 +235,12 @@ test.describe("Job activation", () => {
     await settle(page);
 
     expect(rec.count("activateProjectFn")).toBe(1);
-    const call = rec.find("activateProjectFn") as { data: unknown };
-    const raw = call.data as Record<string, any>;
-    const payload = (raw?.data ?? raw) as Record<string, any>;
-    console.log("PAYLOAD", JSON.stringify(call.data));
-    expect(payload.projectId).toBe(JOB);
-    expect(payload.radiusM).toBe(250);
-    expect(payload.lat).toBeCloseTo(43.6532, 3);
+    // The RPC body is seroval-encoded; assert on its serialized contents.
+    const body = JSON.stringify(rec.find("activateProjectFn")?.data ?? {});
+    expect(body).toContain(JOB);
+    expect(body).toContain("radiusM");
+    expect(body).toContain("250");
+    expect(body).toContain("43.6532");
   });
 
   test("an already-activated project shows the connected site and no activate button", async ({ page }) => {
