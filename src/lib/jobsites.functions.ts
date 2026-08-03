@@ -3,41 +3,11 @@ import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin } from "./auth.server";
 import { logAudit } from "./audit.server";
+import { geocodeAddress } from "./geocode.server";
 
 const adminBase = z.object({ token: z.string() });
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
-
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number; formatted: string }> {
-  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
-  const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY;
-  if (!LOVABLE_API_KEY || !GMAPS_KEY) {
-    throw new Response("Geocoding not configured", { status: 500 });
-  }
-  const res = await fetch(
-    `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": GMAPS_KEY,
-      },
-    },
-  );
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Response(`Geocoding failed (${res.status}): ${body.slice(0, 200)}`, { status: 502 });
-  }
-  const json: any = await res.json();
-  if (json.status !== "OK" || !json.results?.length) {
-    throw new Response(`Address not found${json.error_message ? `: ${json.error_message}` : ""}`, { status: 400 });
-  }
-  const r = json.results[0];
-  return {
-    lat: r.geometry.location.lat,
-    lng: r.geometry.location.lng,
-    formatted: r.formatted_address as string,
-  };
-}
 
 export const adminListJobSites = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))

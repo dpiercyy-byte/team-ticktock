@@ -11,6 +11,7 @@ import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobHero, heroClass } from "@/components/ledger/JobHero";
 
 import { JobJourney } from "@/components/ledger/JobJourney";
+import { ActivateJobPanel } from "@/components/ledger/ActivateJobPanel";
 import { LedgerFab } from "@/components/ledger/LedgerFab";
 import { formatCurrency, shortDateTime, heroImage } from "@/components/ledger/ledger-ui";
 import {
@@ -176,6 +177,9 @@ function JobDetail() {
         )}
 
         <FollowUp jobId={jobId} job={job} />
+
+        <ActivateJobPanel jobId={jobId} />
+
 
 
         {job.trades.length > 0 && (

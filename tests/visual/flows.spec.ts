@@ -206,3 +206,82 @@ test.describe("Admin flows", () => {
     expect(rec.count("adminListAuditLog")).toBeGreaterThan(0);
   });
 });
+
+test.describe("Job activation", () => {
+  test.beforeEach(async ({ page }) => {
+    await freezeClock(page);
+    await mockServerFns(page);
+    await seedAdminSession(page);
+  });
+
+  const JOB = "j1111111-1111-4111-8111-111111111111";
+
+  test("an accepted project can be activated once, connecting a Clockwise site", async ({ page }) => {
+    const rec = await recordServerFnCalls(page);
+    await page.goto(`/ledger/jobs/${JOB}`);
+    await settle(page);
+
+    const activate = page.getByRole("button", { name: /^activate job$/i });
+    await expect(activate).toBeVisible();
+    await activate.click();
+
+    // 7 confirmation steps: client, property, contract, geofence, radius, start, review.
+    for (let i = 0; i < 6; i++) {
+      await page.getByRole("button", { name: /continue/i }).click();
+      await settle(page);
+    }
+    await expect(page.getByText(/review & activate/i)).toBeVisible();
+    await page.getByRole("button", { name: /^activate job$/i }).click();
+    await settle(page);
+
+    expect(rec.count("activateProjectFn")).toBe(1);
+    // The RPC body is seroval-encoded; assert on its serialized contents.
+    const body = JSON.stringify(rec.find("activateProjectFn")?.data ?? {});
+    expect(body).toContain(JOB);
+    expect(body).toContain("radiusM");
+    expect(body).toContain("250");
+    expect(body).toContain("43.6532");
+  });
+
+  test("an already-activated project shows the connected site and no activate button", async ({ page }) => {
+    await mockServerFns(page, {
+      getActivationPreview: {
+        ok: true,
+        project: {
+          id: JOB,
+          name: "Ostick Ave Kitchen",
+          salesStage: "Won",
+          deliveryStatus: "Preconstruction",
+          activatedAt: "2026-03-10T14:00:00.000Z",
+          clientId: "c1111111-1111-4111-8111-111111111111",
+          clientName: "M. Tremblay",
+          propertyId: null,
+          propertyAddress: "16 Ostick Ave, Toronto, ON",
+          propertyLat: 43.6532,
+          propertyLng: -79.3832,
+          address: "16 Ostick Ave, Toronto, ON",
+          contractValue: 48000,
+          estimatedValue: 48000,
+          expectedStartDate: "2026-03-16",
+        },
+        site: {
+          id: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa",
+          label: "16 Ostick Ave",
+          address: "16 Ostick Ave, Toronto, ON",
+          lat: 43.6532,
+          lng: -79.3832,
+          radius_m: 250,
+          kind: "client",
+          archived_at: null,
+        },
+        crew: [],
+      },
+    });
+    await page.goto(`/ledger/jobs/${JOB}`);
+    await settle(page);
+
+    await expect(page.getByText(/active in clockwise/i)).toBeVisible();
+    await expect(page.getByText(/250 m geofence/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^activate job$/i })).toHaveCount(0);
+  });
+});

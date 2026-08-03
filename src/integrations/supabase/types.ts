@@ -265,6 +265,7 @@ export type Database = {
       }
       ledger_jobs: {
         Row: {
+          activated_at: string | null
           actual_completion_date: string | null
           actual_start_date: string | null
           address: string
@@ -301,6 +302,7 @@ export type Database = {
           workers_on_site: number
         }
         Insert: {
+          activated_at?: string | null
           actual_completion_date?: string | null
           actual_start_date?: string | null
           address: string
@@ -337,6 +339,7 @@ export type Database = {
           workers_on_site?: number
         }
         Update: {
+          activated_at?: string | null
           actual_completion_date?: string | null
           actual_start_date?: string | null
           address?: string
@@ -450,6 +453,57 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_crew: {
+        Row: {
+          assigned_at: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          project_id: string
+          removed_at: string | null
+          role: string | null
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          project_id: string
+          removed_at?: string | null
+          role?: string | null
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          project_id?: string
+          removed_at?: string | null
+          role?: string | null
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_crew_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_crew_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
             referencedColumns: ["id"]
           },
         ]
