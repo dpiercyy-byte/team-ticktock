@@ -2,8 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin } from "./auth.server";
+import { findOrCreateClient, findOrCreateProperty } from "./ledger-crm.server";
+import {
+  LEDGER_SALES_STAGES,
+  LEDGER_DELIVERY_STATUSES,
+  statusToStages,
+  stagesToStatus,
+} from "./ledger-stages";
+
+export { LEDGER_SALES_STAGES, LEDGER_DELIVERY_STATUSES } from "./ledger-stages";
+export type { LedgerSalesStage, LedgerDeliveryStatus } from "./ledger-stages";
 
 const adminBase = z.object({ token: z.string() });
+
 
 export const LEDGER_STATUSES = [
   "Lead",
@@ -51,6 +62,9 @@ export const LEDGER_EVENT_KINDS = [
   "created",
   "status",
   "note",
+  "call",
+  "stage",
+
   "visit",
   "estimate",
   "approval",
@@ -68,20 +82,63 @@ export type LedgerProjectType = (typeof LEDGER_PROJECT_TYPES)[number];
 export type LedgerTrade = (typeof LEDGER_TRADES)[number];
 export type LedgerEventKind = (typeof LEDGER_EVENT_KINDS)[number];
 
+export type LedgerClient = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  leadSource: string | null;
+  preferredContactMethod: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LedgerProperty = {
+  id: string;
+  clientId: string | null;
+  address: string;
+  unit: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type LedgerJob = {
   id: string;
   name: string;
   client: { name: string; email?: string | null; phone?: string | null };
+  clientId: string | null;
+  propertyId: string | null;
   address: string;
   projectType: LedgerProjectType | string;
   trades: string[];
   status: LedgerStatus | string;
+  salesStage: string;
+  deliveryStatus: string;
+  estimatedValue: number;
+  assignedOwner: string | null;
+  nextAction: string | null;
+  nextActionDueAt: string | null;
+  expectedStartDate: string | null;
+  actualStartDate: string | null;
+  expectedCompletionDate: string | null;
+  actualCompletionDate: string | null;
+  lostReason: string | null;
   progress: number;
   budget: number; // dollars
   collected: number;
   expenses: number;
   workersOnSite: number;
   scheduledFor: string | null;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -102,6 +159,19 @@ type JobRow = {
   client_email: string | null;
   client_phone: string | null;
   address: string;
+  client_id: string | null;
+  property_id: string | null;
+  sales_stage: string | null;
+  delivery_status: string | null;
+  estimated_value_cents: number | string | null;
+  assigned_owner: string | null;
+  next_action: string | null;
+  next_action_due_at: string | null;
+  expected_start_date: string | null;
+  actual_start_date: string | null;
+  expected_completion_date: string | null;
+  actual_completion_date: string | null;
+  lost_reason: string | null;
   project_type: string;
   trades: string[] | null;
   status: string;
@@ -111,35 +181,61 @@ type JobRow = {
   expenses_cents: number | string;
   workers_on_site: number;
   scheduled_for: string | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
+  clients?: { id: string; name: string; email: string | null; phone: string | null } | null;
+  properties?: { id: string; address: string } | null;
 };
 
 const centsToDollars = (n: number | string) => Number(n) / 100;
 const dollarsToCents = (n: number) => Math.round(n * 100);
 
 function rowToJob(r: JobRow): LedgerJob {
+  // Canonical relations win; embedded legacy fields are the fallback.
+  const client = r.clients ?? null;
+  const property = r.properties ?? null;
+  const mapped = statusToStages(r.status);
   return {
     id: r.id,
     name: r.name,
-    client: { name: r.client_name, email: r.client_email, phone: r.client_phone },
-    address: r.address,
+    client: {
+      name: client?.name ?? r.client_name,
+      email: client?.email ?? r.client_email,
+      phone: client?.phone ?? r.client_phone,
+    },
+    clientId: r.client_id ?? null,
+    propertyId: r.property_id ?? null,
+    address: property?.address ?? r.address,
     projectType: r.project_type,
     trades: r.trades ?? [],
     status: r.status,
+    salesStage: r.sales_stage ?? mapped.salesStage,
+    deliveryStatus: r.delivery_status ?? mapped.deliveryStatus,
+    estimatedValue: centsToDollars(r.estimated_value_cents ?? 0),
+    assignedOwner: r.assigned_owner ?? null,
+    nextAction: r.next_action ?? null,
+    nextActionDueAt: r.next_action_due_at ?? null,
+    expectedStartDate: r.expected_start_date ?? null,
+    actualStartDate: r.actual_start_date ?? null,
+    expectedCompletionDate: r.expected_completion_date ?? null,
+    actualCompletionDate: r.actual_completion_date ?? null,
+    lostReason: r.lost_reason ?? null,
     progress: r.progress,
     budget: centsToDollars(r.budget_cents),
     collected: centsToDollars(r.collected_cents),
     expenses: centsToDollars(r.expenses_cents),
     workersOnSite: r.workers_on_site,
     scheduledFor: r.scheduled_for,
+    archivedAt: r.archived_at ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
 }
 
 const JOB_COLS =
-  "id, name, client_name, client_email, client_phone, address, project_type, trades, status, progress, budget_cents, collected_cents, expenses_cents, workers_on_site, scheduled_for, created_at, updated_at";
+  "id, name, client_name, client_email, client_phone, address, client_id, property_id, sales_stage, delivery_status, estimated_value_cents, assigned_owner, next_action, next_action_due_at, expected_start_date, actual_start_date, expected_completion_date, actual_completion_date, lost_reason, project_type, trades, status, progress, budget_cents, collected_cents, expenses_cents, workers_on_site, scheduled_for, archived_at, created_at, updated_at, clients:client_id(id, name, email, phone), properties:property_id(id, address)";
+
 
 export const listLedgerJobs = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
@@ -151,7 +247,7 @@ export const listLedgerJobs = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .order("updated_at", { ascending: false });
     if (error) throw error;
-    return { ...refreshed, jobs: (rows ?? []).map(rowToJob) };
+    return { ...refreshed, jobs: (rows ?? []).map((r) => rowToJob(r as unknown as JobRow)) };
   });
 
 export const getLedgerJob = createServerFn({ method: "POST" })
@@ -173,7 +269,7 @@ export const getLedgerJob = createServerFn({ method: "POST" })
     if (evErr) throw evErr;
     return {
       ...refreshed,
-      job: rowToJob(row),
+      job: rowToJob(row as unknown as JobRow),
       timeline: (events ?? []).map((e) => ({
         id: e.id,
         jobId: e.job_id,
@@ -191,10 +287,17 @@ export const createLedgerJob = createServerFn({ method: "POST" })
       clientName: z.string().trim().min(1).max(120),
       clientEmail: z.string().trim().max(200).optional().nullable(),
       clientPhone: z.string().trim().max(60).optional().nullable(),
+      leadSource: z.string().trim().max(120).optional().nullable(),
+      preferredContactMethod: z.string().trim().max(60).optional().nullable(),
+      clientId: z.string().uuid().optional().nullable(),
+      propertyId: z.string().uuid().optional().nullable(),
       address: z.string().trim().min(1).max(300),
       projectType: z.string().trim().min(1).max(60),
       trades: z.array(z.string().max(60)).max(30),
       status: z.enum(LEDGER_STATUSES),
+      salesStage: z.enum(LEDGER_SALES_STAGES).optional(),
+      deliveryStatus: z.enum(LEDGER_DELIVERY_STATUSES).optional(),
+      estimatedValue: z.number().min(0).max(100_000_000).optional(),
       scheduledFor: z.string().datetime().optional().nullable(),
     }).parse(d),
   )
@@ -202,28 +305,53 @@ export const createLedgerJob = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const lastName = data.clientName.trim().split(/\s+/).slice(-1)[0];
     const name = `${lastName} ${data.projectType}`;
+
+    // Canonical relations: one client, one property, then the project.
+    const clientId =
+      data.clientId ??
+      (await findOrCreateClient({
+        name: data.clientName,
+        email: data.clientEmail,
+        phone: data.clientPhone,
+        leadSource: data.leadSource,
+        preferredContactMethod: data.preferredContactMethod,
+      }));
+    const propertyId =
+      data.propertyId ?? (await findOrCreateProperty(clientId, { address: data.address }));
+
+    const mapped = statusToStages(data.status);
+    const salesStage = data.salesStage ?? mapped.salesStage;
+    const deliveryStatus = data.deliveryStatus ?? mapped.deliveryStatus;
+
     const { data: created, error } = await supabaseAdmin
       .from("ledger_jobs")
       .insert({
         name,
+        // legacy embedded fields kept in sync for rollback safety
         client_name: data.clientName,
         client_email: data.clientEmail ?? null,
         client_phone: data.clientPhone ?? null,
         address: data.address,
+        client_id: clientId,
+        property_id: propertyId,
         project_type: data.projectType,
         trades: data.trades,
         status: data.status,
+        sales_stage: salesStage,
+        delivery_status: deliveryStatus,
+        estimated_value_cents: dollarsToCents(data.estimatedValue ?? 0),
         scheduled_for: data.scheduledFor ?? null,
-      })
+      } as never)
       .select(JOB_COLS)
       .single();
     if (error) throw error;
     await supabaseAdmin.from("ledger_job_events").insert([
       { job_id: created.id, kind: "created", title: "Job created" },
-      { job_id: created.id, kind: "status", title: `Status set to ${data.status}` },
+      { job_id: created.id, kind: "status", title: `Stage set to ${salesStage} · ${deliveryStatus}` },
     ]);
-    return { ...refreshed, job: rowToJob(created) };
+    return { ...refreshed, job: rowToJob(created as unknown as JobRow) };
   });
+
 
 export const updateLedgerJob = createServerFn({ method: "POST" })
   .inputValidator((d) =>
@@ -234,10 +362,23 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
         clientName: z.string().trim().min(1).max(120).optional(),
         clientEmail: z.string().trim().max(200).nullable().optional(),
         clientPhone: z.string().trim().max(60).nullable().optional(),
+        clientId: z.string().uuid().nullable().optional(),
+        propertyId: z.string().uuid().nullable().optional(),
         address: z.string().trim().min(1).max(300).optional(),
         projectType: z.string().trim().min(1).max(60).optional(),
         trades: z.array(z.string().max(60)).max(30).optional(),
         status: z.enum(LEDGER_STATUSES).optional(),
+        salesStage: z.enum(LEDGER_SALES_STAGES).optional(),
+        deliveryStatus: z.enum(LEDGER_DELIVERY_STATUSES).optional(),
+        estimatedValue: z.number().min(0).max(100_000_000).optional(),
+        assignedOwner: z.string().trim().max(120).nullable().optional(),
+        nextAction: z.string().trim().max(300).nullable().optional(),
+        nextActionDueAt: z.string().datetime().nullable().optional(),
+        expectedStartDate: z.string().date().nullable().optional(),
+        actualStartDate: z.string().date().nullable().optional(),
+        expectedCompletionDate: z.string().date().nullable().optional(),
+        actualCompletionDate: z.string().date().nullable().optional(),
+        lostReason: z.string().trim().max(300).nullable().optional(),
         progress: z.number().int().min(0).max(100).optional(),
         budget: z.number().min(0).max(100_000_000).optional(),
         collected: z.number().min(0).max(100_000_000).optional(),
@@ -250,9 +391,21 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: prev, error: prevErr } = await supabaseAdmin
-      .from("ledger_jobs").select("status").eq("id", data.id).maybeSingle();
+      .from("ledger_jobs")
+      .select("status, sales_stage, delivery_status")
+      .eq("id", data.id)
+      .maybeSingle();
     if (prevErr) throw prevErr;
     if (!prev) throw new Response("Not found", { status: 404 });
+
+    const prevRow = prev as unknown as {
+      status: string;
+      sales_stage: string | null;
+      delivery_status: string | null;
+    };
+    const prevMapped = statusToStages(prevRow.status);
+    const prevSales = prevRow.sales_stage ?? prevMapped.salesStage;
+    const prevDelivery = prevRow.delivery_status ?? prevMapped.deliveryStatus;
 
     const p = data.patch;
     const upd: Record<string, any> = {};
@@ -260,29 +413,57 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
     if (p.clientName !== undefined) upd.client_name = p.clientName;
     if (p.clientEmail !== undefined) upd.client_email = p.clientEmail;
     if (p.clientPhone !== undefined) upd.client_phone = p.clientPhone;
+    if (p.clientId !== undefined) upd.client_id = p.clientId;
+    if (p.propertyId !== undefined) upd.property_id = p.propertyId;
     if (p.address !== undefined) upd.address = p.address;
     if (p.projectType !== undefined) upd.project_type = p.projectType;
     if (p.trades !== undefined) upd.trades = p.trades;
-    if (p.status !== undefined) upd.status = p.status;
     if (p.progress !== undefined) upd.progress = p.progress;
     if (p.budget !== undefined) upd.budget_cents = dollarsToCents(p.budget);
     if (p.collected !== undefined) upd.collected_cents = dollarsToCents(p.collected);
     if (p.expenses !== undefined) upd.expenses_cents = dollarsToCents(p.expenses);
+    if (p.estimatedValue !== undefined) upd.estimated_value_cents = dollarsToCents(p.estimatedValue);
+    if (p.assignedOwner !== undefined) upd.assigned_owner = p.assignedOwner;
+    if (p.nextAction !== undefined) upd.next_action = p.nextAction;
+    if (p.nextActionDueAt !== undefined) upd.next_action_due_at = p.nextActionDueAt;
+    if (p.expectedStartDate !== undefined) upd.expected_start_date = p.expectedStartDate;
+    if (p.actualStartDate !== undefined) upd.actual_start_date = p.actualStartDate;
+    if (p.expectedCompletionDate !== undefined) upd.expected_completion_date = p.expectedCompletionDate;
+    if (p.actualCompletionDate !== undefined) upd.actual_completion_date = p.actualCompletionDate;
+    if (p.lostReason !== undefined) upd.lost_reason = p.lostReason;
     if (p.workersOnSite !== undefined) upd.workers_on_site = p.workersOnSite;
     if (p.scheduledFor !== undefined) upd.scheduled_for = p.scheduledFor;
+
+    // Keep the two canonical axes and the legacy single-axis status in sync.
+    let nextSales = prevSales;
+    let nextDelivery = prevDelivery;
+    if (p.status !== undefined) {
+      const m = statusToStages(p.status);
+      nextSales = p.salesStage ?? m.salesStage;
+      nextDelivery = p.deliveryStatus ?? m.deliveryStatus;
+    } else {
+      if (p.salesStage !== undefined) nextSales = p.salesStage;
+      if (p.deliveryStatus !== undefined) nextDelivery = p.deliveryStatus;
+    }
+    if (p.status !== undefined || p.salesStage !== undefined || p.deliveryStatus !== undefined) {
+      upd.sales_stage = nextSales;
+      upd.delivery_status = nextDelivery;
+      upd.status = p.status ?? stagesToStatus(nextSales, nextDelivery);
+    }
 
     const { data: row, error } = await supabaseAdmin
       .from("ledger_jobs").update(upd as never).eq("id", data.id).select(JOB_COLS).single();
     if (error) throw error;
 
-    if (p.status && p.status !== prev.status) {
+    if (nextSales !== prevSales || nextDelivery !== prevDelivery) {
       await supabaseAdmin.from("ledger_job_events").insert({
         job_id: data.id,
         kind: "status",
-        title: `Status changed to ${p.status}`,
+        title: `Stage changed to ${nextSales} · ${nextDelivery}`,
       });
     }
-    return { ...refreshed, job: rowToJob(row) };
+    return { ...refreshed, job: rowToJob(row as unknown as JobRow) };
+
   });
 
 export const addLedgerJobEvent = createServerFn({ method: "POST" })
@@ -327,4 +508,132 @@ export const deleteLedgerJob = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("ledger_jobs").delete().eq("id", data.id);
     if (error) throw error;
     return { ...refreshed, ok: true };
+  });
+
+// ===================== Clients / Properties (canonical relations) =====================
+
+export const listLedgerClients = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: rows, error } = await supabaseAdmin
+      .from("clients")
+      .select("id, name, email, phone, notes, lead_source, preferred_contact_method, archived_at, created_at, updated_at")
+      .is("archived_at", null)
+      .order("name", { ascending: true });
+    if (error) throw error;
+    const clients = ((rows ?? []) as unknown as Array<Record<string, any>>).map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email ?? null,
+      phone: c.phone ?? null,
+      notes: c.notes ?? null,
+      leadSource: c.lead_source ?? null,
+      preferredContactMethod: c.preferred_contact_method ?? null,
+      archivedAt: c.archived_at ?? null,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+    })) as LedgerClient[];
+    return { ...refreshed, clients };
+  });
+
+export const getLedgerClient = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: c, error } = await supabaseAdmin
+      .from("clients")
+      .select("id, name, email, phone, notes, lead_source, preferred_contact_method, archived_at, created_at, updated_at")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!c) throw new Response("Not found", { status: 404 });
+    const row = c as unknown as Record<string, any>;
+
+    const { data: props, error: pErr } = await supabaseAdmin
+      .from("properties")
+      .select("id, client_id, address, unit, city, province, postal_code, latitude, longitude, notes, archived_at, created_at, updated_at")
+      .eq("client_id", data.id)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true });
+    if (pErr) throw pErr;
+
+    const { data: jobs, error: jErr } = await supabaseAdmin
+      .from("ledger_jobs")
+      .select(JOB_COLS)
+      .eq("client_id", data.id)
+      .is("archived_at", null)
+      .order("updated_at", { ascending: false });
+    if (jErr) throw jErr;
+
+    return {
+      ...refreshed,
+      client: {
+        id: row.id,
+        name: row.name,
+        email: row.email ?? null,
+        phone: row.phone ?? null,
+        notes: row.notes ?? null,
+        leadSource: row.lead_source ?? null,
+        preferredContactMethod: row.preferred_contact_method ?? null,
+        archivedAt: row.archived_at ?? null,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      } as LedgerClient,
+      properties: ((props ?? []) as unknown as Array<Record<string, any>>).map((p) => ({
+        id: p.id,
+        clientId: p.client_id ?? null,
+        address: p.address,
+        unit: p.unit ?? null,
+        city: p.city ?? null,
+        province: p.province ?? null,
+        postalCode: p.postal_code ?? null,
+        latitude: p.latitude ?? null,
+        longitude: p.longitude ?? null,
+        notes: p.notes ?? null,
+        archivedAt: p.archived_at ?? null,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      })) as LedgerProperty[],
+      projects: (jobs ?? []).map((j) => rowToJob(j as unknown as JobRow)),
+    };
+  });
+
+/** Link (or unlink) a Clockwise client job site to a Ledger project. Supplier sites stay independent. */
+export const linkJobSiteToProject = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    adminBase.extend({
+      jobSiteId: z.string().uuid(),
+      projectId: z.string().uuid().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: site, error: sErr } = await supabaseAdmin
+      .from("job_sites").select("id, kind").eq("id", data.jobSiteId).maybeSingle();
+    if (sErr) throw sErr;
+    if (!site) throw new Response("Not found", { status: 404 });
+    if (site.kind !== "client" && data.projectId !== null) {
+      throw new Response("Supplier locations cannot be linked to a project", { status: 400 });
+    }
+    const { error } = await supabaseAdmin
+      .from("job_sites")
+      .update({ project_id: data.projectId } as never)
+      .eq("id", data.jobSiteId);
+    if (error) throw error;
+    return { ...refreshed, ok: true };
+  });
+
+/** Client job sites attached to a project (geofencing untouched). */
+export const listProjectJobSites = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ projectId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: rows, error } = await supabaseAdmin
+      .from("job_sites")
+      .select("id, label, address, lat, lng, radius_m, kind, archived_at")
+      .eq("project_id", data.projectId)
+      .order("label", { ascending: true });
+    if (error) throw error;
+    return { ...refreshed, sites: rows ?? [] };
   });
