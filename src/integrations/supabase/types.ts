@@ -287,10 +287,13 @@ export type Database = {
           name: string
           next_action: string | null
           next_action_due_at: string | null
+          next_action_owner: string | null
+          next_action_status: string
           progress: number
           project_type: string
           property_id: string | null
           sales_stage: string | null
+          sales_stage_changed_at: string | null
           scheduled_for: string | null
           status: string
           trades: string[]
@@ -320,10 +323,13 @@ export type Database = {
           name: string
           next_action?: string | null
           next_action_due_at?: string | null
+          next_action_owner?: string | null
+          next_action_status?: string
           progress?: number
           project_type: string
           property_id?: string | null
           sales_stage?: string | null
+          sales_stage_changed_at?: string | null
           scheduled_for?: string | null
           status?: string
           trades?: string[]
@@ -353,10 +359,13 @@ export type Database = {
           name?: string
           next_action?: string | null
           next_action_due_at?: string | null
+          next_action_owner?: string | null
+          next_action_status?: string
           progress?: number
           project_type?: string
           property_id?: string | null
           sales_stage?: string | null
+          sales_stage_changed_at?: string | null
           scheduled_for?: string | null
           status?: string
           trades?: string[]
