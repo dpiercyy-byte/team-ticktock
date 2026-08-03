@@ -69,7 +69,7 @@ function LedgerHome() {
       <Link
         to="/ledger/jobs/new"
         className="mb-6 flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 text-[16px] font-bold"
-        style={{ background: "var(--l-ink)", color: "#fff" }}
+        style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
       >
         <Plus className="h-5 w-5" /> New Job
       </Link>

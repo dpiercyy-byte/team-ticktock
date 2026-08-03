@@ -54,7 +54,7 @@ function PeopleScreen() {
               "rounded-full px-4 py-2 text-[12px] font-semibold capitalize " +
               (filter === f ? "" : "l-card l-muted")
             }
-            style={filter === f ? { background: "var(--l-ink)", color: "#fff" } : undefined}
+            style={filter === f ? { background: "var(--l-ink)", color: "var(--l-on-ink)" } : undefined}
           >
             {f}
           </button>

@@ -64,7 +64,7 @@ function PipelineScreen() {
       <Link
         to="/ledger/leads/new"
         className="mb-5 flex w-full items-center justify-center gap-2 rounded-full px-5 py-3.5 text-[15px] font-bold"
-        style={{ background: "var(--l-ink)", color: "#fff" }}
+        style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
       >
         <Plus className="h-5 w-5" /> New lead
       </Link>
@@ -83,7 +83,7 @@ function PipelineScreen() {
                 "shrink-0 rounded-full px-3.5 py-2.5 text-[12px] font-semibold transition-colors " +
                 (active ? "" : "l-card l-muted")
               }
-              style={active ? { background: "var(--l-ink)", color: "#fff" } : undefined}
+              style={active ? { background: "var(--l-ink)", color: "var(--l-on-ink)" } : undefined}
             >
               {s} <span className="tabular-nums opacity-70">{n}</span>
             </button>

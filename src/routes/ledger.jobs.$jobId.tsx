@@ -244,7 +244,7 @@ function JobDetail() {
                   type="submit"
                   disabled={!note.trim() || noteMutation.isPending}
                   className="rounded-full px-4 py-2 text-[12px] font-bold disabled:opacity-50"
-                  style={{ background: "var(--l-accent)", color: "#fff" }}
+                  style={{ background: "var(--l-accent)", color: "var(--l-on-ink)" }}
                 >
                   {noteMutation.isPending ? "Saving…" : "Save note"}
                 </button>
@@ -446,7 +446,7 @@ function FollowUp({ jobId, job }: { jobId: string; job: LedgerJob }) {
                 type="submit"
                 disabled={!action.trim() || saveMutation.isPending}
                 className="rounded-full px-4 py-2 text-[12px] font-bold disabled:opacity-50"
-                style={{ background: "var(--l-accent)", color: "#fff" }}
+                style={{ background: "var(--l-accent)", color: "var(--l-on-ink)" }}
               >
                 {saveMutation.isPending ? "Saving…" : "Save"}
               </button>
@@ -472,7 +472,7 @@ function FollowUp({ jobId, job }: { jobId: string; job: LedgerJob }) {
                 type="button"
                 onClick={() => setEditing(true)}
                 className="rounded-full px-4 py-2 text-[12px] font-bold"
-                style={{ background: "var(--l-ink)", color: "#fff" }}
+                style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
               >
                 {job.nextAction ? "Change" : "Set next step"}
               </button>

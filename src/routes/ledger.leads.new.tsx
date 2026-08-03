@@ -203,7 +203,7 @@ function NewLead() {
                   className={"l-pill " + (contactMethod === m ? "l-pill--raised" : "")}
                   style={
                     contactMethod === m
-                      ? { background: "var(--l-ink)", color: "#fff" }
+                      ? { background: "var(--l-ink)", color: "var(--l-on-ink)" }
                       : undefined
                   }
                 >
