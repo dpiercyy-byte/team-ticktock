@@ -506,3 +506,131 @@ export const deleteLedgerJob = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ...refreshed, ok: true };
   });
+
+// ===================== Clients / Properties (canonical relations) =====================
+
+export const listLedgerClients = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: rows, error } = await supabaseAdmin
+      .from("clients")
+      .select("id, name, email, phone, notes, lead_source, preferred_contact_method, archived_at, created_at, updated_at")
+      .is("archived_at", null)
+      .order("name", { ascending: true });
+    if (error) throw error;
+    const clients = ((rows ?? []) as unknown as Array<Record<string, any>>).map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email ?? null,
+      phone: c.phone ?? null,
+      notes: c.notes ?? null,
+      leadSource: c.lead_source ?? null,
+      preferredContactMethod: c.preferred_contact_method ?? null,
+      archivedAt: c.archived_at ?? null,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+    })) as LedgerClient[];
+    return { ...refreshed, clients };
+  });
+
+export const getLedgerClient = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: c, error } = await supabaseAdmin
+      .from("clients")
+      .select("id, name, email, phone, notes, lead_source, preferred_contact_method, archived_at, created_at, updated_at")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!c) throw new Response("Not found", { status: 404 });
+    const row = c as unknown as Record<string, any>;
+
+    const { data: props, error: pErr } = await supabaseAdmin
+      .from("properties")
+      .select("id, client_id, address, unit, city, province, postal_code, latitude, longitude, notes, archived_at, created_at, updated_at")
+      .eq("client_id", data.id)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true });
+    if (pErr) throw pErr;
+
+    const { data: jobs, error: jErr } = await supabaseAdmin
+      .from("ledger_jobs")
+      .select(JOB_COLS)
+      .eq("client_id", data.id)
+      .is("archived_at", null)
+      .order("updated_at", { ascending: false });
+    if (jErr) throw jErr;
+
+    return {
+      ...refreshed,
+      client: {
+        id: row.id,
+        name: row.name,
+        email: row.email ?? null,
+        phone: row.phone ?? null,
+        notes: row.notes ?? null,
+        leadSource: row.lead_source ?? null,
+        preferredContactMethod: row.preferred_contact_method ?? null,
+        archivedAt: row.archived_at ?? null,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      } as LedgerClient,
+      properties: ((props ?? []) as unknown as Array<Record<string, any>>).map((p) => ({
+        id: p.id,
+        clientId: p.client_id ?? null,
+        address: p.address,
+        unit: p.unit ?? null,
+        city: p.city ?? null,
+        province: p.province ?? null,
+        postalCode: p.postal_code ?? null,
+        latitude: p.latitude ?? null,
+        longitude: p.longitude ?? null,
+        notes: p.notes ?? null,
+        archivedAt: p.archived_at ?? null,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      })) as LedgerProperty[],
+      projects: (jobs ?? []).map((j) => rowToJob(j as unknown as JobRow)),
+    };
+  });
+
+/** Link (or unlink) a Clockwise client job site to a Ledger project. Supplier sites stay independent. */
+export const linkJobSiteToProject = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    adminBase.extend({
+      jobSiteId: z.string().uuid(),
+      projectId: z.string().uuid().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: site, error: sErr } = await supabaseAdmin
+      .from("job_sites").select("id, kind").eq("id", data.jobSiteId).maybeSingle();
+    if (sErr) throw sErr;
+    if (!site) throw new Response("Not found", { status: 404 });
+    if (site.kind !== "client" && data.projectId !== null) {
+      throw new Response("Supplier locations cannot be linked to a project", { status: 400 });
+    }
+    const { error } = await supabaseAdmin
+      .from("job_sites")
+      .update({ project_id: data.projectId } as never)
+      .eq("id", data.jobSiteId);
+    if (error) throw error;
+    return { ...refreshed, ok: true };
+  });
+
+/** Client job sites attached to a project (geofencing untouched). */
+export const listProjectJobSites = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ projectId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: rows, error } = await supabaseAdmin
+      .from("job_sites")
+      .select("id, label, address, lat, lng, radius_m, kind, archived_at")
+      .eq("project_id", data.projectId)
+      .order("label", { ascending: true });
+    if (error) throw error;
+    return { ...refreshed, sites: rows ?? [] };
+  });
