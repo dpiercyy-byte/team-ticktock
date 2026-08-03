@@ -244,7 +244,7 @@ export const listLedgerJobs = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .order("updated_at", { ascending: false });
     if (error) throw error;
-    return { ...refreshed, jobs: (rows ?? []).map(rowToJob) };
+    return { ...refreshed, jobs: (rows ?? []).map((r) => rowToJob(r as unknown as JobRow)) };
   });
 
 export const getLedgerJob = createServerFn({ method: "POST" })
@@ -266,7 +266,7 @@ export const getLedgerJob = createServerFn({ method: "POST" })
     if (evErr) throw evErr;
     return {
       ...refreshed,
-      job: rowToJob(row),
+      job: rowToJob(row as unknown as JobRow),
       timeline: (events ?? []).map((e) => ({
         id: e.id,
         jobId: e.job_id,
@@ -284,10 +284,17 @@ export const createLedgerJob = createServerFn({ method: "POST" })
       clientName: z.string().trim().min(1).max(120),
       clientEmail: z.string().trim().max(200).optional().nullable(),
       clientPhone: z.string().trim().max(60).optional().nullable(),
+      leadSource: z.string().trim().max(120).optional().nullable(),
+      preferredContactMethod: z.string().trim().max(60).optional().nullable(),
+      clientId: z.string().uuid().optional().nullable(),
+      propertyId: z.string().uuid().optional().nullable(),
       address: z.string().trim().min(1).max(300),
       projectType: z.string().trim().min(1).max(60),
       trades: z.array(z.string().max(60)).max(30),
       status: z.enum(LEDGER_STATUSES),
+      salesStage: z.enum(LEDGER_SALES_STAGES).optional(),
+      deliveryStatus: z.enum(LEDGER_DELIVERY_STATUSES).optional(),
+      estimatedValue: z.number().min(0).max(100_000_000).optional(),
       scheduledFor: z.string().datetime().optional().nullable(),
     }).parse(d),
   )
@@ -295,28 +302,53 @@ export const createLedgerJob = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const lastName = data.clientName.trim().split(/\s+/).slice(-1)[0];
     const name = `${lastName} ${data.projectType}`;
+
+    // Canonical relations: one client, one property, then the project.
+    const clientId =
+      data.clientId ??
+      (await findOrCreateClient({
+        name: data.clientName,
+        email: data.clientEmail,
+        phone: data.clientPhone,
+        leadSource: data.leadSource,
+        preferredContactMethod: data.preferredContactMethod,
+      }));
+    const propertyId =
+      data.propertyId ?? (await findOrCreateProperty(clientId, { address: data.address }));
+
+    const mapped = statusToStages(data.status);
+    const salesStage = data.salesStage ?? mapped.salesStage;
+    const deliveryStatus = data.deliveryStatus ?? mapped.deliveryStatus;
+
     const { data: created, error } = await supabaseAdmin
       .from("ledger_jobs")
       .insert({
         name,
+        // legacy embedded fields kept in sync for rollback safety
         client_name: data.clientName,
         client_email: data.clientEmail ?? null,
         client_phone: data.clientPhone ?? null,
         address: data.address,
+        client_id: clientId,
+        property_id: propertyId,
         project_type: data.projectType,
         trades: data.trades,
         status: data.status,
+        sales_stage: salesStage,
+        delivery_status: deliveryStatus,
+        estimated_value_cents: dollarsToCents(data.estimatedValue ?? 0),
         scheduled_for: data.scheduledFor ?? null,
-      })
+      } as never)
       .select(JOB_COLS)
       .single();
     if (error) throw error;
     await supabaseAdmin.from("ledger_job_events").insert([
       { job_id: created.id, kind: "created", title: "Job created" },
-      { job_id: created.id, kind: "status", title: `Status set to ${data.status}` },
+      { job_id: created.id, kind: "status", title: `Stage set to ${salesStage} · ${deliveryStatus}` },
     ]);
-    return { ...refreshed, job: rowToJob(created) };
+    return { ...refreshed, job: rowToJob(created as unknown as JobRow) };
   });
+
 
 export const updateLedgerJob = createServerFn({ method: "POST" })
   .inputValidator((d) =>
