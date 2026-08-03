@@ -178,6 +178,9 @@ function JobDetail() {
 
         <FollowUp jobId={jobId} job={job} />
 
+        <ActivateJobPanel jobId={jobId} />
+
+
 
         {job.trades.length > 0 && (
           <section className="mt-6">
