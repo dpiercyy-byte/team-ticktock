@@ -79,17 +79,20 @@ test.describe("Worker flows", () => {
       },
     });
     const rec = await recordServerFnCalls(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await page.context().setGeolocation({ latitude: 43.66, longitude: -79.38 });
     await seedWorkerSession(page);
     await page.goto("/");
     await settle(page);
 
     // Primary title is the ASSIGNED job, never the raw GPS punch location.
-    await expect(page.getByText("16 Ostick Ave").first()).toBeVisible();
+    await expect(page.getByText(/16 Ostick Ave/).first()).toBeVisible();
     const clockOut = page.getByRole("button", { name: /^clock out$/i }).first();
     await expect(clockOut).toBeVisible();
     await clockOut.click();
     await settle(page);
     expect(rec.count("clockOut"), "clockOut server function was not called").toBeGreaterThan(0);
+
   });
 
   test("reimbursement form requires a job but not a description", async ({ page }) => {
