@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowRight, Plus } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobCard } from "@/components/ledger/JobCard";
 import { StatStrip } from "@/components/ledger/StatStrip";
+import { NextActionLine } from "@/components/ledger/NextActionLine";
 import {
   formatCurrency,
   JOURNEY,
@@ -13,6 +14,7 @@ import {
   statusTone,
 } from "@/components/ledger/ledger-ui";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
+import { todayQuery } from "@/lib/crm-client";
 import type { LedgerJob } from "@/lib/ledger.functions";
 import type { ReactNode } from "react";
 
