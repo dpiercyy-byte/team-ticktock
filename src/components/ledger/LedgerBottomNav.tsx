@@ -1,19 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Briefcase, CalendarDays, Bell, User } from "lucide-react";
+import { Home, Briefcase, Users, MoreHorizontal, GitBranch } from "lucide-react";
 
 type NavItem = {
-  to: "/ledger" | "/ledger/jobs" | "/ledger/calendar" | "/ledger/notifications" | "/ledger/profile";
+  to: "/ledger" | "/ledger/pipeline" | "/ledger/jobs" | "/ledger/people" | "/ledger/more";
   label: string;
   icon: typeof Home;
   exact?: boolean;
 };
 
 const NAV: NavItem[] = [
-  { to: "/ledger", label: "Home", icon: Home, exact: true },
+  { to: "/ledger", label: "Today", icon: Home, exact: true },
+  { to: "/ledger/pipeline", label: "Pipeline", icon: GitBranch },
   { to: "/ledger/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/ledger/calendar", label: "Calendar", icon: CalendarDays },
-  { to: "/ledger/notifications", label: "Alerts", icon: Bell },
-  { to: "/ledger/profile", label: "Profile", icon: User },
+  { to: "/ledger/people", label: "People", icon: Users },
+  { to: "/ledger/more", label: "More", icon: MoreHorizontal },
 ];
 
 export function LedgerBottomNav() {
