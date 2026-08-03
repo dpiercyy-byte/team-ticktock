@@ -10,9 +10,13 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "test:unit": "vitest run",
+    "test:flows": "playwright test flows",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
-    "lint:style": "node scripts/check-style-contract.mjs"
+    "lint:style": "node scripts/check-style-contract.mjs",
+    "test": "npm run test:unit && npm run lint:style && npm run test:visual"
+
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.42.3",
