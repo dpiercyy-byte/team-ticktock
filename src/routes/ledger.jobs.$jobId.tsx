@@ -315,7 +315,7 @@ function Money({
 }
 
 const TIMELINE_ICON: Record<string, ComponentType<{ className?: string }>> = {
-  created: PenSquare, status: Hammer, note: FileText, visit: MapPin,
+  created: PenSquare, status: Hammer, stage: Hammer, note: FileText, call: Phone, visit: MapPin,
   estimate: FileText, approval: CheckCircle2, payment: DollarSign, clockin: Clock,
   receipt: Receipt, material: Package, change_order: PenSquare, inspection: ShieldCheck,
   completed: Sparkles,
