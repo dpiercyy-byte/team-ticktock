@@ -23,6 +23,8 @@ test.describe("Ledger (reference style)", () => {
 
   test("job detail", async ({ page }) => {
     await page.goto(`/ledger/jobs/${LEDGER_JOBS[0].id}`);
+    // The activation panel loads asynchronously; wait for it so the shot is stable.
+    await page.getByRole("button", { name: /^activate job$/i }).waitFor();
     await checkScreen(page, { name: "ledger-job-detail", scope: ".ledger-scope" });
   });
 
