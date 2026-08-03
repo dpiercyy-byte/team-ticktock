@@ -44,6 +44,8 @@ const ACTION_STATUSES = ["Lead", "Site Visit Required", "Estimate Required", "Wa
 
 function LedgerHome() {
   const { data: jobs } = useSuspenseQuery(ledgerJobsQuery());
+  const { data: today } = useQuery(todayQuery());
+  const followUps = today?.followUps ?? [];
   const active = jobs.filter((j) => j.status === "Active" || j.status === "Scheduled");
   const onSite = jobs.filter((j) => j.workersOnSite > 0);
   const needAction = jobs.filter((j) => ACTION_STATUSES.includes(j.status));
