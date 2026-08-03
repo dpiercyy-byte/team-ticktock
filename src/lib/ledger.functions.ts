@@ -359,10 +359,23 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
         clientName: z.string().trim().min(1).max(120).optional(),
         clientEmail: z.string().trim().max(200).nullable().optional(),
         clientPhone: z.string().trim().max(60).nullable().optional(),
+        clientId: z.string().uuid().nullable().optional(),
+        propertyId: z.string().uuid().nullable().optional(),
         address: z.string().trim().min(1).max(300).optional(),
         projectType: z.string().trim().min(1).max(60).optional(),
         trades: z.array(z.string().max(60)).max(30).optional(),
         status: z.enum(LEDGER_STATUSES).optional(),
+        salesStage: z.enum(LEDGER_SALES_STAGES).optional(),
+        deliveryStatus: z.enum(LEDGER_DELIVERY_STATUSES).optional(),
+        estimatedValue: z.number().min(0).max(100_000_000).optional(),
+        assignedOwner: z.string().trim().max(120).nullable().optional(),
+        nextAction: z.string().trim().max(300).nullable().optional(),
+        nextActionDueAt: z.string().datetime().nullable().optional(),
+        expectedStartDate: z.string().date().nullable().optional(),
+        actualStartDate: z.string().date().nullable().optional(),
+        expectedCompletionDate: z.string().date().nullable().optional(),
+        actualCompletionDate: z.string().date().nullable().optional(),
+        lostReason: z.string().trim().max(300).nullable().optional(),
         progress: z.number().int().min(0).max(100).optional(),
         budget: z.number().min(0).max(100_000_000).optional(),
         collected: z.number().min(0).max(100_000_000).optional(),
@@ -375,9 +388,21 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: prev, error: prevErr } = await supabaseAdmin
-      .from("ledger_jobs").select("status").eq("id", data.id).maybeSingle();
+      .from("ledger_jobs")
+      .select("status, sales_stage, delivery_status")
+      .eq("id", data.id)
+      .maybeSingle();
     if (prevErr) throw prevErr;
     if (!prev) throw new Response("Not found", { status: 404 });
+
+    const prevRow = prev as unknown as {
+      status: string;
+      sales_stage: string | null;
+      delivery_status: string | null;
+    };
+    const prevMapped = statusToStages(prevRow.status);
+    const prevSales = prevRow.sales_stage ?? prevMapped.salesStage;
+    const prevDelivery = prevRow.delivery_status ?? prevMapped.deliveryStatus;
 
     const p = data.patch;
     const upd: Record<string, any> = {};
@@ -385,29 +410,57 @@ export const updateLedgerJob = createServerFn({ method: "POST" })
     if (p.clientName !== undefined) upd.client_name = p.clientName;
     if (p.clientEmail !== undefined) upd.client_email = p.clientEmail;
     if (p.clientPhone !== undefined) upd.client_phone = p.clientPhone;
+    if (p.clientId !== undefined) upd.client_id = p.clientId;
+    if (p.propertyId !== undefined) upd.property_id = p.propertyId;
     if (p.address !== undefined) upd.address = p.address;
     if (p.projectType !== undefined) upd.project_type = p.projectType;
     if (p.trades !== undefined) upd.trades = p.trades;
-    if (p.status !== undefined) upd.status = p.status;
     if (p.progress !== undefined) upd.progress = p.progress;
     if (p.budget !== undefined) upd.budget_cents = dollarsToCents(p.budget);
     if (p.collected !== undefined) upd.collected_cents = dollarsToCents(p.collected);
     if (p.expenses !== undefined) upd.expenses_cents = dollarsToCents(p.expenses);
+    if (p.estimatedValue !== undefined) upd.estimated_value_cents = dollarsToCents(p.estimatedValue);
+    if (p.assignedOwner !== undefined) upd.assigned_owner = p.assignedOwner;
+    if (p.nextAction !== undefined) upd.next_action = p.nextAction;
+    if (p.nextActionDueAt !== undefined) upd.next_action_due_at = p.nextActionDueAt;
+    if (p.expectedStartDate !== undefined) upd.expected_start_date = p.expectedStartDate;
+    if (p.actualStartDate !== undefined) upd.actual_start_date = p.actualStartDate;
+    if (p.expectedCompletionDate !== undefined) upd.expected_completion_date = p.expectedCompletionDate;
+    if (p.actualCompletionDate !== undefined) upd.actual_completion_date = p.actualCompletionDate;
+    if (p.lostReason !== undefined) upd.lost_reason = p.lostReason;
     if (p.workersOnSite !== undefined) upd.workers_on_site = p.workersOnSite;
     if (p.scheduledFor !== undefined) upd.scheduled_for = p.scheduledFor;
+
+    // Keep the two canonical axes and the legacy single-axis status in sync.
+    let nextSales = prevSales;
+    let nextDelivery = prevDelivery;
+    if (p.status !== undefined) {
+      const m = statusToStages(p.status);
+      nextSales = p.salesStage ?? m.salesStage;
+      nextDelivery = p.deliveryStatus ?? m.deliveryStatus;
+    } else {
+      if (p.salesStage !== undefined) nextSales = p.salesStage;
+      if (p.deliveryStatus !== undefined) nextDelivery = p.deliveryStatus;
+    }
+    if (p.status !== undefined || p.salesStage !== undefined || p.deliveryStatus !== undefined) {
+      upd.sales_stage = nextSales;
+      upd.delivery_status = nextDelivery;
+      upd.status = p.status ?? stagesToStatus(nextSales, nextDelivery);
+    }
 
     const { data: row, error } = await supabaseAdmin
       .from("ledger_jobs").update(upd as never).eq("id", data.id).select(JOB_COLS).single();
     if (error) throw error;
 
-    if (p.status && p.status !== prev.status) {
+    if (nextSales !== prevSales || nextDelivery !== prevDelivery) {
       await supabaseAdmin.from("ledger_job_events").insert({
         job_id: data.id,
         kind: "status",
-        title: `Status changed to ${p.status}`,
+        title: `Stage changed to ${nextSales} · ${nextDelivery}`,
       });
     }
-    return { ...refreshed, job: rowToJob(row) };
+    return { ...refreshed, job: rowToJob(row as unknown as JobRow) };
+
   });
 
 export const addLedgerJobEvent = createServerFn({ method: "POST" })
