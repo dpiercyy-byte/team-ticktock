@@ -161,6 +161,22 @@ function JobDetail() {
           <JobJourney status={job.status} onLight />
         </section>
 
+        {job.clientId && (
+          <Link
+            to="/ledger/people/$clientId"
+            params={{ clientId: job.clientId }}
+            className="l-card mt-3 flex items-center justify-between px-4 py-3"
+          >
+            <span className="min-w-0 truncate text-[13px] font-semibold">
+              View {job.client.name}'s profile
+            </span>
+            <span className="shrink-0 text-[12px] l-muted">All projects</span>
+          </Link>
+        )}
+
+        <FollowUp jobId={jobId} job={job} />
+
+
         {job.trades.length > 0 && (
           <section className="mt-6">
             <h2 className="l-eyebrow mb-3 px-1">Trades</h2>
