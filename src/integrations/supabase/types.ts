@@ -104,9 +104,11 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          lead_source: string | null
           name: string
           notes: string | null
           phone: string | null
+          preferred_contact_method: string | null
           updated_at: string
         }
         Insert: {
@@ -114,9 +116,11 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          lead_source?: string | null
           name: string
           notes?: string | null
           phone?: string | null
+          preferred_contact_method?: string | null
           updated_at?: string
         }
         Update: {
@@ -124,9 +128,11 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          lead_source?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
+          preferred_contact_method?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -182,6 +188,7 @@ export type Database = {
           label: string
           lat: number
           lng: number
+          project_id: string | null
           radius_m: number
         }
         Insert: {
@@ -193,6 +200,7 @@ export type Database = {
           label: string
           lat: number
           lng: number
+          project_id?: string | null
           radius_m?: number
         }
         Update: {
@@ -204,9 +212,18 @@ export type Database = {
           label?: string
           lat?: number
           lng?: number
+          project_id?: string | null
           radius_m?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "job_sites_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ledger_job_events: {
         Row: {
@@ -248,19 +265,32 @@ export type Database = {
       }
       ledger_jobs: {
         Row: {
+          actual_completion_date: string | null
+          actual_start_date: string | null
           address: string
           archived_at: string | null
+          assigned_owner: string | null
           budget_cents: number
           client_email: string | null
+          client_id: string | null
           client_name: string
           client_phone: string | null
           collected_cents: number
           created_at: string
+          delivery_status: string | null
+          estimated_value_cents: number
+          expected_completion_date: string | null
+          expected_start_date: string | null
           expenses_cents: number
           id: string
+          lost_reason: string | null
           name: string
+          next_action: string | null
+          next_action_due_at: string | null
           progress: number
           project_type: string
+          property_id: string | null
+          sales_stage: string | null
           scheduled_for: string | null
           status: string
           trades: string[]
@@ -268,19 +298,32 @@ export type Database = {
           workers_on_site: number
         }
         Insert: {
+          actual_completion_date?: string | null
+          actual_start_date?: string | null
           address: string
           archived_at?: string | null
+          assigned_owner?: string | null
           budget_cents?: number
           client_email?: string | null
+          client_id?: string | null
           client_name: string
           client_phone?: string | null
           collected_cents?: number
           created_at?: string
+          delivery_status?: string | null
+          estimated_value_cents?: number
+          expected_completion_date?: string | null
+          expected_start_date?: string | null
           expenses_cents?: number
           id?: string
+          lost_reason?: string | null
           name: string
+          next_action?: string | null
+          next_action_due_at?: string | null
           progress?: number
           project_type: string
+          property_id?: string | null
+          sales_stage?: string | null
           scheduled_for?: string | null
           status?: string
           trades?: string[]
@@ -288,26 +331,54 @@ export type Database = {
           workers_on_site?: number
         }
         Update: {
+          actual_completion_date?: string | null
+          actual_start_date?: string | null
           address?: string
           archived_at?: string | null
+          assigned_owner?: string | null
           budget_cents?: number
           client_email?: string | null
+          client_id?: string | null
           client_name?: string
           client_phone?: string | null
           collected_cents?: number
           created_at?: string
+          delivery_status?: string | null
+          estimated_value_cents?: number
+          expected_completion_date?: string | null
+          expected_start_date?: string | null
           expenses_cents?: number
           id?: string
+          lost_reason?: string | null
           name?: string
+          next_action?: string | null
+          next_action_due_at?: string | null
           progress?: number
           project_type?: string
+          property_id?: string | null
+          sales_stage?: string | null
           scheduled_for?: string | null
           status?: string
           trades?: string[]
           updated_at?: string
           workers_on_site?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ledger_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_jobs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       os_jobs: {
         Row: {
@@ -367,6 +438,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "os_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      properties: {
+        Row: {
+          address: string
+          archived_at: string | null
+          city: string | null
+          client_id: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          notes: string | null
+          postal_code: string | null
+          province: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          archived_at?: string | null
+          city?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          postal_code?: string | null
+          province?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          archived_at?: string | null
+          city?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          postal_code?: string | null
+          province?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
