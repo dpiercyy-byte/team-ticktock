@@ -238,6 +238,7 @@ test.describe("Job activation", () => {
     const call = rec.find("activateProjectFn") as { data: unknown };
     const raw = call.data as Record<string, any>;
     const payload = (raw?.data ?? raw) as Record<string, any>;
+    console.log("PAYLOAD", JSON.stringify(call.data));
     expect(payload.projectId).toBe(JOB);
     expect(payload.radiusM).toBe(250);
     expect(payload.lat).toBeCloseTo(43.6532, 3);
