@@ -376,7 +376,7 @@ function Crew({ jobId, crew }: { jobId: string; crew: CrewMember[] }) {
 
   const { data: workers } = useQuery({
     queryKey: ["admin", "workers", "crew-picker"],
-    queryFn: async () => listWorkersAdmin ? listWorkers({ data: { token: token as string } }) : null,
+    queryFn: async () => listWorkers({ data: { token: token as string } }),
     enabled: Boolean(token) && adding,
     staleTime: 60_000,
   });
