@@ -62,6 +62,9 @@ export const LEDGER_EVENT_KINDS = [
   "created",
   "status",
   "note",
+  "call",
+  "stage",
+
   "visit",
   "estimate",
   "approval",
