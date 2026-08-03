@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { ArrowRight, Plus } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobCard } from "@/components/ledger/JobCard";
 import { StatStrip } from "@/components/ledger/StatStrip";
+import { NextActionLine } from "@/components/ledger/NextActionLine";
 import {
   formatCurrency,
   JOURNEY,
@@ -13,6 +14,7 @@ import {
   statusTone,
 } from "@/components/ledger/ledger-ui";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
+import { todayQuery } from "@/lib/crm-client";
 import type { LedgerJob } from "@/lib/ledger.functions";
 import type { ReactNode } from "react";
 
@@ -42,6 +44,8 @@ const ACTION_STATUSES = ["Lead", "Site Visit Required", "Estimate Required", "Wa
 
 function LedgerHome() {
   const { data: jobs } = useSuspenseQuery(ledgerJobsQuery());
+  const { data: today } = useQuery(todayQuery());
+  const followUps = today?.followUps ?? [];
   const active = jobs.filter((j) => j.status === "Active" || j.status === "Scheduled");
   const onSite = jobs.filter((j) => j.workersOnSite > 0);
   const needAction = jobs.filter((j) => ACTION_STATUSES.includes(j.status));
@@ -65,7 +69,7 @@ function LedgerHome() {
       <Link
         to="/ledger/jobs/new"
         className="mb-6 flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 text-[16px] font-bold"
-        style={{ background: "var(--l-ink)", color: "#fff" }}
+        style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
       >
         <Plus className="h-5 w-5" /> New Job
       </Link>
@@ -77,6 +81,37 @@ function LedgerHome() {
           { label: "Total", value: jobs.length },
         ]}
       />
+
+      <section className="mt-8">
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
+          <h2 className="l-eyebrow truncate">Follow-ups</h2>
+          <Link to="/ledger/pipeline" className="inline-flex min-h-[40px] shrink-0 items-center text-[12px] font-semibold l-muted">
+            Pipeline
+          </Link>
+        </div>
+        {followUps.length === 0 ? (
+          <EmptyLine text="No follow-ups due. Nice." />
+        ) : (
+          <div className="grid gap-3">
+            {followUps.slice(0, 6).map((c) => (
+              <Link
+                key={c.id}
+                to="/ledger/jobs/$jobId"
+                params={{ jobId: c.id }}
+                className="l-card block px-4 py-3.5"
+              >
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                  <p className="truncate text-[14px] font-bold">{c.clientName}</p>
+                  <span className="shrink-0 text-[12px] font-semibold l-muted">
+                    {c.salesStage}
+                  </span>
+                </div>
+                <NextActionLine card={c} className="mt-1.5" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="mt-8">
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">

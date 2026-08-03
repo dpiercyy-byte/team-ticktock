@@ -19,7 +19,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ledgerJobQuery } from "@/lib/ledger-client";
-import { addLedgerJobEvent, deleteLedgerJob, type LedgerTimelineEvent } from "@/lib/ledger.functions";
+import { addLedgerJobEvent, deleteLedgerJob, type LedgerJob, type LedgerTimelineEvent } from "@/lib/ledger.functions";
+import { completeNextAction, setNextAction } from "@/lib/crm.functions";
 import { getAdminToken } from "@/lib/session";
 import { useState } from "react";
 
@@ -161,6 +162,22 @@ function JobDetail() {
           <JobJourney status={job.status} onLight />
         </section>
 
+        {job.clientId && (
+          <Link
+            to="/ledger/people/$clientId"
+            params={{ clientId: job.clientId }}
+            className="l-card mt-3 flex items-center justify-between px-4 py-3"
+          >
+            <span className="min-w-0 truncate text-[13px] font-semibold">
+              View {job.client.name}'s profile
+            </span>
+            <span className="shrink-0 text-[12px] l-muted">All projects</span>
+          </Link>
+        )}
+
+        <FollowUp jobId={jobId} job={job} />
+
+
         {job.trades.length > 0 && (
           <section className="mt-6">
             <h2 className="l-eyebrow mb-3 px-1">Trades</h2>
@@ -227,7 +244,7 @@ function JobDetail() {
                   type="submit"
                   disabled={!note.trim() || noteMutation.isPending}
                   className="rounded-full px-4 py-2 text-[12px] font-bold disabled:opacity-50"
-                  style={{ background: "var(--l-accent)", color: "#fff" }}
+                  style={{ background: "var(--l-accent)", color: "var(--l-on-ink)" }}
                 >
                   {noteMutation.isPending ? "Saving…" : "Save note"}
                 </button>
@@ -341,5 +358,138 @@ function TimelineRow({ event }: { event: LedgerTimelineEvent }) {
         {event.detail && <p className="mt-0.5 text-[12px] l-muted">{event.detail}</p>}
       </div>
     </li>
+  );
+}
+
+function FollowUp({ jobId, job }: { jobId: string; job: LedgerJob }) {
+  const qc = useQueryClient();
+  const save = useServerFn(setNextAction);
+  const complete = useServerFn(completeNextAction);
+  const [editing, setEditing] = useState(false);
+  const [action, setAction] = useState(job.nextAction ?? "");
+  const [owner, setOwner] = useState(job.assignedOwner ?? "");
+  const [due, setDue] = useState(job.nextActionDueAt ? job.nextActionDueAt.slice(0, 10) : "");
+
+  const invalidate = async () => {
+    await qc.invalidateQueries({ queryKey: ["ledger", "job", jobId] });
+    await qc.invalidateQueries({ queryKey: ["crm"] });
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const token = getAdminToken();
+      if (!token) throw new Error("Not signed in");
+      return save({
+        data: { token, id: jobId, nextAction: action.trim(), owner: owner.trim() || null, dueAt: due || null },
+      });
+    },
+    onSuccess: async () => {
+      setEditing(false);
+      await invalidate();
+    },
+  });
+
+  const doneMutation = useMutation({
+    mutationFn: async () => {
+      const token = getAdminToken();
+      if (!token) throw new Error("Not signed in");
+      return complete({ data: { token, id: jobId } });
+    },
+    onSuccess: async () => {
+      setAction("");
+      await invalidate();
+    },
+  });
+
+  return (
+    <section className="mt-6">
+      <h2 className="l-eyebrow mb-3 px-1">Next step</h2>
+      <div className="l-card p-4">
+        {editing ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (action.trim()) saveMutation.mutate();
+            }}
+            className="grid gap-3"
+          >
+            <input
+              autoFocus
+              value={action}
+              onChange={(e) => setAction(e.target.value)}
+              placeholder="Call to book a site visit"
+              className="w-full rounded-xl border border-border px-3 py-2.5 text-[14px] outline-none"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                placeholder="Owner"
+                className="w-full rounded-xl border border-border px-3 py-2.5 text-[14px] outline-none"
+              />
+              <input
+                type="date"
+                value={due}
+                onChange={(e) => setDue(e.target.value)}
+                className="w-full rounded-xl border border-border px-3 py-2.5 text-[14px] outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="rounded-full px-4 py-2 text-[12px] font-semibold l-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!action.trim() || saveMutation.isPending}
+                className="rounded-full px-4 py-2 text-[12px] font-bold disabled:opacity-50"
+                style={{ background: "var(--l-accent)", color: "var(--l-on-ink)" }}
+              >
+                {saveMutation.isPending ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="grid gap-3">
+            {job.nextAction ? (
+              <div>
+                <p className="text-[14px] font-semibold">{job.nextAction}</p>
+                <p className="mt-0.5 text-[12px] l-muted">
+                  {job.assignedOwner ? `${job.assignedOwner} · ` : ""}
+                  {job.nextActionDueAt
+                    ? `due ${new Date(job.nextActionDueAt).toLocaleDateString()}`
+                    : "no due date"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-[13px] l-muted">No follow-up set for this project.</p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="inline-flex min-h-[40px] items-center rounded-full px-4 text-[12px] font-bold"
+                style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
+              >
+                {job.nextAction ? "Change" : "Set next step"}
+              </button>
+              {job.nextAction && (
+                <button
+                  type="button"
+                  onClick={() => doneMutation.mutate()}
+                  disabled={doneMutation.isPending}
+                  className="l-pill min-h-[40px] disabled:opacity-50"
+                >
+                  {doneMutation.isPending ? "Marking…" : "Mark done"}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
