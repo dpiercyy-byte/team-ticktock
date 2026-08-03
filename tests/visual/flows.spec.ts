@@ -235,10 +235,12 @@ test.describe("Job activation", () => {
     await settle(page);
 
     expect(rec.count("activateProjectFn")).toBe(1);
-    const call = rec.find("activateProjectFn") as { data: { data: Record<string, unknown> } };
-    expect(call.data.data.projectId).toBe(JOB);
-    expect(call.data.data.radiusM).toBe(250);
-    expect(call.data.data.lat).toBeCloseTo(43.6532, 3);
+    const call = rec.find("activateProjectFn") as { data: unknown };
+    const raw = call.data as Record<string, any>;
+    const payload = (raw?.data ?? raw) as Record<string, any>;
+    expect(payload.projectId).toBe(JOB);
+    expect(payload.radiusM).toBe(250);
+    expect(payload.lat).toBeCloseTo(43.6532, 3);
   });
 
   test("an already-activated project shows the connected site and no activate button", async ({ page }) => {
