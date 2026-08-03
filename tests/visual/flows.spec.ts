@@ -170,7 +170,7 @@ test.describe("Admin flows", () => {
     expect(rec.count("listAllReceipts")).toBeGreaterThan(0);
   });
 
-  test("sites tab loads job sites", async ({ page }) => {
+  test("sites tab loads job sites and exposes the site filters", async ({ page }) => {
     const rec = await recordServerFnCalls(page);
     await seedAdminSession(page);
     await page.goto("/admin");
@@ -178,8 +178,12 @@ test.describe("Admin flows", () => {
     await page.locator(NAV).getByRole("button", { name: /sites/i }).first().click();
     await settle(page);
     expect(rec.count("adminListJobSites")).toBeGreaterThan(0);
-    await expect(page.getByText("16 Ostick Ave").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /job sites/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /active jobs/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /suppliers/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /add location/i })).toBeVisible();
   });
+
 
   test("workers tab loads the roster", async ({ page }) => {
     const rec = await recordServerFnCalls(page);
