@@ -1984,6 +1984,15 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                 : s.total > 0
                   ? "border-l-4 border-l-[var(--warning)]"
                   : "";
+              const expanded = expandedPayouts.includes(s.workerId);
+              const cashPaid = isPaid ? (s.actualPaid ?? s.total) : null;
+              const paidOn = s.paidAt
+                ? new Date(s.paidAt).toLocaleDateString("en-US", {
+                    month: "2-digit",
+                    day: "2-digit",
+                    year: "numeric",
+                  })
+                : "";
               return (
                 <Card key={s.workerId} className={`overflow-hidden flex flex-col ${accent}`}>
                   <button
