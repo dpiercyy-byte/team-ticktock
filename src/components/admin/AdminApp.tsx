@@ -1982,9 +1982,9 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                 .toUpperCase();
               const isPaid = !!s.paidAt;
               const accent = isPaid
-                ? "border-l-4 border-l-[var(--success)]"
+                ? "border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)]"
                 : s.total > 0
-                  ? "border-l-4 border-l-[var(--warning)]"
+                  ? "border-l-4 border-l-[var(--warning)] bg-[color-mix(in_oklab,var(--warning)_4%,transparent)]"
                   : "";
               return (
                 <Card key={s.workerId} className={`overflow-hidden flex flex-col ${accent}`}>
@@ -3703,25 +3703,28 @@ function PendingPayoutsView({
 
   const statusStyles: Record<
     string,
-    { dotBg: string; pillBg: string; pillText: string; border: string }
+    { dotBg: string; pillBg: string; pillText: string; border: string; tint: string }
   > = {
     overdue: {
       dotBg: "bg-[var(--destructive)]",
       pillBg: "bg-[color-mix(in_oklab,var(--destructive)_18%,transparent)]",
       pillText: "text-[var(--destructive)]",
       border: "border-l-[var(--destructive)]",
+      tint: "bg-[color-mix(in_oklab,var(--destructive)_4%,transparent)]",
     },
     unpaid: {
       dotBg: "bg-[var(--warning)]",
       pillBg: "bg-[color-mix(in_oklab,var(--warning)_22%,transparent)]",
       pillText: "text-[var(--warning-foreground)]",
       border: "border-l-[var(--warning)]",
+      tint: "bg-[color-mix(in_oklab,var(--warning)_4%,transparent)]",
     },
     paid: {
       dotBg: "bg-[var(--success)]",
       pillBg: "bg-[color-mix(in_oklab,var(--success)_18%,transparent)]",
       pillText: "text-[var(--success)]",
       border: "border-l-[var(--success)]",
+      tint: "bg-[color-mix(in_oklab,var(--success)_4%,transparent)]",
     },
   };
 
@@ -3772,7 +3775,10 @@ function PendingPayoutsView({
                 </span>
               ) : null;
             return (
-              <Card key={`${row.workerId}-${row.weekStart}`} className={`border-l-4 ${s.border}`}>
+              <Card
+                key={`${row.workerId}-${row.weekStart}`}
+                className={`border-l-4 ${s.border} ${s.tint}`}
+              >
                 <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -3988,7 +3994,10 @@ function LifetimePayoutView({
               .join("")
               .toUpperCase();
             return (
-              <Card key={s.workerId} className="overflow-hidden flex flex-col">
+              <Card
+                key={s.workerId}
+                className="overflow-hidden flex flex-col border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)]"
+              >
                 <CardHeader className="flex-row items-center gap-3 space-y-0 py-4">
                   <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
                     {initials || "?"}
