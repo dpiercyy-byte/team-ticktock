@@ -121,7 +121,7 @@ function JobDetail() {
               onClick={() => setTab(t)}
               aria-current={tab === t ? "page" : undefined}
               className={
-                "shrink-0 rounded-full px-4 py-2 text-[13px] font-bold transition-colors " +
+                "min-h-[44px] shrink-0 rounded-full px-4 text-[13px] font-bold transition-colors " +
                 (tab === t ? "" : "l-muted")
               }
               style={
