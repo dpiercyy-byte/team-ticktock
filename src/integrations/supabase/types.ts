@@ -602,6 +602,81 @@ export type Database = {
           },
         ]
       }
+      project_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          dependency_task_id: string | null
+          description: string | null
+          due_at: string | null
+          id: string
+          priority: string
+          project_id: string
+          sort_order: number
+          status: string
+          task_type: string
+          template_item_key: string | null
+          template_key: string | null
+          title: string
+          trade: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          dependency_task_id?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          priority?: string
+          project_id: string
+          sort_order?: number
+          status?: string
+          task_type?: string
+          template_item_key?: string | null
+          template_key?: string | null
+          title: string
+          trade?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          dependency_task_id?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          priority?: string
+          project_id?: string
+          sort_order?: number
+          status?: string
+          task_type?: string
+          template_item_key?: string | null
+          template_key?: string | null
+          title?: string
+          trade?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_dependency_task_id_fkey"
+            columns: ["dependency_task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           address: string

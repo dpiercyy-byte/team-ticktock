@@ -15,6 +15,7 @@ import { LabourTab } from "@/components/ledger/workspace/LabourTab";
 import { CostsTab } from "@/components/ledger/workspace/CostsTab";
 import { PaymentsTab } from "@/components/ledger/workspace/PaymentsTab";
 import { DocumentsTab } from "@/components/ledger/workspace/DocumentsTab";
+import { TasksTab } from "@/components/ledger/workspace/TasksTab";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -42,7 +43,16 @@ export const Route = createFileRoute("/ledger/jobs/$jobId")({
   component: JobDetail,
 });
 
-const TABS = ["Overview", "Activity", "Labour", "Costs", "Payments", "Documents"] as const;
+const TABS = [
+  "Overview",
+  "Activity",
+  "Tasks",
+  "Labour",
+  "Costs",
+  "Payments",
+  "Documents",
+] as const;
+
 type Tab = (typeof TABS)[number];
 
 function JobDetail() {
@@ -261,6 +271,13 @@ function JobDetail() {
             </>
           )}
 
+          {tab === "Tasks" && (
+            <TasksTab
+              projectId={jobId}
+              crew={Array.from(new Set(ws.labour.map((l) => l.worker)))}
+              defaultOwner={job.assignedOwner ?? null}
+            />
+          )}
           {tab === "Labour" && <LabourTab rows={ws.labour} totals={ws.labourTotals} />}
           {tab === "Costs" && <CostsTab rows={ws.costs} totals={ws.costTotals} />}
           {tab === "Payments" && (

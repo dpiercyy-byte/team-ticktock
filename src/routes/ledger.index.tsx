@@ -15,6 +15,7 @@ import {
 } from "@/components/ledger/ledger-ui";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
 import { todayQuery } from "@/lib/crm-client";
+import { overdueTasksQuery } from "@/lib/tasks-client";
 import type { LedgerJob } from "@/lib/ledger.functions";
 import type { ReactNode } from "react";
 
@@ -46,6 +47,8 @@ function LedgerHome() {
   const { data: jobs } = useSuspenseQuery(ledgerJobsQuery());
   const { data: today } = useQuery(todayQuery());
   const followUps = today?.followUps ?? [];
+  const { data: overdueTasks } = useQuery(overdueTasksQuery());
+  const overdue = overdueTasks ?? [];
   const active = jobs.filter((j) => j.status === "Active" || j.status === "Scheduled");
   const onSite = jobs.filter((j) => j.workersOnSite > 0);
   const needAction = jobs.filter((j) => ACTION_STATUSES.includes(j.status));
@@ -81,6 +84,37 @@ function LedgerHome() {
           { label: "Total", value: jobs.length },
         ]}
       />
+
+      {overdue.length > 0 && (
+        <section className="mt-8">
+          <div className="mb-3 px-1">
+            <h2 className="l-eyebrow truncate">Overdue tasks</h2>
+          </div>
+          <div className="grid gap-3">
+            {overdue.slice(0, 6).map((t) => (
+              <Link
+                key={t.id}
+                to="/ledger/jobs/$jobId"
+                params={{ jobId: t.projectId }}
+                className="l-card block px-4 py-3.5"
+                style={{ background: "hsl(6 78% 97%)" }}
+              >
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                  <p className="truncate text-[14px] font-bold">{t.title}</p>
+                  <span className="shrink-0 text-[12px] font-semibold l-red">
+                    {t.daysOverdue === 0 ? "Due" : `${t.daysOverdue}d`}
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-[12px] l-muted">
+                  {t.projectName}
+                  {t.assignedTo ? ` · ${t.assignedTo}` : ""}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
 
       <section className="mt-8">
         <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
