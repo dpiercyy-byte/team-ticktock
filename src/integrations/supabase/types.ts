@@ -508,6 +508,100 @@ export type Database = {
           },
         ]
       }
+      project_documents: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          project_id: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          project_id: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          project_id?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_payments: {
+        Row: {
+          amount_expected_cents: number
+          amount_received_cents: number
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          method: string | null
+          notes: string | null
+          project_id: string
+          received_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_expected_cents?: number
+          amount_received_cents?: number
+          created_at?: string
+          description: string
+          due_date?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          project_id: string
+          received_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_expected_cents?: number
+          amount_received_cents?: number
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          project_id?: string
+          received_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           address: string
