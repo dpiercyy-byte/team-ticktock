@@ -1969,7 +1969,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+          <div className="grid items-start gap-3 sm:gap-4 md:grid-cols-2">
             {pq.data?.map((s: any) => {
               const initials = s.name
                 .split(/\s+/)
