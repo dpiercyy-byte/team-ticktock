@@ -257,6 +257,11 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
   const m = useMutation({
     mutationFn: () => login({ data: { password: pw } }),
     onSuccess: (r) => {
+      if (!r.ok || !r.token) {
+        toast.error(r.error ?? "Invalid password");
+        setPw("");
+        return;
+      }
       onLogin(r.token);
       navigate({ to: "/admin" });
     },

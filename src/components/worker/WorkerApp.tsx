@@ -95,7 +95,10 @@ function PinLogin({ onLogin }: { onLogin: (s: WorkerSession) => void }) {
 
   const m = useMutation({
     mutationFn: () => login({ data: { workerId: workerId!, pin } }),
-    onSuccess: (r) => onLogin({ token: r.token, id: r.worker.id, name: r.worker.name }),
+    onSuccess: (r) => {
+      if (!r.ok || !r.token || !r.worker) { toast.error(r.error ?? "Invalid PIN"); setPin(""); return; }
+      onLogin({ token: r.token, id: r.worker.id, name: r.worker.name });
+    },
     onError: () => { toast.error("Invalid PIN"); setPin(""); },
   });
 
