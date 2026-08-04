@@ -3710,18 +3710,21 @@ function PendingPayoutsView({
       pillBg: "bg-[color-mix(in_oklab,var(--destructive)_18%,transparent)]",
       pillText: "text-[var(--destructive)]",
       border: "border-l-[var(--destructive)]",
+      tint: "bg-[color-mix(in_oklab,var(--destructive)_4%,transparent)]",
     },
     unpaid: {
       dotBg: "bg-[var(--warning)]",
       pillBg: "bg-[color-mix(in_oklab,var(--warning)_22%,transparent)]",
       pillText: "text-[var(--warning-foreground)]",
       border: "border-l-[var(--warning)]",
+      tint: "bg-[color-mix(in_oklab,var(--warning)_4%,transparent)]",
     },
     paid: {
       dotBg: "bg-[var(--success)]",
       pillBg: "bg-[color-mix(in_oklab,var(--success)_18%,transparent)]",
       pillText: "text-[var(--success)]",
       border: "border-l-[var(--success)]",
+      tint: "bg-[color-mix(in_oklab,var(--success)_4%,transparent)]",
     },
   };
 
