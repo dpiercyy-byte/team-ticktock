@@ -2067,9 +2067,21 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                     )}
                   </CardContent>
                   <div className="flex items-center justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Total owed</p>
-                      <p className="tabular-nums font-bold text-lg">{fmtMoney(s.total)}</p>
+                    <div className="flex min-w-0 items-baseline gap-5">
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Total owed</p>
+                        <p className="tabular-nums font-bold text-lg text-[var(--success)]">
+                          {fmtMoney(s.total)}
+                        </p>
+                      </div>
+                      {s.actualPaid != null && (
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Total cash paid</p>
+                          <p className="tabular-nums font-bold text-lg text-[var(--success)]">
+                            {fmtMoney(s.actualPaid)}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     {s.total > 0 || isPaid ? (
                       <Button
