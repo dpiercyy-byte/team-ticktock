@@ -3994,7 +3994,10 @@ function LifetimePayoutView({
               .join("")
               .toUpperCase();
             return (
-              <Card key={s.workerId} className="overflow-hidden flex flex-col">
+              <Card
+                key={s.workerId}
+                className="overflow-hidden flex flex-col border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)]"
+              >
                 <CardHeader className="flex-row items-center gap-3 space-y-0 py-4">
                   <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
                     {initials || "?"}
