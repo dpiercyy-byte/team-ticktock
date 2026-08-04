@@ -271,6 +271,13 @@ function JobDetail() {
             </>
           )}
 
+          {tab === "Tasks" && (
+            <TasksTab
+              projectId={jobId}
+              crew={Array.from(new Set(ws.labour.map((l) => l.worker)))}
+              defaultOwner={job.assignedOwner ?? null}
+            />
+          )}
           {tab === "Labour" && <LabourTab rows={ws.labour} totals={ws.labourTotals} />}
           {tab === "Costs" && <CostsTab rows={ws.costs} totals={ws.costTotals} />}
           {tab === "Payments" && (
