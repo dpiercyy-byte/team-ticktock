@@ -3703,7 +3703,7 @@ function PendingPayoutsView({
 
   const statusStyles: Record<
     string,
-    { dotBg: string; pillBg: string; pillText: string; border: string }
+    { dotBg: string; pillBg: string; pillText: string; border: string; tint: string }
   > = {
     overdue: {
       dotBg: "bg-[var(--destructive)]",
