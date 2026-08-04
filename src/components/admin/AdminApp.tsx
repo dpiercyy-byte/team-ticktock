@@ -1729,10 +1729,6 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
   const qc = useQueryClient();
 
   const [week, setWeek] = useState(startOfWeekISO());
-  const [expandedPayouts, setExpandedPayouts] = useState<string[]>([]);
-  useEffect(() => {
-    setExpandedPayouts([]);
-  }, [week]);
   const [calOpen, setCalOpen] = useState(false);
 
   const pq = useQuery({
@@ -1969,7 +1965,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
             </CardContent>
           </Card>
         ) : (
-          <div className="grid items-start gap-3 sm:gap-4 md:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
             {pq.data?.map((s: any) => {
               const initials = s.name
                 .split(/\s+/)
@@ -1984,150 +1980,103 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                 : s.total > 0
                   ? "border-l-4 border-l-[var(--warning)]"
                   : "";
-              const expanded = expandedPayouts.includes(s.workerId);
-              const cashPaid = isPaid ? (s.actualPaid ?? s.total) : null;
-              const paidOn = s.paidAt
-                ? new Date(s.paidAt).toLocaleDateString("en-US", {
-                    month: "2-digit",
-                    day: "2-digit",
-                    year: "numeric",
-                  })
-                : "";
               return (
                 <Card key={s.workerId} className={`overflow-hidden flex flex-col ${accent}`}>
-                  <button
-                    type="button"
-                    aria-expanded={expanded}
-                    onClick={() =>
-                      setExpandedPayouts((prev) =>
-                        prev.includes(s.workerId)
-                          ? prev.filter((id) => id !== s.workerId)
-                          : [...prev, s.workerId],
-                      )
-                    }
-                    className="w-full text-left px-6 py-4 flex items-start justify-between gap-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
-                          {initials || "?"}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-bold text-lg truncate">{s.name}</p>
-                          {isPaid ? (
-                            <span className="inline-flex items-center gap-1 text-sm mt-0.5 px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
-                              ● Paid on {paidOn}
+                  <CardHeader className="flex-row items-center justify-between gap-3 space-y-0 py-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
+                        {initials || "?"}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-bold text-lg truncate">{s.name}</p>
+                        {isPaid ? (
+                          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                            <span className="inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
+                              ● Paid
                             </span>
-                          ) : s.total > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-sm mt-0.5 px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--warning)_22%,transparent)] text-[var(--warning-foreground)]">
-                              ● Unpaid
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">Total owed</p>
-                          <p className="tabular-nums font-bold text-lg text-[var(--success)]">
-                            {fmtMoney(s.total)}
-                          </p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">Total cash paid</p>
-                          <p className="tabular-nums font-bold text-lg text-[var(--success)]">
-                            {cashPaid != null ? fmtMoney(cashPaid) : "—"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronDown
-                      className={`h-4 w-4 shrink-0 mt-1 text-muted-foreground transition-transform ${
-                        expanded ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {expanded && (
-                    <>
-                      <CardContent className="flex-1 space-y-3 pt-0 pb-4">
-                        {isPaid && s.tipAmount != null && Math.abs(s.tipAmount) >= 0.005 && (
-                          <span
-                            className={`inline-flex items-center text-sm px-2.5 py-1 rounded-full ${
-                              s.tipAmount > 0
-                                ? "bg-[color-mix(in_oklab,var(--success)_15%,transparent)] text-[var(--success)]"
-                                : "bg-[color-mix(in_oklab,var(--destructive)_15%,transparent)] text-[var(--destructive)]"
-                            }`}
-                          >
-                            {s.tipAmount > 0
-                              ? `+${fmtMoney(s.tipAmount)} tip`
-                              : `${fmtMoney(s.tipAmount)} short`}
-                          </span>
-                        )}
-                        <div className="flex items-baseline justify-between gap-3 text-sm">
-                          <div className="min-w-0">
-                            <p className="font-medium">Labour</p>
-                            <p className="text-xs text-muted-foreground tabular-nums">
-                              {s.hours.toFixed(2)} hrs × ${s.hourlyRate.toFixed(2)}
-                            </p>
-                          </div>
-                          <span className="tabular-nums font-semibold">{fmtMoney(s.wages)}</span>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-3 text-sm">
-                          <div className="min-w-0">
-                            <p className="font-medium">Reimbursements</p>
-                            <p className="text-xs text-muted-foreground tabular-nums">
-                              {s.reimbursements?.length ?? 0}{" "}
-                              {(s.reimbursements?.length ?? 0) === 1 ? "item" : "items"}
-                            </p>
-                          </div>
-                          <span className="tabular-nums font-semibold">
-                            {fmtMoney(s.reimbTotal)}
-                          </span>
-                        </div>
-                        {s.reimbursements?.length > 0 && (
-                          <ul className="rounded-md bg-muted/40 p-2 space-y-1 text-xs">
-                            {s.reimbursements.map((r: any) => (
-                              <li
-                                key={r.id ?? `${r.description}-${r.amount}`}
-                                className="flex items-baseline justify-between gap-2"
+                            {s.tipAmount != null && Math.abs(s.tipAmount) >= 0.005 && (
+                              <span
+                                className={`inline-flex items-center text-sm px-2.5 py-1 rounded-full ${
+                                  s.tipAmount > 0
+                                    ? "bg-[color-mix(in_oklab,var(--success)_15%,transparent)] text-[var(--success)]"
+                                    : "bg-[color-mix(in_oklab,var(--destructive)_15%,transparent)] text-[var(--destructive)]"
+                                }`}
                               >
-                                <span className="truncate text-muted-foreground">
-                                  {r.description}
-                                </span>
-                                <span className="tabular-nums">{fmtMoney(Number(r.amount))}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setReimbFor({ id: s.workerId, name: s.name });
-                            setDesc("");
-                            setAmt("");
-                          }}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" />
-                          Reimb.
-                        </Button>
-                      </CardContent>
-                      <div className="flex items-center justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
-                        <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">Total owed</p>
-                          <p className="tabular-nums font-bold text-lg">{fmtMoney(s.total)}</p>
-                        </div>
-                        {s.total > 0 || isPaid ? (
-                          <Button
-                            size="sm"
-                            variant={isPaid ? "outline" : "default"}
-                            onClick={() => togglePaid(s.workerId, isPaid)}
-                          >
-                            {isPaid ? "Mark unpaid" : "Mark paid"}
-                          </Button>
+                                {s.tipAmount > 0
+                                  ? `+${fmtMoney(s.tipAmount)} tip`
+                                  : `${fmtMoney(s.tipAmount)} short`}
+                              </span>
+                            )}
+                          </div>
+                        ) : s.total > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-sm mt-0.5 px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--warning)_22%,transparent)] text-[var(--warning-foreground)]">
+                            ● Unpaid
+                          </span>
                         ) : null}
                       </div>
-                    </>
-                  )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setReimbFor({ id: s.workerId, name: s.name });
+                        setDesc("");
+                        setAmt("");
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Reimb.
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-3 pt-0 pb-4">
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium">Labour</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          {s.hours.toFixed(2)} hrs × ${s.hourlyRate.toFixed(2)}
+                        </p>
+                      </div>
+                      <span className="tabular-nums font-semibold">{fmtMoney(s.wages)}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium">Reimbursements</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          {s.reimbursements?.length ?? 0}{" "}
+                          {(s.reimbursements?.length ?? 0) === 1 ? "item" : "items"}
+                        </p>
+                      </div>
+                      <span className="tabular-nums font-semibold">{fmtMoney(s.reimbTotal)}</span>
+                    </div>
+                    {s.reimbursements?.length > 0 && (
+                      <ul className="rounded-md bg-muted/40 p-2 space-y-1 text-xs">
+                        {s.reimbursements.map((r: any) => (
+                          <li
+                            key={r.id ?? `${r.description}-${r.amount}`}
+                            className="flex items-baseline justify-between gap-2"
+                          >
+                            <span className="truncate text-muted-foreground">{r.description}</span>
+                            <span className="tabular-nums">{fmtMoney(Number(r.amount))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                  <div className="flex items-center justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground">Total owed</p>
+                      <p className="tabular-nums font-bold text-lg">{fmtMoney(s.total)}</p>
+                    </div>
+                    {s.total > 0 || isPaid ? (
+                      <Button
+                        size="sm"
+                        variant={isPaid ? "outline" : "default"}
+                        onClick={() => togglePaid(s.workerId, isPaid)}
+                      >
+                        {isPaid ? "Mark unpaid" : "Mark paid"}
+                      </Button>
+                    ) : null}
+                  </div>
                 </Card>
               );
             })}
