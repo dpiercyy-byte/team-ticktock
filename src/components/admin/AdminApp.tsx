@@ -601,6 +601,12 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                   className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${statusStyles.pill}`}
                 >
                   ● {statusStyles.label}
+                  {weekStatus === "paid" && weekRow?.paidAt
+                    ? ` · ${new Date(weekRow.paidAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}`
+                    : ""}
                 </span>
               )}
             </div>
@@ -1992,7 +1998,11 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                         {isPaid ? (
                           <div className="mt-0.5 flex flex-wrap items-center gap-1">
                             <span className="inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
-                              ● Paid
+                              ● Paid ·{" "}
+                              {new Date(s.paidAt).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                             {s.tipAmount != null && Math.abs(s.tipAmount) >= 0.005 && (
                               <span
@@ -2063,9 +2073,21 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                     )}
                   </CardContent>
                   <div className="flex items-center justify-between gap-3 bg-muted/60 border-t border-border px-6 py-3">
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Total owed</p>
-                      <p className="tabular-nums font-bold text-lg">{fmtMoney(s.total)}</p>
+                    <div className="flex min-w-0 items-baseline gap-5">
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Total owed</p>
+                        <p className="tabular-nums font-bold text-lg text-[var(--success)]">
+                          {fmtMoney(s.total)}
+                        </p>
+                      </div>
+                      {s.actualPaid != null && (
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Total cash paid</p>
+                          <p className="tabular-nums font-bold text-lg text-[var(--success)]">
+                            {fmtMoney(s.actualPaid)}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     {s.total > 0 || isPaid ? (
                       <Button
