@@ -1982,9 +1982,9 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                 .toUpperCase();
               const isPaid = !!s.paidAt;
               const accent = isPaid
-                ? "border-l-4 border-l-[var(--success)]"
+                ? "border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)]"
                 : s.total > 0
-                  ? "border-l-4 border-l-[var(--warning)]"
+                  ? "border-l-4 border-l-[var(--warning)] bg-[color-mix(in_oklab,var(--warning)_4%,transparent)]"
                   : "";
               return (
                 <Card key={s.workerId} className={`overflow-hidden flex flex-col ${accent}`}>
