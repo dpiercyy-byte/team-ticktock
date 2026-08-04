@@ -43,7 +43,16 @@ export const Route = createFileRoute("/ledger/jobs/$jobId")({
   component: JobDetail,
 });
 
-const TABS = ["Overview", "Activity", "Labour", "Costs", "Payments", "Documents"] as const;
+const TABS = [
+  "Overview",
+  "Activity",
+  "Tasks",
+  "Labour",
+  "Costs",
+  "Payments",
+  "Documents",
+] as const;
+
 type Tab = (typeof TABS)[number];
 
 function JobDetail() {
