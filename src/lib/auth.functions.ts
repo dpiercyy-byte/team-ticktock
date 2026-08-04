@@ -15,11 +15,11 @@ export const workerLogin = createServerFn({ method: "POST" })
     const { data: w, error } = await supabaseAdmin
       .from("workers").select("id, name, pin_hash").eq("id", data.workerId).maybeSingle();
     if (error) throw error;
-    if (!w) throw new Response("Invalid", { status: 401 });
+    if (!w) return { ok: false as const, error: "Invalid PIN" };
     const ok = await verifyHash(data.pin, w.pin_hash);
-    if (!ok) throw new Response("Invalid PIN", { status: 401 });
+    if (!ok) return { ok: false as const, error: "Invalid PIN" };
     const token = signToken({ kind: "worker", wid: w.id }, WORKER_TTL);
-    return { token, worker: { id: w.id, name: w.name } };
+    return { ok: true as const, token, worker: { id: w.id, name: w.name } };
   });
 
 export const adminLogin = createServerFn({ method: "POST" })
@@ -29,9 +29,10 @@ export const adminLogin = createServerFn({ method: "POST" })
       .from("app_settings").select("admin_password_hash").eq("id", 1).single();
     if (error) throw error;
     const ok = await verifyHash(data.password, s.admin_password_hash);
-    if (!ok) throw new Response("Invalid password", { status: 401 });
-    return { token: signToken({ kind: "admin" }, ADMIN_TTL) };
+    if (!ok) return { ok: false as const, error: "Invalid password" };
+    return { ok: true as const, token: signToken({ kind: "admin" }, ADMIN_TTL) };
   });
+
 
 export const adminVerify = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ token: z.string() }).parse(d))
