@@ -1,53 +1,75 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, DollarSign,
+  Flag, Hammer, MapPin, ShieldCheck,
+} from "lucide-react";
+import type { ComponentType } from "react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
-import { statusTone } from "@/components/ledger/ledger-ui";
-import { ledgerJobsQuery } from "@/lib/ledger-client";
-import type { LedgerJob } from "@/lib/ledger.functions";
+import { calendarRecordsQuery } from "@/lib/tasks-client";
+import {
+  CALENDAR_TYPES, CALENDAR_TYPE_LABEL, dayKey, groupByDay, upcomingRecords,
+  type CalendarRecord, type CalendarType,
+} from "@/lib/calendar-math";
 
 export const Route = createFileRoute("/ledger/calendar")({
   head: () => ({
     meta: [
       { title: "Calendar — Ledger" },
-      { name: "description", content: "See scheduled jobs on a clean, calm calendar." },
+      { name: "description", content: "Site visits, start dates, tasks and payments in one calendar." },
       { property: "og:title", content: "Calendar — Ledger" },
-      { property: "og:description", content: "Scheduled jobs at a glance." },
+      { property: "og:description", content: "Every dated record across your jobs." },
     ],
   }),
   loader: ({ context }) => {
-    context.queryClient.ensureQueryData(ledgerJobsQuery());
+    context.queryClient.ensureQueryData(calendarRecordsQuery());
   },
   component: CalendarPage,
 });
 
+const ICON: Record<CalendarType, ComponentType<{ className?: string }>> = {
+  site_visit: MapPin,
+  start: Flag,
+  completion: CheckCircle2,
+  task: Hammer,
+  payment: DollarSign,
+  inspection: ShieldCheck,
+  warranty: CalendarDays,
+};
+
 function CalendarPage() {
-  const { data: jobs } = useSuspenseQuery(ledgerJobsQuery());
+  const { data: records } = useSuspenseQuery(calendarRecordsQuery());
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
-  const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const [filter, setFilter] = useState<CalendarType | "all">("all");
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const shown = useMemo(
+    () => (filter === "all" ? records : records.filter((r) => r.type === filter)),
+    [records, filter],
+  );
+  const byDay = useMemo(() => groupByDay(shown), [shown]);
   const days = useMemo(() => buildMonth(cursor), [cursor]);
-  const jobsByDay = useMemo(() => {
-    const map = new Map<string, LedgerJob[]>();
-    jobs.forEach((j) => {
-      if (!j.scheduledFor) return;
-      const key = new Date(j.scheduledFor).toDateString();
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(j);
-    });
-    return map;
-  }, [jobs]);
-  const upcoming = jobs
-    .filter((j) => j.scheduledFor)
-    .sort((a, b) => +new Date(a.scheduledFor!) - +new Date(b.scheduledFor!))
-    .slice(0, 5);
+  const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const today = dayKey(new Date().toISOString());
+  const selectedRecords = selected ? (byDay.get(selected) ?? []) : [];
+  const upcoming = useMemo(() => upcomingRecords(shown, today), [shown, today]);
 
   return (
     <LedgerShell>
       <header className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Calendar</h1>
-        <p className="mt-1 text-sm l-muted">Everything scheduled, at a glance.</p>
+        <p className="mt-1 text-sm l-muted">Site visits, start dates, tasks and payments.</p>
       </header>
+
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+        <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>All</FilterPill>
+        {CALENDAR_TYPES.map((t) => (
+          <FilterPill key={t} active={filter === t} onClick={() => setFilter(t)}>
+            {CALENDAR_TYPE_LABEL[t]}
+          </FilterPill>
+        ))}
+      </div>
 
       <section className="l-card p-5 md:p-6">
         <div className="mb-4 flex items-center justify-between">
@@ -63,67 +85,116 @@ function CalendarPage() {
         </div>
         <div className="mt-1 grid grid-cols-7 gap-1">
           {days.map((d, i) => {
-            const key = d.date.toDateString();
+            const key = dayKey(localIso(d.date));
             const inMonth = d.date.getMonth() === cursor.getMonth();
-            const isToday = key === new Date().toDateString();
-            const dayJobs = jobsByDay.get(key) ?? [];
+            const isToday = key === today;
+            const isSelected = key === selected;
+            const dayRecords = byDay.get(key) ?? [];
             return (
-              <div key={i} className={
-                "aspect-square rounded-xl p-1.5 text-left text-xs " +
-                (isToday ? "bg-primary text-primary-foreground"
-                  : inMonth ? "bg-secondary/40 text-foreground" : "l-muted/50")
-              }>
+              <button
+                key={i}
+                type="button"
+                onClick={() => setSelected(dayRecords.length > 0 ? key : null)}
+                className={
+                  "aspect-square rounded-xl p-1.5 text-left text-xs " +
+                  (isToday
+                    ? "bg-primary text-primary-foreground"
+                    : isSelected
+                      ? "bg-secondary text-foreground"
+                      : inMonth
+                        ? "bg-secondary/40 text-foreground"
+                        : "l-muted/50")
+                }
+              >
                 <div className="font-medium tabular-nums">{d.date.getDate()}</div>
-                {dayJobs.length > 0 && (
+                {dayRecords.length > 0 && (
                   <div className="mt-0.5 flex flex-wrap gap-0.5">
-                    {dayJobs.slice(0, 3).map((_, idx) => (
-                      <span key={idx} className={"h-1.5 w-1.5 rounded-full " + (isToday ? "bg-primary-foreground" : "bg-primary")} />
+                    {dayRecords.slice(0, 3).map((r) => (
+                      <span
+                        key={r.id}
+                        className={"h-1.5 w-1.5 rounded-full " + (isToday ? "bg-primary-foreground" : "bg-primary")}
+                      />
                     ))}
                   </div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-3 px-1 text-[15px] font-semibold tracking-tight">Upcoming</h2>
-        {upcoming.length === 0 ? (
-          <div className="l-card px-4 py-8 text-center text-sm l-muted">
-            Nothing scheduled.
-          </div>
+        <h2 className="mb-3 px-1 text-[15px] font-semibold tracking-tight">
+          {selected ? niceDay(selected) : "Upcoming"}
+        </h2>
+        {(selected ? selectedRecords : upcoming).length === 0 ? (
+          <div className="l-card px-4 py-8 text-center text-sm l-muted">Nothing scheduled.</div>
         ) : (
           <div className="grid gap-3">
-            {upcoming.map((j) => {
-              const d = new Date(j.scheduledFor!);
-              return (
-                <Link
-                  key={j.id}
-                  to="/ledger/jobs/$jobId"
-                  params={{ jobId: j.id }}
-                  className="flex items-center gap-4 l-card px-4 py-3.5"
-                >
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary text-center">
-                    <div className="text-[10px] font-medium uppercase l-muted">
-                      {d.toLocaleDateString(undefined, { month: "short" })}
-                    </div>
-                    <div className="-mt-0.5 text-base font-semibold tabular-nums">{d.getDate()}</div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{j.name}</p>
-                    <p className="truncate text-xs l-muted">{j.address}</p>
-                  </div>
-                  <span className={"shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium " + statusTone(j.status)}>
-                    {j.status}
-                  </span>
-                </Link>
-              );
-            })}
+            {(selected ? selectedRecords : upcoming).map((r) => (
+              <RecordRow key={r.id} record={r} />
+            ))}
           </div>
+        )}
+        {selected && (
+          <button
+            type="button"
+            onClick={() => setSelected(null)}
+            className="mt-3 text-[12px] font-semibold l-accent"
+          >
+            Show upcoming
+          </button>
         )}
       </section>
     </LedgerShell>
+  );
+}
+
+function RecordRow({ record }: { record: CalendarRecord }) {
+  const Icon = ICON[record.type];
+  const d = new Date(record.date.length === 10 ? `${record.date}T12:00:00` : record.date);
+  return (
+    <Link
+      to="/ledger/jobs/$jobId"
+      params={{ jobId: record.projectId }}
+      className="flex items-center gap-4 l-card px-4 py-3.5"
+    >
+      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary text-center">
+        <div className="text-[10px] font-medium uppercase l-muted">
+          {d.toLocaleDateString(undefined, { month: "short" })}
+        </div>
+        <div className="-mt-0.5 text-base font-semibold tabular-nums">{d.getDate()}</div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className={"truncate text-sm font-medium " + (record.done ? "line-through l-muted" : "")}>
+          {record.title}
+        </p>
+        <p className="truncate text-xs l-muted">
+          {record.projectName}
+          {record.subtitle ? ` · ${record.subtitle}` : ""}
+        </p>
+      </div>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-secondary">
+        <Icon className="h-4 w-4" />
+      </span>
+    </Link>
+  );
+}
+
+function FilterPill({
+  active, onClick, children,
+}: {
+  active: boolean; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={"shrink-0 rounded-full px-3.5 py-2 text-[12px] font-semibold " + (active ? "" : "l-pill")}
+      style={active ? { background: "var(--l-ink)", color: "var(--l-on-ink)" } : undefined}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -135,11 +206,22 @@ function IconBtn({ children, onClick }: { children: React.ReactNode; onClick: ()
   );
 }
 
+function localIso(d: Date) {
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function niceDay(key: string) {
+  return new Date(`${key}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: "long", month: "long", day: "numeric",
+  });
+}
+
 function buildMonth(cursor: Date) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  const startOffset = first.getDay();
   const start = new Date(first);
-  start.setDate(first.getDate() - startOffset);
+  start.setDate(first.getDate() - first.getDay());
   const days: { date: Date }[] = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(start);
