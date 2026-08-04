@@ -15,6 +15,7 @@ import {
 } from "@/components/ledger/ledger-ui";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
 import { todayQuery } from "@/lib/crm-client";
+import { overdueTasksQuery } from "@/lib/tasks-client";
 import type { LedgerJob } from "@/lib/ledger.functions";
 import type { ReactNode } from "react";
 
