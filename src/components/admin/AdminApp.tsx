@@ -1992,7 +1992,11 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
                         {isPaid ? (
                           <div className="mt-0.5 flex flex-wrap items-center gap-1">
                             <span className="inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
-                              ● Paid
+                              ● Paid ·{" "}
+                              {new Date(s.paidAt).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                             {s.tipAmount != null && Math.abs(s.tipAmount) >= 0.005 && (
                               <span
