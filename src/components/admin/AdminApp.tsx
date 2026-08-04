@@ -3772,7 +3772,10 @@ function PendingPayoutsView({
                 </span>
               ) : null;
             return (
-              <Card key={`${row.workerId}-${row.weekStart}`} className={`border-l-4 ${s.border}`}>
+              <Card
+                key={`${row.workerId}-${row.weekStart}`}
+                className={`border-l-4 ${s.border} ${s.tint}`}
+              >
                 <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
