@@ -15,6 +15,7 @@ import { LabourTab } from "@/components/ledger/workspace/LabourTab";
 import { CostsTab } from "@/components/ledger/workspace/CostsTab";
 import { PaymentsTab } from "@/components/ledger/workspace/PaymentsTab";
 import { DocumentsTab } from "@/components/ledger/workspace/DocumentsTab";
+import { TasksTab } from "@/components/ledger/workspace/TasksTab";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
