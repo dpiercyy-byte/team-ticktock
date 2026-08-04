@@ -601,6 +601,12 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                   className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${statusStyles.pill}`}
                 >
                   ● {statusStyles.label}
+                  {weekStatus === "paid" && weekRow?.paidAt
+                    ? ` · ${new Date(weekRow.paidAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}`
+                    : ""}
                 </span>
               )}
             </div>
