@@ -1,31 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowRight, Plus } from "lucide-react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Plus, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobCard } from "@/components/ledger/JobCard";
-import { StatStrip } from "@/components/ledger/StatStrip";
-import { NextActionLine } from "@/components/ledger/NextActionLine";
-import {
-  formatCurrency,
-  JOURNEY,
-  relativeTime,
-  statusDotClass,
-  statusShort,
-  statusTone,
-} from "@/components/ledger/ledger-ui";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
-import { todayQuery } from "@/lib/crm-client";
-import { overdueTasksQuery } from "@/lib/tasks-client";
-import type { LedgerJob } from "@/lib/ledger.functions";
-import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/ledger/")({
   head: () => ({
     meta: [
-      { title: "Today — Ledger" },
-      { name: "description", content: "Your daily briefing across every job." },
-      { property: "og:title", content: "Today — Ledger" },
-      { property: "og:description", content: "Your daily briefing across every job." },
+      { title: "Jobs — Ledger" },
+      { name: "description", content: "Search every job by name or address." },
+      { property: "og:title", content: "Jobs — Ledger" },
+      { property: "og:description", content: "Search every job by name or address." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   loader: ({ context }) => {
@@ -34,262 +23,78 @@ export const Route = createFileRoute("/ledger/")({
   component: LedgerHome,
 });
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
-const ACTION_STATUSES = ["Lead", "Site Visit Required", "Estimate Required", "Waiting For Approval"];
+const ACTIVE_STATUSES = ["Active", "Scheduled"];
 
 function LedgerHome() {
   const { data: jobs } = useSuspenseQuery(ledgerJobsQuery());
-  const { data: today } = useQuery(todayQuery());
-  const followUps = today?.followUps ?? [];
-  const { data: overdueTasks } = useQuery(overdueTasksQuery());
-  const overdue = overdueTasks ?? [];
-  const active = jobs.filter((j) => j.status === "Active" || j.status === "Scheduled");
-  const onSite = jobs.filter((j) => j.workersOnSite > 0);
-  const needAction = jobs.filter((j) => ACTION_STATUSES.includes(j.status));
-  const owing = jobs.reduce((s, j) => s + Math.max(0, j.budget - j.collected), 0);
-  const recent = [...jobs]
-    .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
-    .slice(0, 3);
-  const date = new Date().toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  const [q, setQ] = useState("");
+
+  const { activeJobs, pastJobs } = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    const matches = (j: (typeof jobs)[number]) =>
+      !query ||
+      j.name.toLowerCase().includes(query) ||
+      j.client.name.toLowerCase().includes(query) ||
+      j.address.toLowerCase().includes(query);
+
+    const isActive = (j: (typeof jobs)[number]) => ACTIVE_STATUSES.includes(j.status);
+
+    const active = jobs.filter((j) => isActive(j) && matches(j));
+    const past = query ? jobs.filter((j) => !isActive(j) && matches(j)) : [];
+    return { activeJobs: active, pastJobs: past };
+  }, [jobs, q]);
+
+  const empty = activeJobs.length === 0 && pastJobs.length === 0;
 
   return (
     <LedgerShell>
-      <header className="mb-6">
-        <p className="text-[13px] font-medium l-muted">{date}</p>
-        <h1 className="mt-1 display text-[40px] leading-[1.02] md:text-5xl">{greeting()}</h1>
-      </header>
-
-      <Link
-        to="/ledger/jobs/new"
-        className="mb-6 flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 text-[16px] font-bold"
-        style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
-      >
-        <Plus className="h-5 w-5" /> New Job
-      </Link>
-
-      <StatStrip
-        items={[
-          { label: "Active", value: active.length, tone: "green" },
-          { label: "Needs action", value: needAction.length, tone: "accent" },
-          { label: "Total", value: jobs.length },
-        ]}
-      />
-
-      {overdue.length > 0 && (
-        <section className="mt-8">
-          <div className="mb-3 px-1">
-            <h2 className="l-eyebrow truncate">Overdue tasks</h2>
+      <div className="l-sticky-search sticky top-0 z-30 -mx-5 mb-5 px-5 pb-3 pt-1 md:-mx-8 md:px-8">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5">
+          <div className="l-input flex items-center gap-3 px-4 py-3">
+            <Search className="h-4 w-4 shrink-0 l-muted" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search job or address"
+              className="w-full bg-transparent text-[15px] outline-none placeholder:opacity-60"
+              aria-label="Search jobs"
+            />
           </div>
-          <div className="grid gap-3">
-            {overdue.slice(0, 6).map((t) => (
-              <Link
-                key={t.id}
-                to="/ledger/jobs/$jobId"
-                params={{ jobId: t.projectId }}
-                className="l-card block px-4 py-3.5"
-                style={{ background: "hsl(6 78% 97%)" }}
-              >
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                  <p className="truncate text-[14px] font-bold">{t.title}</p>
-                  <span className="shrink-0 text-[12px] font-semibold l-red">
-                    {t.daysOverdue === 0 ? "Due" : `${t.daysOverdue}d`}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-[12px] l-muted">
-                  {t.projectName}
-                  {t.assignedTo ? ` · ${t.assignedTo}` : ""}
-                </p>
-              </Link>
+          <Link
+            to="/ledger/jobs/new"
+            aria-label="New job"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-full"
+            style={{ background: "var(--l-ink)", color: "var(--l-on-ink)" }}
+          >
+            <Plus className="h-5 w-5" />
+          </Link>
+        </div>
+      </div>
+
+      <h1 className="sr-only">Jobs</h1>
+
+      {empty ? (
+        <div className="l-card px-6 py-16 text-center text-[13px] l-muted">
+          {q.trim() ? "No jobs match." : "No active jobs yet."}
+        </div>
+      ) : (
+        <div className="grid gap-3.5 md:grid-cols-2">
+          {activeJobs.map((j) => (
+            <JobCard key={j.id} job={j} />
+          ))}
+        </div>
+      )}
+
+      {pastJobs.length > 0 && (
+        <section className="mt-8">
+          <h2 className="l-eyebrow mb-3 px-1">Past jobs</h2>
+          <div className="grid gap-3.5 md:grid-cols-2">
+            {pastJobs.map((j) => (
+              <JobCard key={j.id} job={j} />
             ))}
           </div>
         </section>
       )}
-
-
-      <section className="mt-8">
-        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
-          <h2 className="l-eyebrow truncate">Follow-ups</h2>
-          <Link to="/ledger/pipeline" className="inline-flex min-h-[40px] shrink-0 items-center text-[12px] font-semibold l-muted">
-            Pipeline
-          </Link>
-        </div>
-        {followUps.length === 0 ? (
-          <EmptyLine text="No follow-ups due. Nice." />
-        ) : (
-          <div className="grid gap-3">
-            {followUps.slice(0, 6).map((c) => (
-              <Link
-                key={c.id}
-                to="/ledger/jobs/$jobId"
-                params={{ jobId: c.id }}
-                className="l-card block px-4 py-3.5"
-              >
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                  <p className="truncate text-[14px] font-bold">{c.clientName}</p>
-                  <span className="shrink-0 text-[12px] font-semibold l-muted">
-                    {c.salesStage}
-                  </span>
-                </div>
-                <NextActionLine card={c} className="mt-1.5" />
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
-          <h2 className="l-eyebrow truncate">Pipeline</h2>
-          <Link to="/ledger/jobs" className="shrink-0 text-[12px] font-semibold l-muted">
-            See all
-          </Link>
-        </div>
-        <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 tab-scroll md:-mx-8 md:px-8">
-          {JOURNEY.map((s) => {
-            const n = jobs.filter((j) => j.status === s).length;
-            return (
-              <Link
-                key={s}
-                to="/ledger/jobs"
-                search={{ stage: s }}
-                className="l-card flex shrink-0 items-center gap-2 px-3.5 py-2.5"
-              >
-                <span className={statusDotClass(s)} />
-                <span className="text-[12px] font-semibold">{statusShort(s)}</span>
-                <span className="text-[12px] font-bold tabular-nums l-muted">{n}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {onSite.length > 0 && (
-        <Section title="On site now">
-          <div className="grid gap-3">
-            {onSite.map((j) => (
-              <LiveRow key={j.id} job={j} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      <Section title="Active jobs" action={{ to: "/ledger/jobs", label: "See all" }}>
-        {active.length === 0 ? (
-          <EmptyLine text="Nothing moving today." />
-        ) : (
-          <div className="grid gap-3">
-            {active.slice(0, 3).map((j) => (
-              <JobCard key={j.id} job={j} />
-            ))}
-          </div>
-        )}
-      </Section>
-
-      <Section title="Requires action">
-        {needAction.length === 0 ? (
-          <EmptyLine text="You're all caught up." />
-        ) : (
-          <div className="grid gap-3">
-            {needAction.map((j) => (
-              <MiniRow key={j.id} job={j} right={<span className={statusTone(j.status)}>{statusShort(j.status)}</span>} />
-            ))}
-          </div>
-        )}
-      </Section>
-
-      <Section title={`Outstanding · ${formatCurrency(owing)}`}>
-        <div className="grid gap-3">
-          {recent.map((j) => (
-            <MiniRow
-              key={j.id}
-              job={j}
-              right={
-                <span className="text-[12px] font-semibold tabular-nums l-muted">
-                  {relativeTime(j.updatedAt)}
-                </span>
-              }
-            />
-          ))}
-        </div>
-      </Section>
     </LedgerShell>
-  );
-}
-
-function Section({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: { to: "/ledger/jobs"; label: string };
-  children: ReactNode;
-}) {
-  return (
-    <section className="mt-8">
-      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 px-1">
-        <h2 className="l-eyebrow truncate">{title}</h2>
-        {action && (
-          <Link to={action.to} className="shrink-0 text-[12px] font-semibold l-muted">
-            {action.label}
-          </Link>
-        )}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function LiveRow({ job }: { job: LedgerJob }) {
-  return (
-    <Link
-      to="/ledger/jobs/$jobId"
-      params={{ jobId: job.id }}
-      className="l-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5"
-      style={{ background: "hsl(152 46% 96%)" }}
-    >
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="l-dot l-s-active-bg" />
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-bold">{job.name}</p>
-          <p className="truncate text-[12px] l-muted">
-            {job.workersOnSite} worker{job.workersOnSite === 1 ? "" : "s"} on the clock
-          </p>
-        </div>
-      </div>
-      <ArrowRight className="h-4 w-4 shrink-0 l-muted" />
-    </Link>
-  );
-}
-
-function MiniRow({ job, right }: { job: LedgerJob; right: ReactNode }) {
-  return (
-    <Link
-      to="/ledger/jobs/$jobId"
-      params={{ jobId: job.id }}
-      className="l-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5"
-    >
-      <div className="min-w-0">
-        <p className="truncate text-[14px] font-bold">{job.name}</p>
-        <p className="truncate text-[12px] l-muted">{job.client.name}</p>
-      </div>
-      <span className="shrink-0">{right}</span>
-    </Link>
-  );
-}
-
-function EmptyLine({ text }: { text: string }) {
-  return (
-    <div className="l-card px-4 py-8 text-center text-[13px] l-muted">{text}</div>
   );
 }

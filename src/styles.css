@@ -509,6 +509,10 @@
   border-radius: 999px;
   box-shadow: var(--shadow-card);
 }
+.ledger-scope .l-sticky-search {
+  background: var(--l-bg);
+}
+
 .ledger-scope .l-seg {
   background: var(--l-surface-2);
   color: var(--l-muted);
