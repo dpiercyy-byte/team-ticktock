@@ -651,7 +651,7 @@ export const workerListActiveClientSites = createServerFn({ method: "POST" })
     requireWorker(data.token);
     const { data: rows, error } = await supabaseAdmin
       .from("job_sites")
-      .select("id, label")
+      .select("id, label, lat, lng, radius_m")
       .eq("kind", "client")
       .is("archived_at", null)
       .is("completed_at", null)
