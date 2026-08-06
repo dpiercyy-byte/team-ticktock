@@ -4,6 +4,50 @@ import { supabaseAdmin } from "./db.server";
 import { requireWorker, requireAdmin } from "./auth.server";
 import { resolveSite, type GeoStatus } from "./geo.server";
 import { logAudit } from "./audit.server";
+import { fiftyFiftySplit, allocationToSegments, type SegmentDraft } from "./segment-math";
+
+/* ---------------- Shift segments ----------------
+   A shift is a container of segments. Each segment carries its own site tag so
+   labour lands on the project the worker was actually standing on. */
+
+async function insertSegment(entryId: string, draft: SegmentDraft, lat?: number | null, lng?: number | null) {
+  const { error } = await (supabaseAdmin.from("time_entry_segments") as any).insert({
+    entry_id: entryId,
+    started_at: draft.started_at,
+    ended_at: draft.ended_at,
+    job_site_id: draft.job_site_id,
+    geo_status: draft.geo_status,
+    source: draft.source,
+    lat: lat ?? null,
+    lng: lng ?? null,
+  });
+  if (error) throw error;
+}
+
+async function listSegments(entryId: string) {
+  const { data } = await (supabaseAdmin.from("time_entry_segments") as any)
+    .select("id, entry_id, started_at, ended_at, job_site_id, geo_status, source")
+    .eq("entry_id", entryId)
+    .order("started_at", { ascending: true });
+  return (data ?? []) as Array<{
+    id: string; entry_id: string; started_at: string; ended_at: string | null;
+    job_site_id: string | null; geo_status: string | null; source: string;
+  }>;
+}
+
+async function closeOpenSegments(entryId: string, endISO: string) {
+  const { error } = await (supabaseAdmin.from("time_entry_segments") as any)
+    .update({ ended_at: endISO })
+    .eq("entry_id", entryId)
+    .is("ended_at", null);
+  if (error) throw error;
+}
+
+async function replaceSegments(entryId: string, drafts: SegmentDraft[]) {
+  await (supabaseAdmin.from("time_entry_segments") as any).delete().eq("entry_id", entryId);
+  for (const d of drafts) await insertSegment(entryId, d);
+}
+
 
 
 
@@ -66,13 +110,17 @@ export const getWorkerState = createServerFn({ method: "POST" })
       if (new Date(r.clock_in) >= dayStart) todayHours += h;
     }
 
+    const segments = active?.id ? await hydrateSegments(active.id) : [];
+
     return {
       worker,
       active,
+      segments,
       todayHours,
       weekHours,
       settings,
     };
+
   });
 
 
@@ -120,6 +168,14 @@ export const clockIn = createServerFn({ method: "POST" })
       planned_job_site_id: plannedId,
     }).select("id").single();
     if (error) throw error;
+    if (inserted?.id) {
+      await insertSegment(
+        inserted.id,
+        { started_at: ts.iso, ended_at: null, job_site_id: geo.jobSiteId, geo_status: geo.status, source: "clock_in" },
+        data.lat, data.lng,
+      );
+    }
+
     await logAudit({
       actor: { kind: "worker", id: wid },
       action: "clock_in",
@@ -150,9 +206,31 @@ export const clockOut = createServerFn({ method: "POST" })
     if (new Date(outISO) <= new Date(active.clock_in)) {
       outISO = new Date(new Date(active.clock_in).getTime() + 60_000).toISOString();
     }
-    const flagged = new Date(outISO).getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
+    const longShift = new Date(outISO).getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
     const geo = await resolveSite(data.lat, data.lng);
     const outTag = resolvedClockOutTag(geo, active);
+
+    // Close the open segment, then fall back to a 50/50 split when the worker
+    // started and ended at different client sites without ever switching.
+    await closeOpenSegments(active.id, outISO);
+    const segs = await listSegments(active.id);
+    let autoSplit = false;
+    if (segs.length <= 1) {
+      const split = fiftyFiftySplit({
+        clockIn: active.clock_in,
+        clockOut: outISO,
+        inSiteId: active.job_site_id,
+        inStatus: active.geo_status,
+        outSiteId: outTag.jobSiteId,
+        outStatus: outTag.status,
+      });
+      if (split) {
+        await replaceSegments(active.id, split);
+        autoSplit = true;
+      }
+    }
+    const flagged = longShift || autoSplit;
+
     const { error } = await supabaseAdmin.from("time_entries")
       .update({
         clock_out: outISO,
@@ -164,6 +242,17 @@ export const clockOut = createServerFn({ method: "POST" })
       })
       .eq("id", active.id);
     if (error) throw error;
+    if (autoSplit) {
+      await logAudit({
+        actor: { kind: "system" },
+        action: "entry_auto_split",
+        entityType: "time_entry",
+        entityId: active.id,
+        after: { in_site: active.job_site_id, out_site: outTag.jobSiteId, split: "50/50" },
+        metadata: { needs_allocation: true },
+      });
+    }
+
     await logAudit({
       actor: { kind: "worker", id: wid },
       action: "clock_out",
@@ -186,7 +275,7 @@ export const clockOut = createServerFn({ method: "POST" })
     const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
     // (Ledger sync removed — Ledger is being rebuilt.)
 
-    return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob };
+    return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob, autoSplit };
   });
 
 
@@ -214,6 +303,9 @@ export async function forceCloseEntry(opts: {
   const flagged = new Date(outISO).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS;
   const mirroredStatus = row.geo_status ?? "no_gps";
   const mirroredSite = row.job_site_id ?? null;
+
+  await closeOpenSegments(opts.entryId, outISO);
+
 
   const { error } = await supabaseAdmin.from("time_entries").update({
     clock_out: outISO,
@@ -317,19 +409,49 @@ export const adminListEntries = createServerFn({ method: "POST" })
     if (error) throw error;
 
     // Hydrate assigned site labels in stack order
-    const allIds = Array.from(new Set((rows ?? []).flatMap((r: any) => r.assigned_job_site_ids ?? [])));
+    const entryIds = (rows ?? []).map((r: any) => r.id);
+    const { data: segRows } = entryIds.length
+      ? await (supabaseAdmin.from("time_entry_segments") as any)
+          .select("id, entry_id, started_at, ended_at, job_site_id, geo_status, source")
+          .in("entry_id", entryIds)
+          .order("started_at", { ascending: true })
+      : { data: [] as any[] };
+
+    const allIds = Array.from(new Set([
+      ...(rows ?? []).flatMap((r: any) => r.assigned_job_site_ids ?? []),
+      ...((segRows ?? []) as any[]).map((s) => s.job_site_id).filter(Boolean),
+    ]));
     let siteMap = new Map<string, { id: string; label: string }>();
     if (allIds.length) {
       const { data: sites } = await supabaseAdmin.from("job_sites").select("id, label").in("id", allIds);
       siteMap = new Map((sites ?? []).map((s: any) => [s.id, { id: s.id, label: s.label }]));
+    }
+    const segsByEntry = new Map<string, any[]>();
+    for (const s of ((segRows ?? []) as any[])) {
+      const list = segsByEntry.get(s.entry_id) ?? [];
+      list.push({
+        id: s.id,
+        startedAt: s.started_at,
+        endedAt: s.ended_at,
+        jobSiteId: s.job_site_id,
+        label: s.job_site_id ? siteMap.get(s.job_site_id)?.label ?? "Unknown site" : "Off site",
+        geoStatus: s.geo_status,
+        source: s.source,
+        hours: Math.round(
+          (((s.ended_at ? new Date(s.ended_at).getTime() : Date.now()) - new Date(s.started_at).getTime()) / 3600_000) * 100,
+        ) / 100,
+      });
+      segsByEntry.set(s.entry_id, list);
     }
     const entries = (rows ?? []).map((r: any) => ({
       ...r,
       assigned_sites: (r.assigned_job_site_ids ?? [])
         .map((id: string) => siteMap.get(id))
         .filter(Boolean),
+      segments: segsByEntry.get(r.id) ?? [],
     }));
     return { ...refreshed, entries };
+
   });
 
 
@@ -529,7 +651,7 @@ export const workerListActiveClientSites = createServerFn({ method: "POST" })
     requireWorker(data.token);
     const { data: rows, error } = await supabaseAdmin
       .from("job_sites")
-      .select("id, label")
+      .select("id, label, lat, lng, radius_m")
       .eq("kind", "client")
       .is("archived_at", null)
       .is("completed_at", null)
@@ -604,3 +726,166 @@ export const adminUpdateEntryPlannedJob = createServerFn({ method: "POST" })
     return refreshed;
   });
 
+
+// === Site switching (worker changed job sites mid-shift) ===
+
+export const workerListShiftSegments = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({ token: z.string(), entryId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const { data: row } = await supabaseAdmin
+      .from("time_entries").select("id, worker_id").eq("id", data.entryId).maybeSingle();
+    if (!row || row.worker_id !== wid) throw new Response("Not found", { status: 404 });
+    return { segments: await hydrateSegments(data.entryId) };
+  });
+
+async function hydrateSegments(entryId: string) {
+  const segs = await listSegments(entryId);
+  const ids = Array.from(new Set(segs.map((s) => s.job_site_id).filter(Boolean))) as string[];
+  let labels = new Map<string, string>();
+  if (ids.length) {
+    const { data: sites } = await supabaseAdmin.from("job_sites").select("id, label").in("id", ids);
+    labels = new Map((sites ?? []).map((s: any) => [s.id, s.label as string]));
+  }
+  return segs.map((s) => ({
+    id: s.id,
+    startedAt: s.started_at,
+    endedAt: s.ended_at,
+    jobSiteId: s.job_site_id,
+    label: s.job_site_id ? labels.get(s.job_site_id) ?? "Unknown site" : "Off site",
+    geoStatus: s.geo_status,
+    source: s.source,
+  }));
+}
+
+export const workerSwitchSite = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    lat: z.number().finite().optional().nullable(),
+    lng: z.number().finite().optional().nullable(),
+    jobSiteId: z.string().uuid().nullable().optional(),
+    clientTimestamp: z.string().datetime().optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const { data: active } = await supabaseAdmin
+      .from("time_entries").select("id, clock_in").eq("worker_id", wid).is("clock_out", null).maybeSingle();
+    if (!active) throw new Response("Not clocked in", { status: 400 });
+
+    const ts = resolveClientTimestamp(data.clientTimestamp);
+    let atISO = ts.iso;
+    const segs = await listSegments(active.id);
+    const open = segs.find((s) => !s.ended_at);
+    const floor = open ? new Date(open.started_at).getTime() : new Date(active.clock_in).getTime();
+    if (new Date(atISO).getTime() <= floor + 60_000) atISO = new Date(floor + 60_000).toISOString();
+
+    // Resolve the new site: explicit pick wins, otherwise GPS.
+    let status: GeoStatus = "no_gps";
+    let siteId: string | null = null;
+    let label: string | null = null;
+    if (data.jobSiteId) {
+      const { data: s } = await supabaseAdmin.from("job_sites")
+        .select("label, kind, archived_at, completed_at").eq("id", data.jobSiteId).maybeSingle();
+      if (!s || s.archived_at) throw new Response("Invalid job site", { status: 400 });
+      siteId = data.jobSiteId;
+      label = s.label;
+      status = s.kind === "supplier" ? "supplier" : s.completed_at ? "callback" : "verified";
+    } else {
+      const geo = await resolveSite(data.lat, data.lng);
+      status = geo.status;
+      siteId = geo.jobSiteId;
+      label = geo.siteLabel;
+    }
+
+    if (open && open.job_site_id === siteId) {
+      return { ok: true, unchanged: true, segments: await hydrateSegments(active.id) };
+    }
+
+    await closeOpenSegments(active.id, atISO);
+    await insertSegment(
+      active.id,
+      { started_at: atISO, ended_at: null, job_site_id: siteId, geo_status: status, source: "switch" },
+      data.lat, data.lng,
+    );
+    // Keep the entry's live tag pointing at where they are now.
+    await supabaseAdmin.from("time_entries")
+      .update({ geo_status: status, job_site_id: siteId })
+      .eq("id", active.id);
+
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "entry_site_switch",
+      entityType: "time_entry",
+      entityId: active.id,
+      before: { job_site_id: open?.job_site_id ?? null },
+      after: { job_site_id: siteId, job_site_label: label, geo_status: status, at: atISO },
+      metadata: ts.backdated ? { offline_sync: true, client_timestamp: data.clientTimestamp } : undefined,
+    });
+
+    return {
+      ok: true,
+      unchanged: false,
+      geo: { status, jobSiteId: siteId, siteLabel: label },
+      segments: await hydrateSegments(active.id),
+    };
+  });
+
+// === Admin allocation ===
+
+export const adminGetEntrySegments = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ entryId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    return { ...refreshed, segments: await hydrateSegments(data.entryId) };
+  });
+
+export const adminSetEntryAllocation = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({
+    entryId: z.string().uuid(),
+    allocations: z.array(z.object({
+      jobSiteId: z.string().uuid().nullable(),
+      hours: z.number().finite().min(0),
+    })).min(1).max(6),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: row } = await supabaseAdmin
+      .from("time_entries").select("id, clock_in, clock_out, flagged_review").eq("id", data.entryId).maybeSingle();
+    if (!row) throw new Response("Entry not found", { status: 404 });
+    if (!row.clock_out) throw new Response("Entry is still open", { status: 400 });
+
+    const siteIds = data.allocations.map((a) => a.jobSiteId).filter(Boolean) as string[];
+    const statusById = new Map<string, string>();
+    if (siteIds.length) {
+      const { data: sites } = await supabaseAdmin.from("job_sites").select("id, kind, completed_at").in("id", siteIds);
+      for (const s of (sites ?? []) as any[]) {
+        statusById.set(s.id, s.kind === "supplier" ? "supplier" : s.completed_at ? "callback" : "verified");
+      }
+    }
+
+    let drafts: SegmentDraft[];
+    try {
+      drafts = allocationToSegments(row.clock_in, row.clock_out, data.allocations.map((a) => ({
+        jobSiteId: a.jobSiteId,
+        hours: a.hours,
+        geoStatus: a.jobSiteId ? statusById.get(a.jobSiteId) ?? "verified" : "off_site",
+      })));
+    } catch (e: any) {
+      throw new Response(e?.message ?? "Invalid allocation", { status: 400 });
+    }
+
+    const before = await listSegments(data.entryId);
+    await replaceSegments(data.entryId, drafts);
+    await supabaseAdmin.from("time_entries").update({ flagged_review: false }).eq("id", data.entryId);
+
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "entry_allocation_set",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { segments: before.map((s) => ({ site: s.job_site_id, from: s.started_at, to: s.ended_at })) },
+      after: { segments: drafts.map((s) => ({ site: s.job_site_id, from: s.started_at, to: s.ended_at })) },
+    });
+
+    return { ...refreshed, segments: await hydrateSegments(data.entryId) };
+  });

@@ -86,6 +86,7 @@ import {
   ArrowLeft,
   Clock,
   SlidersHorizontal,
+  Split,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -123,6 +124,7 @@ import {
   adminUpdateEntryPlannedJob,
   adminForceClockOut,
 } from "@/lib/entries.functions";
+import { AllocationDialog } from "@/components/admin/AllocationDialog";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
@@ -463,6 +465,7 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [confirmForce, setConfirmForce] = useState<string | null>(null);
+  const [allocating, setAllocating] = useState<any | null>(null);
   const [weekStart, setWeekStart] = useState<string>(() => startOfWeekISO());
   const [calOpen, setCalOpen] = useState(false);
 
@@ -776,6 +779,17 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                               </div>
                             </div>
 
+                            {e.segments && e.segments.length > 1 && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {e.segments.map((sg: any) => (
+                                  <span key={sg.id}
+                                        className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[10px] tabular-nums">
+                                    {sg.label} · {fmtHours(sg.hours)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
                             {e.offsite_reason_code && (
                               <p className="text-[11px] text-muted-foreground italic mt-1 truncate max-w-full">
                                 {reasonLabel(e.offsite_reason_code)}
@@ -791,6 +805,12 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
                                 onClick={() => setConfirmForce(e.id)}
                               >
                                 <PowerOff className="h-4 w-4 text-warning" />
+                              </Button>
+                            )}
+                            {e.clock_out && (
+                              <Button variant="ghost" size="icon" title="Split hours across sites"
+                                      onClick={() => setAllocating(e)}>
+                                <Split className={`h-4 w-4 ${e.flagged_review ? "text-warning" : ""}`} />
                               </Button>
                             )}
                             <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
@@ -901,6 +921,14 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
             toast.error(e?.message || "Failed");
           }
         }}
+      />
+      <AllocationDialog
+        entry={allocating}
+        sites={(sitesQ.data ?? []) as any}
+        token={token}
+        onToken={updateToken}
+        onClose={() => setAllocating(null)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["entries", workerId] })}
       />
       {editing && (
         <EntryDialog

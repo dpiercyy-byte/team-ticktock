@@ -1144,6 +1144,63 @@ export type Database = {
           },
         ]
       }
+      time_entry_segments: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          entry_id: string
+          geo_status: string | null
+          id: string
+          job_site_id: string | null
+          lat: number | null
+          lng: number | null
+          source: string
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          entry_id: string
+          geo_status?: string | null
+          id?: string
+          job_site_id?: string | null
+          lat?: number | null
+          lng?: number | null
+          source?: string
+          started_at: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          entry_id?: string
+          geo_status?: string | null
+          id?: string
+          job_site_id?: string | null
+          lat?: number | null
+          lng?: number | null
+          source?: string
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entry_segments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entry_segments_job_site_id_fkey"
+            columns: ["job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_payouts: {
         Row: {
           actual_paid: number | null

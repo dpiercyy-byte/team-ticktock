@@ -3,6 +3,8 @@
 // workspace can never disagree with Clockwise.
 
 import { hoursBetween } from "./payout-math";
+import { segmentHours, type RawSegment } from "./segment-math";
+
 
 export type RawTimeEntry = {
   id: string;
@@ -29,6 +31,9 @@ export type LabourRow = {
   open: boolean;
   flagged: boolean;
   geoStatus: string | null;
+  /** True when the shift was split across more than one site. */
+  partial?: boolean;
+
 };
 
 export type RawReceipt = {
@@ -110,14 +115,31 @@ export function buildLabourRows(
   entries: RawTimeEntry[],
   workers: RawWorker[],
   now: number = Date.now(),
+  opts?: { segments?: RawSegment[]; siteIds?: string[] },
 ): LabourRow[] {
   const byId = new Map(workers.map((w) => [w.id, w]));
+  const siteSet = opts?.siteIds ? new Set(opts.siteIds) : null;
+  const segsByEntry = new Map<string, RawSegment[]>();
+  for (const s of opts?.segments ?? []) {
+    const list = segsByEntry.get(s.entry_id) ?? [];
+    list.push(s);
+    segsByEntry.set(s.entry_id, list);
+  }
   return entries
     .map((e) => {
       const w = byId.get(e.worker_id);
       const rate = num(w?.hourly_rate);
       const end = e.clock_out ?? new Date(now).toISOString();
-      const hours = Math.max(0, hoursBetween(e.clock_in, end));
+      let hours = Math.max(0, hoursBetween(e.clock_in, end));
+      let partial = false;
+      const segs = segsByEntry.get(e.id);
+      if (segs && segs.length > 0) {
+        // Charge only the time actually spent at this project's sites.
+        const scoped = siteSet ? segs.filter((s) => s.job_site_id && siteSet.has(s.job_site_id)) : segs;
+        const segHours = scoped.reduce((sum, s) => sum + segmentHours(s, now), 0);
+        partial = segs.length > 1;
+        hours = segHours;
+      }
       return {
         id: e.id,
         workerId: e.worker_id,
@@ -131,10 +153,13 @@ export function buildLabourRows(
         open: !e.clock_out,
         flagged: Boolean(e.flagged_review),
         geoStatus: e.geo_status ?? null,
+        partial,
       };
     })
+    .filter((r) => r.hours > 0 || r.open)
     .sort((a, b) => +new Date(b.clockIn) - +new Date(a.clockIn));
 }
+
 
 export function labourTotals(rows: LabourRow[]) {
   return rows.reduce(

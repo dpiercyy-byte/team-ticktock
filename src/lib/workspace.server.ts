@@ -16,6 +16,7 @@ import {
   type RawTimeEntry,
   type RawWorker,
 } from "./workspace-math";
+import type { RawSegment } from "./segment-math";
 import {
   projectFinancials,
   financeFingerprint,
@@ -58,6 +59,7 @@ export async function loadWorkspace(projectId: string) {
   const siteIds = sites.map((s) => s.id as string);
 
   let entries: RawTimeEntry[] = [];
+  let segments: RawSegment[] = [];
   let receipts: RawReceipt[] = [];
   let payments: RawPayment[] = [];
   let documents: ProjectDocument[] = [];
@@ -74,6 +76,14 @@ export async function loadWorkspace(projectId: string) {
       .limit(1000);
     if (eErr) throw eErr;
     entries = (eRows ?? []) as unknown as RawTimeEntry[];
+
+    // Segment-level tags: only the hours actually spent on this project's sites.
+    if (entries.length > 0) {
+      const { data: segRows } = await (supabaseAdmin.from("time_entry_segments") as any)
+        .select("id, entry_id, started_at, ended_at, job_site_id, geo_status, source")
+        .in("entry_id", entries.map((e) => e.id));
+      segments = (segRows ?? []) as RawSegment[];
+    }
 
     const { data: rRows, error: rErr } = await supabaseAdmin
       .from("reimbursements")
@@ -180,7 +190,7 @@ export async function loadWorkspace(projectId: string) {
     .limit(500);
   if (evErr) throw evErr;
 
-  const labour = buildLabourRows(entries, workers);
+  const labour = buildLabourRows(entries, workers, Date.now(), { segments, siteIds });
   const costs = buildCostRows(receipts, workers);
   const paymentRows = buildPaymentRows(payments);
   const lTotals = labourTotals(labour);
