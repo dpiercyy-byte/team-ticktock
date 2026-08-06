@@ -3643,6 +3643,7 @@ function PendingPayoutsView({
     owed: number;
   } | null>(null);
   const [payAmt, setPayAmt] = useState("");
+  const [payer, setPayer] = useState<"Michael" | "Dylan" | null>(null);
   const [paySubmitting, setPaySubmitting] = useState(false);
 
   const q = useQuery({
@@ -3660,7 +3661,7 @@ function PendingPayoutsView({
       updateToken(r.token);
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
       qc.invalidateQueries({ queryKey: ["payout"] });
-      toast.success("Marked unpaid");
+      toast.warning("Marked unpaid — remove the Cash Tracking row manually if one was added.");
     } catch (e: any) {
       toast.error(e?.message || "Failed");
     }
@@ -3673,6 +3674,10 @@ function PendingPayoutsView({
       toast.error("Enter a valid amount");
       return;
     }
+    if (!payer) {
+      toast.error("Choose who paid");
+      return;
+    }
     setPaySubmitting(true);
     try {
       const r = await markFn({
@@ -3681,14 +3686,22 @@ function PendingPayoutsView({
           workerId: payDialog.workerId,
           weekStart: payDialog.weekStart,
           actualPaid: n,
+          paidByPerson: payer,
         },
       });
       updateToken(r.token);
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
       qc.invalidateQueries({ queryKey: ["payout"] });
-      toast.success("Marked paid");
+      if (r.sheetError) {
+        toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
+      } else if (r.sheetRow) {
+        toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
+      } else {
+        toast.success("Marked paid");
+      }
       setPayDialog(null);
       setPayAmt("");
+      setPayer(null);
     } catch (e: any) {
       toast.error(e?.message || "Failed");
     } finally {
@@ -3802,6 +3815,7 @@ function PendingPayoutsView({
                       {row.status === "paid" && row.actualPaid != null
                         ? ` · cash ${fmtMoney(row.actualPaid)}`
                         : ""}
+                      {row.paidByPerson ? ` · by ${row.paidByPerson}` : ""}
                     </p>
                   </div>
                   <div className="text-right">
@@ -3842,6 +3856,7 @@ function PendingPayoutsView({
           if (!o && !paySubmitting) {
             setPayDialog(null);
             setPayAmt("");
+            setPayer(null);
           }
         }}
       >
@@ -3860,6 +3875,21 @@ function PendingPayoutsView({
                   <span className="text-xs text-muted-foreground">Owed</span>
                   <span className="font-semibold tabular-nums">{fmtMoney(payDialog.owed)}</span>
                 </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Paid by</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["Michael", "Dylan"] as const).map((p) => (
+                    <Button
+                      key={p}
+                      type="button"
+                      variant={payer === p ? "default" : "outline"}
+                      onClick={() => setPayer(p)}
+                    >
+                      {p}
+                    </Button>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cash-paid" className="text-xs">
@@ -3902,6 +3932,7 @@ function PendingPayoutsView({
               onClick={() => {
                 setPayDialog(null);
                 setPayAmt("");
+                setPayer(null);
               }}
             >
               Cancel
@@ -3909,7 +3940,11 @@ function PendingPayoutsView({
             <Button
               onClick={submitPay}
               disabled={
-                paySubmitting || !payAmt || !isFinite(parseFloat(payAmt)) || parseFloat(payAmt) < 0
+                paySubmitting ||
+                !payer ||
+                !payAmt ||
+                !isFinite(parseFloat(payAmt)) ||
+                parseFloat(payAmt) < 0
               }
             >
               {paySubmitting ? "Saving…" : "Confirm paid"}
