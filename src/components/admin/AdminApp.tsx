@@ -5384,7 +5384,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   );
 }
 
-type GeoStatus = "verified" | "supplier" | "off_site" | "no_gps";
+type GeoStatus = "verified" | "callback" | "supplier" | "off_site" | "no_gps";
 
 const REASON_LABELS: Record<string, string> = {
   material_pickup: "Material pickup",
