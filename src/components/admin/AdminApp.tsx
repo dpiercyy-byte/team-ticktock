@@ -4836,7 +4836,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
       }),
   });
 
-  const [view, setView] = useState<"client" | "supplier" | "archived">("client");
+  const [view, setView] = useState<"client" | "completed" | "supplier" | "archived">("client");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"client" | "supplier">("client");
@@ -4945,10 +4945,12 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     const term = search.trim().toLowerCase();
     return all.filter((s: any) => {
       const isArchived = !!s.archived_at;
+      const isCompleted = !!s.completed_at;
       const k = s.kind ?? "client";
       if (view === "archived" && !isArchived) return false;
       if (view !== "archived" && isArchived) return false;
-      if (view === "client" && k !== "client") return false;
+      if (view === "client" && (k !== "client" || isCompleted)) return false;
+      if (view === "completed" && (k !== "client" || !isCompleted)) return false;
       if (view === "supplier" && k !== "supplier") return false;
       if (!term) return true;
       return (
@@ -4960,14 +4962,16 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
 
   const counts = useMemo(() => {
     let client = 0,
+      completed = 0,
       supplier = 0,
       archived = 0;
     for (const s of all as any[]) {
       if (s.archived_at) archived++;
       else if ((s.kind ?? "client") === "supplier") supplier++;
+      else if (s.completed_at) completed++;
       else client++;
     }
-    return { client, supplier, archived };
+    return { client, completed, supplier, archived };
   }, [all]);
 
   return (
@@ -5092,7 +5096,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
 
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="inline-flex rounded-md border bg-card p-0.5 text-xs w-fit">
-          {(["client", "supplier", "archived"] as const).map((v) => (
+          {(["client", "completed", "supplier", "archived"] as const).map((v) => (
             <button
               key={v}
               type="button"
@@ -5101,9 +5105,11 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
             >
               {v === "client"
                 ? `Active jobs (${counts.client})`
-                : v === "supplier"
-                  ? `Suppliers (${counts.supplier})`
-                  : `Archived (${counts.archived})`}
+                : v === "completed"
+                  ? `Completed (${counts.completed})`
+                  : v === "supplier"
+                    ? `Suppliers (${counts.supplier})`
+                    : `Archived (${counts.archived})`}
             </button>
           ))}
         </div>
