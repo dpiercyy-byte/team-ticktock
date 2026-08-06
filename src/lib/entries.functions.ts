@@ -202,9 +202,31 @@ export const clockOut = createServerFn({ method: "POST" })
     if (new Date(outISO) <= new Date(active.clock_in)) {
       outISO = new Date(new Date(active.clock_in).getTime() + 60_000).toISOString();
     }
-    const flagged = new Date(outISO).getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
+    const longShift = new Date(outISO).getTime() - new Date(active.clock_in).getTime() > FOURTEEN_HOURS_MS;
     const geo = await resolveSite(data.lat, data.lng);
     const outTag = resolvedClockOutTag(geo, active);
+
+    // Close the open segment, then fall back to a 50/50 split when the worker
+    // started and ended at different client sites without ever switching.
+    await closeOpenSegments(active.id, outISO);
+    const segs = await listSegments(active.id);
+    let autoSplit = false;
+    if (segs.length <= 1) {
+      const split = fiftyFiftySplit({
+        clockIn: active.clock_in,
+        clockOut: outISO,
+        inSiteId: active.job_site_id,
+        inStatus: active.geo_status,
+        outSiteId: outTag.jobSiteId,
+        outStatus: outTag.status,
+      });
+      if (split) {
+        await replaceSegments(active.id, split);
+        autoSplit = true;
+      }
+    }
+    const flagged = longShift || autoSplit;
+
     const { error } = await supabaseAdmin.from("time_entries")
       .update({
         clock_out: outISO,
@@ -216,6 +238,17 @@ export const clockOut = createServerFn({ method: "POST" })
       })
       .eq("id", active.id);
     if (error) throw error;
+    if (autoSplit) {
+      await logAudit({
+        actor: { kind: "system" },
+        action: "entry_auto_split",
+        entityType: "time_entry",
+        entityId: active.id,
+        after: { in_site: active.job_site_id, out_site: outTag.jobSiteId, split: "50/50" },
+        metadata: { needs_allocation: true },
+      });
+    }
+
     await logAudit({
       actor: { kind: "worker", id: wid },
       action: "clock_out",
