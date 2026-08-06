@@ -31,6 +31,9 @@ export type LabourRow = {
   open: boolean;
   flagged: boolean;
   geoStatus: string | null;
+  /** True when the shift was split across more than one site. */
+  partial?: boolean;
+
 };
 
 export type RawReceipt = {
