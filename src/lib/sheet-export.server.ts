@@ -24,6 +24,8 @@ async function gw(url: string, init?: RequestInit) {
 const ENTRIES_HEADERS = [
   "Date", "Clock In", "Clock Out", "Hours", "Project",
   "Clock-In Tag", "Clock-Out Tag", "Geo Status", "Flagged", "Entry ID",
+  // App-owned tail column: only filled when the entry resolves to a project.
+  "Project ID",
 ];
 const PAYOUTS_HEADERS = [
   "Week Start", "Hours", "Wages", "Reimbursements", "Tips",
@@ -156,8 +158,11 @@ export async function runWorkerSheetExport(): Promise<{
   const propByTitle = new Map(props.map((p) => [p.title, p.sheetId]));
 
   // Fetch site labels for project resolution
-  const { data: sites } = await supabaseAdmin.from("job_sites").select("id, label");
+  const { data: sites } = await supabaseAdmin.from("job_sites").select("id, label, project_id");
   const siteById = new Map((sites ?? []).map((s) => [s.id, s.label]));
+  const projectBySite = new Map(
+    (sites ?? []).map((s) => [s.id, (s as { project_id: string | null }).project_id ?? ""]),
+  );
 
   let totalEntries = 0;
   let totalPayouts = 0;
@@ -187,6 +192,9 @@ export async function runWorkerSheetExport(): Promise<{
         e.geo_status || "",
         e.flagged_review ? "yes" : "",
         e.id,
+        (e.job_site_id ? projectBySite.get(e.job_site_id) : "") ||
+          (e.clock_out_job_site_id ? projectBySite.get(e.clock_out_job_site_id) : "") ||
+          "",
       ]);
     }
     await writeTab(sheetId, w.entriesTab, eRows);
