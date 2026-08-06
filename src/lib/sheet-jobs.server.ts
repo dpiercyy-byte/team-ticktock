@@ -176,7 +176,7 @@ async function createProjectFromSheet(
       property_id: propertyId,
       project_type: "renovation",
       trades: [],
-      status: "active",
+      status: "Active",
       sales_stage: "won",
       delivery_status: "in_progress",
       budget_cents: dollarsToCents(contract),
