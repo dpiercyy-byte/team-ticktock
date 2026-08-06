@@ -158,6 +158,7 @@ import {
   adminUpdateJobSite,
   adminDeleteJobSite,
   adminArchiveJobSite,
+  adminSetJobSiteCompleted,
   adminSearchPlaces,
   adminBulkAddJobSites,
 } from "@/lib/jobsites.functions";
@@ -4825,6 +4826,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   const updFn = useServerFn(adminUpdateJobSite);
   const delFn = useServerFn(adminDeleteJobSite);
   const archFn = useServerFn(adminArchiveJobSite);
+  const completeFn = useServerFn(adminSetJobSiteCompleted);
   const qc = useQueryClient();
 
   const q = useQuery({
@@ -4935,6 +4937,16 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     onSuccess: (r, vars) => {
       updateToken(r.token);
       toast.success(vars.archived ? "Job archived" : "Job restored");
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed"),
+  });
+
+  const completeMut = useMutation({
+    mutationFn: (v: { id: string; completed: boolean }) => completeFn({ data: { token, ...v } }),
+    onSuccess: (r, vars) => {
+      updateToken(r.token);
+      toast.success(vars.completed ? "Moved to Completed" : "Job reopened");
       qc.invalidateQueries({ queryKey: ["job-sites"] });
     },
     onError: (e: any) => toast.error(e?.message || "Failed"),
@@ -5143,6 +5155,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
               {filtered.map((s: any) => {
                 const isArchived = !!s.archived_at;
                 const isSupplier = (s.kind ?? "client") === "supplier";
+                const isCompleted = !!s.completed_at;
                 return (
                   <li key={s.id} className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -5157,7 +5170,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                             <Truck className="h-4 w-4 text-primary shrink-0" />
                           ) : (
                             <Building2
-                              className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : "text-success"}`}
+                              className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : isCompleted ? "text-warning" : "text-success"}`}
                             />
                           )}
                           <span className={isArchived ? "text-muted-foreground" : ""}>
@@ -5166,6 +5179,14 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                           {isArchived && (
                             <Badge variant="outline" className="h-4 text-[10px] ml-1">
                               Archived
+                            </Badge>
+                          )}
+                          {isCompleted && !isArchived && (
+                            <Badge
+                              variant="outline"
+                              className="h-4 text-[10px] ml-1 border-warning text-warning"
+                            >
+                              Completed
                             </Badge>
                           )}
                           {!isArchived && (
@@ -5195,6 +5216,17 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      {!isArchived && !isSupplier && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            completeMut.mutate({ id: s.id, completed: !isCompleted })
+                          }
+                        >
+                          {isCompleted ? "Reopen" : "Complete"}
+                        </Button>
+                      )}
                       {isArchived ? (
                         <>
                           <Button
