@@ -464,13 +464,13 @@ export const adminDeleteEntry = createServerFn({ method: "POST" })
 export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
     entryId: z.string().uuid(),
-    status: z.enum(["verified", "supplier", "off_site", "no_gps"]),
+    status: z.enum(["verified", "callback", "supplier", "off_site", "no_gps"]),
     jobSiteId: z.string().uuid().nullable(),
     field: z.enum(["in", "out"]).optional().default("in"),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
-    if ((data.status === "verified" || data.status === "supplier") && !data.jobSiteId) {
+    if ((data.status === "verified" || data.status === "callback" || data.status === "supplier") && !data.jobSiteId) {
       throw new Response("Job site required for this status", { status: 400 });
     }
     const statusCol = data.field === "out" ? "clock_out_geo_status" : "geo_status";
@@ -479,7 +479,10 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
       .from("time_entries")
       .select(`${statusCol}, ${jobCol}`)
       .eq("id", data.entryId).maybeSingle();
-    const newJobSiteId = data.status === "verified" || data.status === "supplier" ? data.jobSiteId : null;
+    const newJobSiteId =
+      data.status === "verified" || data.status === "callback" || data.status === "supplier"
+        ? data.jobSiteId
+        : null;
     let newLabel: string | null = null;
     if (newJobSiteId) {
       const { data: s } = await supabaseAdmin.from("job_sites").select("label").eq("id", newJobSiteId).maybeSingle();
