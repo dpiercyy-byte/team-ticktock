@@ -5430,6 +5430,14 @@ function GeoTagEditor({
         {prefix}
         {siteLabel}
       </Badge>
+    ) : status === "callback" && siteLabel ? (
+      <Badge
+        variant="outline"
+        className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10"
+      >
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />
+        {prefix}Callback · {siteLabel}
+      </Badge>
     ) : status === "supplier" && siteLabel ? (
       <Badge
         variant="outline"
