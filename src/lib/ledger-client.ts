@@ -1,11 +1,31 @@
 import { queryOptions } from "@tanstack/react-query";
 import { getLedgerJob, listLedgerJobs } from "./ledger.functions";
-import { getAdminToken } from "./session";
+import { clearAdminToken, getAdminToken } from "./session";
+
+/** Send the user back to the admin sign-in instead of letting a raw 401
+ *  Response bubble into React (which renders a blank error screen). */
+function signInAgain(): never {
+  clearAdminToken();
+  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin")) {
+    window.location.href = "/admin";
+  }
+  throw new Error("Your admin session expired. Please sign in again.");
+}
 
 function requireToken(): string {
   const t = getAdminToken();
-  if (!t) throw new Response("Admin required", { status: 401 });
+  if (!t) signInAgain();
   return t;
+}
+
+/** Server fns reject with a raw `Response` on an expired token. */
+async function withAuth<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof Response && (e.status === 401 || e.status === 403)) signInAgain();
+    throw e;
+  }
 }
 
 export const ledgerJobsQuery = () =>
@@ -13,7 +33,7 @@ export const ledgerJobsQuery = () =>
     queryKey: ["ledger", "jobs"],
     queryFn: async () => {
       const token = requireToken();
-      const res = await listLedgerJobs({ data: { token } });
+      const res = await withAuth(() => listLedgerJobs({ data: { token } }));
       return res.jobs;
     },
     staleTime: 15_000,
@@ -24,7 +44,7 @@ export const ledgerJobQuery = (id: string) =>
     queryKey: ["ledger", "jobs", id],
     queryFn: async () => {
       const token = requireToken();
-      const res = await getLedgerJob({ data: { token, id } });
+      const res = await withAuth(() => getLedgerJob({ data: { token, id } }));
       return { job: res.job, timeline: res.timeline };
     },
     staleTime: 15_000,

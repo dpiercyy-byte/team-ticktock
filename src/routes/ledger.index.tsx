@@ -17,8 +17,10 @@ export const Route = createFileRoute("/ledger/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  // Admin token lives in sessionStorage, so only prefetch in the browser.
   loader: ({ context }) => {
-    context.queryClient.ensureQueryData(ledgerJobsQuery());
+    if (typeof window === "undefined") return;
+    void context.queryClient.ensureQueryData(ledgerJobsQuery()).catch(() => {});
   },
   component: LedgerHome,
 });
