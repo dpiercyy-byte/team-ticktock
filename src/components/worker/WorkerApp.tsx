@@ -236,7 +236,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     return () => clearInterval(i);
   }, [data?.active]);
 
-  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "supplier" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
+  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "callback" | "supplier" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
   const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
   const [plannedPrompt, setPlannedPrompt] = useState<null | { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" }>(null);
 
@@ -244,7 +244,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     if (r.kind === "in") {
       setLastGeo({ status: r.res.geo.status, siteLabel: r.res.geo.siteLabel });
       toast.success("Clock-in synced");
-      if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified") {
+      if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified" && r.res.geo.status !== "callback") {
         setReasonPrompt({ entryId: r.res.entryId, status: r.res.geo.status as any, kind: "in" });
       }
     } else {
