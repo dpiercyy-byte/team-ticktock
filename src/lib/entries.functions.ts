@@ -271,7 +271,7 @@ export const clockOut = createServerFn({ method: "POST" })
     const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
     // (Ledger sync removed — Ledger is being rebuilt.)
 
-    return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob };
+    return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob, autoSplit };
   });
 
 
