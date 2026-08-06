@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Phone, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Phone, Plus, Trash2, X } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobHero, heroClass } from "@/components/ledger/JobHero";
 
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ledgerJobQuery } from "@/lib/ledger-client";
 import { workspaceQuery } from "@/lib/workspace-client";
-import { addLedgerJobEvent, deleteLedgerJob, type LedgerJob } from "@/lib/ledger.functions";
+import { addLedgerJobEvent, deleteLedgerJob, updateLedgerJob, type LedgerJob } from "@/lib/ledger.functions";
 import { completeNextAction, setNextAction } from "@/lib/crm.functions";
 import { getAdminToken } from "@/lib/session";
 import { useState } from "react";
@@ -102,6 +102,24 @@ function JobDetail() {
     },
   });
 
+  const isCompleted = String(job.status).toLowerCase() === "completed";
+  const setStatus = useServerFn(updateLedgerJob);
+  const statusMutation = useMutation({
+    mutationFn: async (status: "Active" | "Completed") => {
+      const token = getAdminToken();
+      if (!token) throw new Error("Not signed in");
+      return setStatus({ data: { token, id: jobId, patch: { status } } });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["ledger", "jobs", jobId] });
+      await qc.invalidateQueries({ queryKey: ["ledger", "workspace", jobId] });
+      await qc.invalidateQueries({ queryKey: ["ledger", "jobs"] });
+      router.invalidate();
+    },
+  });
+
+
+
   return (
     <>
       <LedgerShell
@@ -164,6 +182,34 @@ function JobDetail() {
               <FollowUp jobId={jobId} job={job} />
 
               <ActivateJobPanel jobId={jobId} />
+
+              <section className="l-card mt-3 p-5">
+                <h2 className="l-eyebrow mb-2">Delivery status</h2>
+                <p className="text-[12px] l-muted">
+                  {isCompleted
+                    ? "This job is marked complete. Its site stays geofenced so callback visits still get tagged."
+                    : "Mark the job complete when work is finished. The site keeps its geofence for callbacks."}
+                </p>
+                <button
+                  type="button"
+                  disabled={statusMutation.isPending}
+                  onClick={() => statusMutation.mutate(isCompleted ? "Active" : "Completed")}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-bold disabled:opacity-60"
+                  style={
+                    isCompleted
+                      ? { background: "var(--l-sheet-2, hsl(40 20% 94%))" }
+                      : { background: "var(--l-ink)", color: "var(--l-on-ink)" }
+                  }
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {statusMutation.isPending
+                    ? "Saving…"
+                    : isCompleted
+                      ? "Reopen job"
+                      : "Mark job complete"}
+                </button>
+              </section>
+
 
               {job.trades.length > 0 && (
                 <section className="mt-6">
