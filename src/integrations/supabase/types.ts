@@ -25,6 +25,8 @@ export type Database = {
           id: number
           ledger_export_last_sync_at: string | null
           ledger_export_sheet_id: string | null
+          project_summary_last_sync_at: string | null
+          project_summary_sheet_id: string | null
           project_tracking_enabled: boolean
           sheet_sync_enabled: boolean
           show_pay_estimates: boolean
@@ -41,6 +43,8 @@ export type Database = {
           id?: number
           ledger_export_last_sync_at?: string | null
           ledger_export_sheet_id?: string | null
+          project_summary_last_sync_at?: string | null
+          project_summary_sheet_id?: string | null
           project_tracking_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
@@ -57,6 +61,8 @@ export type Database = {
           id?: number
           ledger_export_last_sync_at?: string | null
           ledger_export_sheet_id?: string | null
+          project_summary_last_sync_at?: string | null
+          project_summary_sheet_id?: string | null
           project_tracking_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
@@ -293,6 +299,8 @@ export type Database = {
           expected_start_date: string | null
           expenses_cents: number
           id: string
+          last_summary_export_at: string | null
+          last_summary_export_hash: string | null
           lost_reason: string | null
           name: string
           next_action: string | null
@@ -330,6 +338,8 @@ export type Database = {
           expected_start_date?: string | null
           expenses_cents?: number
           id?: string
+          last_summary_export_at?: string | null
+          last_summary_export_hash?: string | null
           lost_reason?: string | null
           name: string
           next_action?: string | null
@@ -367,6 +377,8 @@ export type Database = {
           expected_start_date?: string | null
           expenses_cents?: number
           id?: string
+          last_summary_export_at?: string | null
+          last_summary_export_hash?: string | null
           lost_reason?: string | null
           name?: string
           next_action?: string | null
@@ -462,6 +474,100 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_change_orders: {
+        Row: {
+          amount_cents: number
+          approved_date: string | null
+          created_at: string
+          description: string
+          id: string
+          notes: string | null
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          approved_date?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          approved_date?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_change_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_costs: {
+        Row: {
+          amount_cents: number
+          category: string
+          client_billable: boolean
+          created_at: string
+          description: string
+          id: string
+          incurred_on: string | null
+          notes: string | null
+          project_id: string
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          amount_cents?: number
+          category?: string
+          client_billable?: boolean
+          created_at?: string
+          description: string
+          id?: string
+          incurred_on?: string | null
+          notes?: string | null
+          project_id: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          category?: string
+          client_billable?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          incurred_on?: string | null
+          notes?: string | null
+          project_id?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_costs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
             referencedColumns: ["id"]
           },
         ]

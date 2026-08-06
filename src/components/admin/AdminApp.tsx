@@ -126,6 +126,11 @@ import {
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
+  getProjectSummaryExportSettings,
+  updateProjectSummaryExportSettings,
+  runProjectSummaryExportFn,
+} from "@/lib/finance.functions";
+import {
   getWorkerExportSettings,
   updateWorkerExportSettings,
   runWorkerSheetExportFn,
@@ -4303,6 +4308,7 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
       <GoogleSheetsSettingsCard token={token} updateToken={updateToken} />
 
       <WorkerExportSettingsCard token={token} updateToken={updateToken} />
+      <ProjectSummaryExportCard token={token} updateToken={updateToken} />
       <CashExportSettingsCard token={token} updateToken={updateToken} />
     </div>
   );
@@ -4696,6 +4702,113 @@ function WorkerExportSettingsCard({
               <Button size="sm" onClick={run} disabled={running || !sheetId}>
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${running ? "animate-spin" : ""}`} />
                 {running ? "Syncing…" : "Sync to Sheets now"}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProjectSummaryExportCard({
+  token,
+  updateToken,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+}) {
+  const getFn = useServerFn(getProjectSummaryExportSettings);
+  const updFn = useServerFn(updateProjectSummaryExportSettings);
+  const runFn = useServerFn(runProjectSummaryExportFn);
+  const qc = useQueryClient();
+  const [sheetId, setSheetId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["project-summary-export-settings"],
+    queryFn: () =>
+      getFn({ data: { token } }).then((r) => {
+        updateToken(r.token);
+        return r;
+      }),
+  });
+
+  useEffect(() => {
+    if (q.data?.settings) setSheetId(q.data.settings.project_summary_sheet_id || "");
+  }, [q.data]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await updFn({ data: { token, sheetId } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["project-summary-export-settings"] });
+      toast.success("Saved");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const run = async () => {
+    setRunning(true);
+    try {
+      const r = await runFn({ data: { token } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["project-summary-export-settings"] });
+      toast.success(`Exported ${r.projects} projects`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const connectorReady = q.data?.connectorReady;
+  const lastSync = q.data?.settings?.project_summary_last_sync_at;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sheet className="h-4 w-4" /> Project summary export
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!connectorReady ? (
+          <p className="text-sm text-muted-foreground">
+            Google Sheets connection missing. Reconnect via the workspace connectors panel.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Writes one row per active project — contract, change orders, payments, each cost
+              bucket, profit and margin — into its own “Project Summary” tab. Output only; nothing
+              is read back, and the Cash Tracking layout is never touched.
+            </p>
+            <div>
+              <Label className="text-xs">Sheet URL or ID</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  value={sheetId}
+                  onChange={(e) => setSheetId(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/…"
+                />
+                <Button onClick={save} disabled={saving} variant="outline">
+                  Save
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground">
+                {lastSync ? <>Last export: {new Date(lastSync).toLocaleString()}</> : <>Not exported yet.</>}
+              </div>
+              <Button size="sm" onClick={run} disabled={running || !sheetId}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${running ? "animate-spin" : ""}`} />
+                {running ? "Exporting…" : "Export project summary"}
               </Button>
             </div>
           </>

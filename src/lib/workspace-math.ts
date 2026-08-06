@@ -63,6 +63,8 @@ export type CostRow = {
   receiptUrl: string | null;
   receiptMime: string | null;
   billable: boolean;
+  /** True when a worker paid out of pocket (a reimbursement) rather than the company. */
+  workerPaid: boolean;
   needsReview: boolean;
 };
 
@@ -176,6 +178,7 @@ export function buildCostRows(receipts: RawReceipt[], workers: RawWorker[]): Cos
         receiptUrl: r.receipt_url ?? null,
         receiptMime: r.receipt_mime ?? null,
         billable: (r.material_type ?? "regular") === "client_billable",
+        workerPaid: Boolean(r.worker_id),
         needsReview: (r.parse_status ?? "") !== "ok" && (r.parse_status ?? "") !== "manual",
       };
     })

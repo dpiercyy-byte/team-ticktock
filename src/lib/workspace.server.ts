@@ -16,6 +16,14 @@ import {
   type RawTimeEntry,
   type RawWorker,
 } from "./workspace-math";
+import {
+  projectFinancials,
+  financeFingerprint,
+  type ChangeOrderRow,
+  type ChangeOrderStatus,
+  type ProjectCostCategory,
+  type ProjectCostRow,
+} from "./finance-math";
 
 const centsToDollars = (n: number | string | null | undefined) => Number(n ?? 0) / 100;
 
@@ -33,7 +41,7 @@ export async function loadWorkspace(projectId: string) {
   const { data: project, error: pErr } = await supabaseAdmin
     .from("ledger_jobs")
     .select(
-      "id, name, client_name, client_id, address, project_type, trades, status, sales_stage, delivery_status, assigned_owner, next_action, next_action_due_at, expected_start_date, actual_start_date, expected_completion_date, actual_completion_date, budget_cents, activated_at, progress, clients:client_id(id, name, email, phone), properties:property_id(id, address)",
+      "id, name, client_name, client_id, address, project_type, trades, status, sales_stage, delivery_status, assigned_owner, next_action, next_action_due_at, expected_start_date, actual_start_date, expected_completion_date, actual_completion_date, budget_cents, activated_at, progress, last_summary_export_at, last_summary_export_hash, clients:client_id(id, name, email, phone), properties:property_id(id, address)",
     )
     .eq("id", projectId)
     .maybeSingle();
@@ -132,6 +140,38 @@ export async function loadWorkspace(projectId: string) {
     workers = (wRows ?? []) as unknown as RawWorker[];
   }
 
+  const { data: coRows, error: coErr } = await supabaseAdmin
+    .from("project_change_orders")
+    .select("id, description, amount_cents, status, approved_date, notes")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+  if (coErr) throw coErr;
+  const changeOrders: ChangeOrderRow[] = ((coRows ?? []) as Array<Record<string, any>>).map((c) => ({
+    id: c.id,
+    description: c.description,
+    amount: centsToDollars(c.amount_cents),
+    status: (c.status ?? "draft") as ChangeOrderStatus,
+    approvedDate: c.approved_date ?? null,
+    notes: c.notes ?? null,
+  }));
+
+  const { data: pcRows, error: pcErr } = await supabaseAdmin
+    .from("project_costs")
+    .select("id, category, description, vendor, amount_cents, incurred_on, client_billable, notes")
+    .eq("project_id", projectId)
+    .order("incurred_on", { ascending: false, nullsFirst: false });
+  if (pcErr) throw pcErr;
+  const projectCosts: ProjectCostRow[] = ((pcRows ?? []) as Array<Record<string, any>>).map((c) => ({
+    id: c.id,
+    category: (c.category ?? "other") as ProjectCostCategory,
+    description: c.description,
+    vendor: c.vendor ?? null,
+    amount: centsToDollars(c.amount_cents),
+    incurredOn: c.incurred_on ?? null,
+    clientBillable: Boolean(c.client_billable),
+    notes: c.notes ?? null,
+  }));
+
   const { data: evRows, error: evErr } = await supabaseAdmin
     .from("ledger_job_events")
     .select("id, kind, title, detail, occurred_at")
@@ -168,6 +208,17 @@ export async function loadWorkspace(projectId: string) {
   });
 
   const onSite = workersOnSite(labour);
+
+  const financials = projectFinancials({
+    originalContract: centsToDollars(p.budget_cents),
+    progress: Number(p.progress ?? 0),
+    changeOrders,
+    payments: paymentRows,
+    labour,
+    receipts: costs,
+    projectCosts,
+  });
+  const exportedHash = (p.last_summary_export_hash ?? null) as string | null;
 
   return {
     project: {
@@ -209,6 +260,13 @@ export async function loadWorkspace(projectId: string) {
     timeline,
     rollup,
     onSite,
+    changeOrders,
+    projectCosts,
+    financials,
+    exportState: {
+      lastExportedAt: (p.last_summary_export_at ?? null) as string | null,
+      inSync: exportedHash == null ? null : exportedHash === financeFingerprint(financials),
+    },
     openIssues: {
       flaggedEntries: lTotals.flagged,
       receiptsNeedingReview: cTotals.needsReview,

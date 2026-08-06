@@ -110,8 +110,10 @@ const SHEET_COLUMNS = [
   "ID", "Date", "Worker", "Vendor", "Description", "Category", "Job Site",
   "Subtotal", "Tax", "Total", "Reimbursement Amount", "Week Start", "Receipt URL",
   "Material Type", "Billable Client",
+  // App-owned tail column: only filled when the receipt resolves to a project.
+  "Project ID",
 ];
-const SHEET_LAST_COL = "O"; // 15 columns
+const SHEET_LAST_COL = "P"; // 16 columns
 
 
 async function gw(url: string, init?: RequestInit) {
@@ -216,7 +218,7 @@ async function syncRow(reimbursementId: string) {
   const tab = s.google_sheet_tab || "Receipts";
 
   const { data: r } = await supabaseAdmin.from("reimbursements")
-    .select("id, is_admin_receipt, payee_label, description, amount, week_start, receipt_url, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label)")
+    .select("id, is_admin_receipt, payee_label, description, amount, week_start, receipt_url, parsed_vendor, parsed_date, parsed_subtotal, parsed_tax, parsed_total, parsed_category, parsed_job_site_id, material_type, billable_job_site_id, workers(name), parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label, project_id), billable_site:job_sites!reimbursements_billable_job_site_id_fkey(label, project_id)")
     .eq("id", reimbursementId).maybeSingle();
   if (!r) return { skipped: true };
 
@@ -245,6 +247,7 @@ async function syncRow(reimbursementId: string) {
     r.receipt_url || "",
     materialType,
     billableClient,
+    (r as any).billable_site?.project_id || (r as any).parsed_site?.project_id || "",
   ];
 
   const findUrl = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${s.google_sheet_id}/values/${tab}!A:A`;

@@ -14,6 +14,7 @@ import { ActivityTab } from "@/components/ledger/workspace/ActivityTab";
 import { LabourTab } from "@/components/ledger/workspace/LabourTab";
 import { CostsTab } from "@/components/ledger/workspace/CostsTab";
 import { PaymentsTab } from "@/components/ledger/workspace/PaymentsTab";
+import { FinancialsTab } from "@/components/ledger/workspace/FinancialsTab";
 import { DocumentsTab } from "@/components/ledger/workspace/DocumentsTab";
 import { TasksTab } from "@/components/ledger/workspace/TasksTab";
 import {
@@ -50,6 +51,7 @@ const TABS = [
   "Labour",
   "Costs",
   "Payments",
+  "Financials",
   "Documents",
 ] as const;
 
@@ -282,6 +284,20 @@ function JobDetail() {
           {tab === "Costs" && <CostsTab rows={ws.costs} totals={ws.costTotals} />}
           {tab === "Payments" && (
             <PaymentsTab projectId={jobId} rows={ws.payments} totals={ws.paymentTotals} />
+          )}
+          {tab === "Financials" && (
+            <FinancialsTab
+              projectId={jobId}
+              financials={ws.financials}
+              changeOrders={ws.changeOrders}
+              projectCosts={ws.projectCosts}
+              exportState={ws.exportState}
+              counts={{
+                labourEntries: ws.labour.length,
+                receipts: ws.costs.length,
+                payments: ws.payments.length,
+              }}
+            />
           )}
           {tab === "Documents" && <DocumentsTab projectId={jobId} documents={ws.documents} />}
         </div>
