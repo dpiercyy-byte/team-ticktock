@@ -4,6 +4,50 @@ import { supabaseAdmin } from "./db.server";
 import { requireWorker, requireAdmin } from "./auth.server";
 import { resolveSite, type GeoStatus } from "./geo.server";
 import { logAudit } from "./audit.server";
+import { fiftyFiftySplit, allocationToSegments, type SegmentDraft } from "./segment-math";
+
+/* ---------------- Shift segments ----------------
+   A shift is a container of segments. Each segment carries its own site tag so
+   labour lands on the project the worker was actually standing on. */
+
+async function insertSegment(entryId: string, draft: SegmentDraft, lat?: number | null, lng?: number | null) {
+  const { error } = await (supabaseAdmin.from("time_entry_segments") as any).insert({
+    entry_id: entryId,
+    started_at: draft.started_at,
+    ended_at: draft.ended_at,
+    job_site_id: draft.job_site_id,
+    geo_status: draft.geo_status,
+    source: draft.source,
+    lat: lat ?? null,
+    lng: lng ?? null,
+  });
+  if (error) throw error;
+}
+
+async function listSegments(entryId: string) {
+  const { data } = await (supabaseAdmin.from("time_entry_segments") as any)
+    .select("id, entry_id, started_at, ended_at, job_site_id, geo_status, source")
+    .eq("entry_id", entryId)
+    .order("started_at", { ascending: true });
+  return (data ?? []) as Array<{
+    id: string; entry_id: string; started_at: string; ended_at: string | null;
+    job_site_id: string | null; geo_status: string | null; source: string;
+  }>;
+}
+
+async function closeOpenSegments(entryId: string, endISO: string) {
+  const { error } = await (supabaseAdmin.from("time_entry_segments") as any)
+    .update({ ended_at: endISO })
+    .eq("entry_id", entryId)
+    .is("ended_at", null);
+  if (error) throw error;
+}
+
+async function replaceSegments(entryId: string, drafts: SegmentDraft[]) {
+  await (supabaseAdmin.from("time_entry_segments") as any).delete().eq("entry_id", entryId);
+  for (const d of drafts) await insertSegment(entryId, d);
+}
+
 
 
 
