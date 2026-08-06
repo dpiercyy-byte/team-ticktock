@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Phone, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Phone, Plus, Trash2, X } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { JobHero, heroClass } from "@/components/ledger/JobHero";
 
