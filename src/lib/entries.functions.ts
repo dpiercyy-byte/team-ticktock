@@ -409,19 +409,49 @@ export const adminListEntries = createServerFn({ method: "POST" })
     if (error) throw error;
 
     // Hydrate assigned site labels in stack order
-    const allIds = Array.from(new Set((rows ?? []).flatMap((r: any) => r.assigned_job_site_ids ?? [])));
+    const entryIds = (rows ?? []).map((r: any) => r.id);
+    const { data: segRows } = entryIds.length
+      ? await (supabaseAdmin.from("time_entry_segments") as any)
+          .select("id, entry_id, started_at, ended_at, job_site_id, geo_status, source")
+          .in("entry_id", entryIds)
+          .order("started_at", { ascending: true })
+      : { data: [] as any[] };
+
+    const allIds = Array.from(new Set([
+      ...(rows ?? []).flatMap((r: any) => r.assigned_job_site_ids ?? []),
+      ...((segRows ?? []) as any[]).map((s) => s.job_site_id).filter(Boolean),
+    ]));
     let siteMap = new Map<string, { id: string; label: string }>();
     if (allIds.length) {
       const { data: sites } = await supabaseAdmin.from("job_sites").select("id, label").in("id", allIds);
       siteMap = new Map((sites ?? []).map((s: any) => [s.id, { id: s.id, label: s.label }]));
+    }
+    const segsByEntry = new Map<string, any[]>();
+    for (const s of ((segRows ?? []) as any[])) {
+      const list = segsByEntry.get(s.entry_id) ?? [];
+      list.push({
+        id: s.id,
+        startedAt: s.started_at,
+        endedAt: s.ended_at,
+        jobSiteId: s.job_site_id,
+        label: s.job_site_id ? siteMap.get(s.job_site_id)?.label ?? "Unknown site" : "Off site",
+        geoStatus: s.geo_status,
+        source: s.source,
+        hours: Math.round(
+          (((s.ended_at ? new Date(s.ended_at).getTime() : Date.now()) - new Date(s.started_at).getTime()) / 3600_000) * 100,
+        ) / 100,
+      });
+      segsByEntry.set(s.entry_id, list);
     }
     const entries = (rows ?? []).map((r: any) => ({
       ...r,
       assigned_sites: (r.assigned_job_site_ids ?? [])
         .map((id: string) => siteMap.get(id))
         .filter(Boolean),
+      segments: segsByEntry.get(r.id) ?? [],
     }));
     return { ...refreshed, entries };
+
   });
 
 
