@@ -16,6 +16,8 @@ export type GeoSite = {
   lng: number | string;
   radius_m: number | string;
   kind?: string | null;
+  /** Completed jobs keep their geofence: a punch there is a callback. */
+  completed_at?: string | null;
 };
 
 export function haversineMeters(
