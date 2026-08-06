@@ -13,7 +13,7 @@ export async function resolveSite(
   }
   const { data: sites } = await supabaseAdmin
     .from("job_sites")
-    .select("id, label, lat, lng, radius_m, kind")
+    .select("id, label, lat, lng, radius_m, kind, completed_at")
     .is("archived_at", null);
   return classifyPunch(lat, lng, sites ?? []);
 }
