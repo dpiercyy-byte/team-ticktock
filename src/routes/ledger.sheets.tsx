@@ -13,6 +13,11 @@ import {
 } from "@/lib/sheet-jobs.functions";
 import { toast } from "sonner";
 
+const BTN =
+  "inline-flex items-center gap-1.5 rounded-full bg-muted px-3.5 py-2 text-[13px] font-bold disabled:opacity-50";
+const BTN_PRIMARY =
+  "inline-flex items-center gap-1.5 rounded-full bg-foreground px-3.5 py-2 text-[13px] font-bold text-background disabled:opacity-50";
+
 export const Route = createFileRoute("/ledger/sheets")({
   head: () => ({
     meta: [
@@ -99,14 +104,14 @@ function SheetJobsPage() {
 
       <div className="l-card mb-5 flex flex-wrap items-center gap-2 px-4 py-3.5">
         <button
-          className="l-btn"
+          className={BTN}
           onClick={() => discover.mutate()}
           disabled={discover.isPending}
         >
           {discover.isPending ? "Scanning…" : "Scan Drive"}
         </button>
         <button
-          className="l-btn l-btn-primary"
+          className={BTN_PRIMARY}
           onClick={() => syncAll.mutate()}
           disabled={syncAll.isPending}
         >
@@ -209,7 +214,7 @@ function SourceList({
               <div className="flex shrink-0 items-center gap-2">
                 <StatusPill status={s.status} />
                 <button
-                  className="l-btn"
+                  className={BTN}
                   onClick={() => onSync(s.id)}
                   disabled={busyId === s.id}
                   aria-label="Sync this sheet"
