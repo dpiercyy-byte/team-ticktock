@@ -24,6 +24,7 @@ import { Route as LedgerPeopleClientIdRouteImport } from './routes/ledger.people
 import { Route as LedgerLeadsNewRouteImport } from './routes/ledger.leads.new'
 import { Route as LedgerJobsNewRouteImport } from './routes/ledger.jobs.new'
 import { Route as LedgerJobsJobIdRouteImport } from './routes/ledger.jobs.$jobId'
+import { Route as ApiPublicHooksSyncSheetJobsRouteImport } from './routes/api/public/hooks/sync-sheet-jobs'
 import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
 
@@ -102,6 +103,12 @@ const LedgerJobsJobIdRoute = LedgerJobsJobIdRouteImport.update({
   path: '/jobs/$jobId',
   getParentRoute: () => LedgerRoute,
 } as any)
+const ApiPublicHooksSyncSheetJobsRoute =
+  ApiPublicHooksSyncSheetJobsRouteImport.update({
+    id: '/api/public/hooks/sync-sheet-jobs',
+    path: '/api/public/hooks/sync-sheet-jobs',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSheetExportRoute =
   ApiPublicHooksSheetExportRouteImport.update({
     id: '/api/public/hooks/sheet-export',
@@ -133,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
+  '/api/public/hooks/sync-sheet-jobs': typeof ApiPublicHooksSyncSheetJobsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -151,6 +159,7 @@ export interface FileRoutesByTo {
   '/ledger/people': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
+  '/api/public/hooks/sync-sheet-jobs': typeof ApiPublicHooksSyncSheetJobsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -171,6 +180,7 @@ export interface FileRoutesById {
   '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
+  '/api/public/hooks/sync-sheet-jobs': typeof ApiPublicHooksSyncSheetJobsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
+    | '/api/public/hooks/sync-sheet-jobs'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/ledger/people'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
+    | '/api/public/hooks/sync-sheet-jobs'
   id:
     | '__root__'
     | '/'
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
+    | '/api/public/hooks/sync-sheet-jobs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -237,6 +250,7 @@ export interface RootRouteChildren {
   LedgerRoute: typeof LedgerRouteWithChildren
   ApiPublicHooksAutoClockoutRoute: typeof ApiPublicHooksAutoClockoutRoute
   ApiPublicHooksSheetExportRoute: typeof ApiPublicHooksSheetExportRoute
+  ApiPublicHooksSyncSheetJobsRoute: typeof ApiPublicHooksSyncSheetJobsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -346,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerJobsJobIdRouteImport
       parentRoute: typeof LedgerRoute
     }
+    '/api/public/hooks/sync-sheet-jobs': {
+      id: '/api/public/hooks/sync-sheet-jobs'
+      path: '/api/public/hooks/sync-sheet-jobs'
+      fullPath: '/api/public/hooks/sync-sheet-jobs'
+      preLoaderRoute: typeof ApiPublicHooksSyncSheetJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/sheet-export': {
       id: '/api/public/hooks/sheet-export'
       path: '/api/public/hooks/sheet-export'
@@ -402,17 +423,8 @@ const rootRouteChildren: RootRouteChildren = {
   LedgerRoute: LedgerRouteWithChildren,
   ApiPublicHooksAutoClockoutRoute: ApiPublicHooksAutoClockoutRoute,
   ApiPublicHooksSheetExportRoute: ApiPublicHooksSheetExportRoute,
+  ApiPublicHooksSyncSheetJobsRoute: ApiPublicHooksSyncSheetJobsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
