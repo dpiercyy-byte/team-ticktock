@@ -5479,7 +5479,8 @@ function GeoTagEditor({
   };
 
   const active = sites.filter((s) => !s.archived_at);
-  const clientSites = active.filter((s) => (s.kind ?? "client") === "client");
+  const clientSites = active.filter((s) => (s.kind ?? "client") === "client" && !s.completed_at);
+  const completedSites = active.filter((s) => (s.kind ?? "client") === "client" && !!s.completed_at);
   const supplierSites = active.filter((s) => s.kind === "supplier");
 
   return (
