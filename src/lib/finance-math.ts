@@ -18,7 +18,12 @@ export type ChangeOrderRow = {
   notes: string | null;
 };
 
-export type ProjectCostCategory = "subcontractor" | "permit" | "other";
+export type ProjectCostCategory =
+  | "material"
+  | "finish_material"
+  | "subcontractor"
+  | "permit"
+  | "other";
 
 export type ProjectCostRow = {
   id: string;
@@ -91,6 +96,8 @@ export function costSummary(input: {
     }
     if (c.category === "subcontractor") subcontractors += c.amount;
     else if (c.category === "permit") permits += c.amount;
+    else if (c.category === "material" || c.category === "finish_material")
+      materials += c.amount;
     else other += c.amount;
   }
 

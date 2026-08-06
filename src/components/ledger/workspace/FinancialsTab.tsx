@@ -23,6 +23,8 @@ const pct = (n: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
 const money = (n: number | null) => (n == null ? "—" : formatCurrency(n));
 
 const CATEGORY_LABEL: Record<ProjectCostCategory, string> = {
+  material: "Building materials",
+  finish_material: "Finish materials",
   subcontractor: "Subcontractor",
   permit: "Permit / fee",
   other: "Other cost",
