@@ -86,6 +86,7 @@ import {
   ArrowLeft,
   Clock,
   SlidersHorizontal,
+  Split,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -123,6 +124,7 @@ import {
   adminUpdateEntryPlannedJob,
   adminForceClockOut,
 } from "@/lib/entries.functions";
+import { AllocationDialog } from "@/components/admin/AllocationDialog";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
