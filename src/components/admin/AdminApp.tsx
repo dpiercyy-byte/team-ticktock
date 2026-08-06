@@ -47,6 +47,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import {
+  getCashExportSettingsFn,
+  updateCashExportSettings,
+  testCashExportFn,
+} from "@/lib/cash-export.functions";
+import {
   LogOut,
   Plus,
   Trash2,
@@ -1867,17 +1872,77 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
 
   const markFn = useServerFn(markWeekPaid);
   const unmarkFn = useServerFn(unmarkWeekPaid);
+  const [payDialog, setPayDialog] = useState<{
+    workerId: string;
+    name: string;
+    owed: number;
+  } | null>(null);
+  const [payAmt, setPayAmt] = useState("");
+  const [payer, setPayer] = useState<"Michael" | "Dylan" | null>(null);
+  const [paySubmitting, setPaySubmitting] = useState(false);
+
+  const closePayDialog = () => {
+    setPayDialog(null);
+    setPayAmt("");
+    setPayer(null);
+  };
+
   const togglePaid = async (workerId: string, currentlyPaid: boolean) => {
+    if (!currentlyPaid) {
+      const row = pq.data?.find((x: any) => x.workerId === workerId);
+      setPayDialog({ workerId, name: row?.name ?? "Worker", owed: row?.total ?? 0 });
+      setPayAmt(row?.total != null ? String(row.total.toFixed(2)) : "");
+      setPayer(null);
+      return;
+    }
     try {
-      const r = currentlyPaid
-        ? await unmarkFn({ data: { token, workerId, weekStart: week } })
-        : await markFn({ data: { token, workerId, weekStart: week } });
+      const r = await unmarkFn({ data: { token, workerId, weekStart: week } });
       updateToken(r.token);
       qc.invalidateQueries({ queryKey: ["payout", week] });
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
-      toast.success(currentlyPaid ? "Marked unpaid" : "Marked paid");
+      toast.warning("Marked unpaid — remove the Cash Tracking row manually if one was added.");
     } catch (e: any) {
       toast.error(e?.message || "Failed");
+    }
+  };
+
+  const submitPay = async () => {
+    if (!payDialog) return;
+    const n = parseFloat(payAmt);
+    if (!isFinite(n) || n < 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    if (!payer) {
+      toast.error("Choose who paid");
+      return;
+    }
+    setPaySubmitting(true);
+    try {
+      const r = await markFn({
+        data: {
+          token,
+          workerId: payDialog.workerId,
+          weekStart: week,
+          actualPaid: n,
+          paidByPerson: payer,
+        },
+      });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["payout", week] });
+      qc.invalidateQueries({ queryKey: ["pending-payouts"] });
+      if (r.sheetError) {
+        toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
+      } else if (r.sheetRow) {
+        toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
+      } else {
+        toast.success("Marked paid");
+      }
+      closePayDialog();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setPaySubmitting(false);
     }
   };
 
@@ -2104,6 +2169,74 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
             })}
           </div>
         )}
+
+        <Dialog open={!!payDialog} onOpenChange={(o) => { if (!o && !paySubmitting) closePayDialog(); }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Mark week paid</DialogTitle>
+            </DialogHeader>
+            {payDialog && (
+              <div className="space-y-3">
+                <div className="rounded-md bg-muted/50 p-3 text-sm">
+                  <p className="font-medium">{payDialog.name}</p>
+                  <p className="text-xs text-muted-foreground">{weekRangeLabel(week)}</p>
+                  <p className="mt-2 flex items-baseline justify-between">
+                    <span className="text-xs text-muted-foreground">Owed</span>
+                    <span className="font-semibold tabular-nums">{fmtMoney(payDialog.owed)}</span>
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Paid by</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["Michael", "Dylan"] as const).map((p) => (
+                      <Button
+                        key={p}
+                        type="button"
+                        variant={payer === p ? "default" : "outline"}
+                        onClick={() => setPayer(p)}
+                      >
+                        {p}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="weekly-cash-paid" className="text-xs">
+                    Amount paid in cash
+                  </Label>
+                  <Input
+                    id="weekly-cash-paid"
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={payAmt}
+                    onChange={(e) => setPayAmt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitPay();
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" disabled={paySubmitting} onClick={closePayDialog}>
+                Cancel
+              </Button>
+              <Button
+                onClick={submitPay}
+                disabled={
+                  paySubmitting ||
+                  !payer ||
+                  !payAmt ||
+                  !isFinite(parseFloat(payAmt)) ||
+                  parseFloat(payAmt) < 0
+                }
+              >
+                {paySubmitting ? "Saving…" : "Confirm paid"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog
           open={!!reimbFor}
@@ -3643,6 +3776,7 @@ function PendingPayoutsView({
     owed: number;
   } | null>(null);
   const [payAmt, setPayAmt] = useState("");
+  const [payer, setPayer] = useState<"Michael" | "Dylan" | null>(null);
   const [paySubmitting, setPaySubmitting] = useState(false);
 
   const q = useQuery({
@@ -3660,7 +3794,7 @@ function PendingPayoutsView({
       updateToken(r.token);
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
       qc.invalidateQueries({ queryKey: ["payout"] });
-      toast.success("Marked unpaid");
+      toast.warning("Marked unpaid — remove the Cash Tracking row manually if one was added.");
     } catch (e: any) {
       toast.error(e?.message || "Failed");
     }
@@ -3673,6 +3807,10 @@ function PendingPayoutsView({
       toast.error("Enter a valid amount");
       return;
     }
+    if (!payer) {
+      toast.error("Choose who paid");
+      return;
+    }
     setPaySubmitting(true);
     try {
       const r = await markFn({
@@ -3681,14 +3819,22 @@ function PendingPayoutsView({
           workerId: payDialog.workerId,
           weekStart: payDialog.weekStart,
           actualPaid: n,
+          paidByPerson: payer,
         },
       });
       updateToken(r.token);
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
       qc.invalidateQueries({ queryKey: ["payout"] });
-      toast.success("Marked paid");
+      if (r.sheetError) {
+        toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
+      } else if (r.sheetRow) {
+        toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
+      } else {
+        toast.success("Marked paid");
+      }
       setPayDialog(null);
       setPayAmt("");
+      setPayer(null);
     } catch (e: any) {
       toast.error(e?.message || "Failed");
     } finally {
@@ -3802,6 +3948,7 @@ function PendingPayoutsView({
                       {row.status === "paid" && row.actualPaid != null
                         ? ` · cash ${fmtMoney(row.actualPaid)}`
                         : ""}
+                      {row.paidByPerson ? ` · by ${row.paidByPerson}` : ""}
                     </p>
                   </div>
                   <div className="text-right">
@@ -3842,6 +3989,7 @@ function PendingPayoutsView({
           if (!o && !paySubmitting) {
             setPayDialog(null);
             setPayAmt("");
+            setPayer(null);
           }
         }}
       >
@@ -3860,6 +4008,21 @@ function PendingPayoutsView({
                   <span className="text-xs text-muted-foreground">Owed</span>
                   <span className="font-semibold tabular-nums">{fmtMoney(payDialog.owed)}</span>
                 </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Paid by</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["Michael", "Dylan"] as const).map((p) => (
+                    <Button
+                      key={p}
+                      type="button"
+                      variant={payer === p ? "default" : "outline"}
+                      onClick={() => setPayer(p)}
+                    >
+                      {p}
+                    </Button>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cash-paid" className="text-xs">
@@ -3902,6 +4065,7 @@ function PendingPayoutsView({
               onClick={() => {
                 setPayDialog(null);
                 setPayAmt("");
+                setPayer(null);
               }}
             >
               Cancel
@@ -3909,7 +4073,11 @@ function PendingPayoutsView({
             <Button
               onClick={submitPay}
               disabled={
-                paySubmitting || !payAmt || !isFinite(parseFloat(payAmt)) || parseFloat(payAmt) < 0
+                paySubmitting ||
+                !payer ||
+                !payAmt ||
+                !isFinite(parseFloat(payAmt)) ||
+                parseFloat(payAmt) < 0
               }
             >
               {paySubmitting ? "Saving…" : "Confirm paid"}
@@ -4135,6 +4303,7 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
       <GoogleSheetsSettingsCard token={token} updateToken={updateToken} />
 
       <WorkerExportSettingsCard token={token} updateToken={updateToken} />
+      <CashExportSettingsCard token={token} updateToken={updateToken} />
     </div>
   );
 }
@@ -4271,6 +4440,142 @@ function GoogleSheetsSettingsCard({
                 <Upload className="h-3.5 w-3.5 mr-1.5" />
                 {backfilling ? "Syncing…" : "Backfill all receipts"}
               </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CashExportSettingsCard({
+  token,
+  updateToken,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+}) {
+  const getFn = useServerFn(getCashExportSettingsFn);
+  const updFn = useServerFn(updateCashExportSettings);
+  const testFn = useServerFn(testCashExportFn);
+  const qc = useQueryClient();
+  const [sheetId, setSheetId] = useState("");
+  const [tab, setTab] = useState("Cash Tracking");
+  const [enabled, setEnabled] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["cash-export-settings"],
+    queryFn: () =>
+      getFn({ data: { token } }).then((r) => {
+        updateToken(r.token);
+        return r;
+      }),
+  });
+
+  useEffect(() => {
+    const s = q.data?.settings;
+    if (!s) return;
+    setSheetId(s.cash_export_sheet_id || "");
+    setTab(s.cash_export_tab || "Cash Tracking");
+    setEnabled(!!s.cash_export_enabled);
+  }, [q.data]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await updFn({ data: { token, sheetId, tab, enabled } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["cash-export-settings"] });
+      toast.success("Saved");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const test = async () => {
+    setTesting(true);
+    try {
+      const r = await testFn({ data: { token } });
+      updateToken(r.token);
+      if (r.ok) {
+        toast.success(
+          `Connected — next rows: Michael ${r.nextRows.Michael}, Dylan ${r.nextRows.Dylan}`,
+        );
+      } else {
+        toast.error(r.error || "Failed");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const connectorReady = q.data?.connectorReady;
+  const resolvedId = sheetId.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || sheetId;
+  const sheetUrl = resolvedId ? `https://docs.google.com/spreadsheets/d/${resolvedId}/edit` : null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sheet className="h-4 w-4" /> Cash tracking export
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!connectorReady ? (
+          <p className="text-sm text-muted-foreground">
+            Google Sheets connection missing. Reconnect via the workspace connectors panel.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              When a worker week is marked paid, a row is appended to the payer's column block
+              (Michael B–E, Dylan H–K) with the cash amount as money out, the date, and a
+              "Name Aug 3 to 9" comment.
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm">Write rows on mark paid</Label>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+            <div>
+              <Label className="text-xs">Sheet URL or ID</Label>
+              <Input
+                className="mt-1"
+                value={sheetId}
+                onChange={(e) => setSheetId(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/…"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Tab name</Label>
+              <Input
+                className="mt-1"
+                value={tab}
+                onChange={(e) => setTab(e.target.value)}
+                placeholder="Cash Tracking"
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground">
+                {sheetUrl && (
+                  <a href={sheetUrl} target="_blank" rel="noreferrer" className="underline">
+                    Open sheet
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={test} disabled={testing || !sheetId}>
+                  {testing ? "Testing…" : "Test connection"}
+                </Button>
+                <Button size="sm" onClick={save} disabled={saving}>
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </div>
             </div>
           </>
         )}

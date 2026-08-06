@@ -17,6 +17,9 @@ export type Database = {
       app_settings: {
         Row: {
           admin_password_hash: string
+          cash_export_enabled: boolean
+          cash_export_sheet_id: string | null
+          cash_export_tab: string | null
           google_sheet_id: string | null
           google_sheet_tab: string | null
           id: number
@@ -30,6 +33,9 @@ export type Database = {
         }
         Insert: {
           admin_password_hash: string
+          cash_export_enabled?: boolean
+          cash_export_sheet_id?: string | null
+          cash_export_tab?: string | null
           google_sheet_id?: string | null
           google_sheet_tab?: string | null
           id?: number
@@ -43,6 +49,9 @@ export type Database = {
         }
         Update: {
           admin_password_hash?: string
+          cash_export_enabled?: boolean
+          cash_export_sheet_id?: string | null
+          cash_export_tab?: string | null
           google_sheet_id?: string | null
           google_sheet_tab?: string | null
           id?: number
@@ -947,6 +956,7 @@ export type Database = {
           notes: string | null
           paid_at: string
           paid_by: string | null
+          paid_by_person: string | null
           reimbursement_total: number
           tip_amount: number | null
           wages: number
@@ -962,6 +972,7 @@ export type Database = {
           notes?: string | null
           paid_at?: string
           paid_by?: string | null
+          paid_by_person?: string | null
           reimbursement_total?: number
           tip_amount?: number | null
           wages?: number
@@ -977,6 +988,7 @@ export type Database = {
           notes?: string | null
           paid_at?: string
           paid_by?: string | null
+          paid_by_person?: string | null
           reimbursement_total?: number
           tip_amount?: number | null
           wages?: number

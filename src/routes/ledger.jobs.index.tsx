@@ -17,13 +17,11 @@ export const Route = createFileRoute("/ledger/jobs/")({
       { property: "og:description", content: "Every job in one calm, searchable list." },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => {
+  validateSearch: (search: Record<string, unknown>): { stage?: LedgerStatus } => {
     const stage = typeof search.stage === "string" ? search.stage : undefined;
-    return {
-      stage: stage && (LEDGER_STATUSES as readonly string[]).includes(stage)
-        ? (stage as LedgerStatus)
-        : undefined,
-    };
+    return stage && (LEDGER_STATUSES as readonly string[]).includes(stage)
+      ? { stage: stage as LedgerStatus }
+      : {};
   },
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(ledgerJobsQuery());
