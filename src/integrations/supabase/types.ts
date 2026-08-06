@@ -28,6 +28,8 @@ export type Database = {
           project_summary_last_sync_at: string | null
           project_summary_sheet_id: string | null
           project_tracking_enabled: boolean
+          sheet_jobs_last_sync_at: string | null
+          sheet_jobs_sync_enabled: boolean
           sheet_sync_enabled: boolean
           show_pay_estimates: boolean
           worker_export_last_sync_at: string | null
@@ -46,6 +48,8 @@ export type Database = {
           project_summary_last_sync_at?: string | null
           project_summary_sheet_id?: string | null
           project_tracking_enabled?: boolean
+          sheet_jobs_last_sync_at?: string | null
+          sheet_jobs_sync_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
           worker_export_last_sync_at?: string | null
@@ -64,6 +68,8 @@ export type Database = {
           project_summary_last_sync_at?: string | null
           project_summary_sheet_id?: string | null
           project_tracking_enabled?: boolean
+          sheet_jobs_last_sync_at?: string | null
+          sheet_jobs_sync_enabled?: boolean
           sheet_sync_enabled?: boolean
           show_pay_estimates?: boolean
           worker_export_last_sync_at?: string | null
@@ -487,6 +493,8 @@ export type Database = {
           id: string
           notes: string | null
           project_id: string
+          source: string
+          source_key: string | null
           status: string
           updated_at: string
         }
@@ -498,6 +506,8 @@ export type Database = {
           id?: string
           notes?: string | null
           project_id: string
+          source?: string
+          source_key?: string | null
           status?: string
           updated_at?: string
         }
@@ -509,6 +519,8 @@ export type Database = {
           id?: string
           notes?: string | null
           project_id?: string
+          source?: string
+          source_key?: string | null
           status?: string
           updated_at?: string
         }
@@ -533,6 +545,8 @@ export type Database = {
           incurred_on: string | null
           notes: string | null
           project_id: string
+          source: string
+          source_key: string | null
           updated_at: string
           vendor: string | null
         }
@@ -546,6 +560,8 @@ export type Database = {
           incurred_on?: string | null
           notes?: string | null
           project_id: string
+          source?: string
+          source_key?: string | null
           updated_at?: string
           vendor?: string | null
         }
@@ -559,6 +575,8 @@ export type Database = {
           incurred_on?: string | null
           notes?: string | null
           project_id?: string
+          source?: string
+          source_key?: string | null
           updated_at?: string
           vendor?: string | null
         }
@@ -679,6 +697,8 @@ export type Database = {
           notes: string | null
           project_id: string
           received_date: string | null
+          source: string
+          source_key: string | null
           updated_at: string
         }
         Insert: {
@@ -692,6 +712,8 @@ export type Database = {
           notes?: string | null
           project_id: string
           received_date?: string | null
+          source?: string
+          source_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -705,6 +727,8 @@ export type Database = {
           notes?: string | null
           project_id?: string
           received_date?: string | null
+          source?: string
+          source_key?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -950,6 +974,71 @@ export type Database = {
             columns: ["worker_id"]
             isOneToOne: false
             referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sheet_job_sources: {
+        Row: {
+          address: string | null
+          created_at: string
+          drive_modified_at: string | null
+          file_id: string
+          file_name: string
+          id: string
+          last_error: string | null
+          last_synced_at: string | null
+          match_mode: string
+          ongoing: boolean
+          project_id: string | null
+          sheet_totals: Json | null
+          start_label: string | null
+          status: string
+          updated_at: string
+          warnings: Json
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          drive_modified_at?: string | null
+          file_id: string
+          file_name: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          match_mode?: string
+          ongoing?: boolean
+          project_id?: string | null
+          sheet_totals?: Json | null
+          start_label?: string | null
+          status?: string
+          updated_at?: string
+          warnings?: Json
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          drive_modified_at?: string | null
+          file_id?: string
+          file_name?: string
+          id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
+          match_mode?: string
+          ongoing?: boolean
+          project_id?: string | null
+          sheet_totals?: Json | null
+          start_label?: string | null
+          status?: string
+          updated_at?: string
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sheet_job_sources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
             referencedColumns: ["id"]
           },
         ]
