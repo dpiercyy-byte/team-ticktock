@@ -284,12 +284,13 @@ export function parseJobSheet(values: unknown[][], yearHint: number): ParsedJobS
   const costs: ParsedCost[] = [];
   const priceLines: ParsedPriceLine[] = [];
 
-  const costCols: Array<{ idx: number; category: SheetCostCategory }> = [
+  const allCostCols: Array<{ idx: number; category: SheetCostCategory }> = [
     { idx: finishIdx, category: "finish_material" },
     { idx: buildIdx, category: "material" },
     { idx: subsIdx, category: "subcontractor" },
     { idx: labourIdx, category: "labour" },
-  ].filter((c) => c.idx >= 0);
+  ];
+  const costCols = allCostCols.filter((c) => c.idx >= 0);
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
