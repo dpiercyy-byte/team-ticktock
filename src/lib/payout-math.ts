@@ -61,3 +61,42 @@ export function payoutStatus(
 export function tipFor(amount: number, actualPaid: number): number {
   return Number((actualPaid - amount).toFixed(2));
 }
+
+// ===== Cash Tracking sheet formatting =====
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** "August 5" — matches the sheet's Date In/Out style. */
+export function cashDateLabel(d: Date): string {
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+/** "Aug 3 to 9", or "Aug 31 to Sep 6" when the week spans two months. */
+export function cashWeekRangeLabel(weekStart: string): string {
+  const start = new Date(weekStart + "T00:00:00");
+  const end = new Date(weekStart + "T00:00:00");
+  end.setDate(end.getDate() + 6);
+  const short = (d: Date) => MONTHS[d.getMonth()].slice(0, 3);
+  return start.getMonth() === end.getMonth()
+    ? `${short(start)} ${start.getDate()} to ${end.getDate()}`
+    : `${short(start)} ${start.getDate()} to ${short(end)} ${end.getDate()}`;
+}
+
+/** "Colin Aug 3 to 9" — worker first name plus the payout week. */
+export function cashCommentLabel(workerName: string, weekStart: string): string {
+  const first = (workerName || "").trim().split(/\s+/)[0] || "worker";
+  return `${first} ${cashWeekRangeLabel(weekStart)}`;
+}
+
+/** "-$1,440.00" */
+export function cashAmountLabel(amount: number): string {
+  const sign = amount < 0 ? "-" : "";
+  const abs = Math.abs(amount).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${sign}$${abs}`;
+}
