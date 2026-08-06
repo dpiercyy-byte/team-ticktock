@@ -47,6 +47,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import {
+  getCashExportSettingsFn,
+  updateCashExportSettings,
+  testCashExportFn,
+} from "@/lib/cash-export.functions";
+import {
   LogOut,
   Plus,
   Trash2,
@@ -4298,6 +4303,7 @@ function SettingsTab({ token, updateToken }: { token: string; updateToken: (t: s
       <GoogleSheetsSettingsCard token={token} updateToken={updateToken} />
 
       <WorkerExportSettingsCard token={token} updateToken={updateToken} />
+      <CashExportSettingsCard token={token} updateToken={updateToken} />
     </div>
   );
 }
@@ -4434,6 +4440,142 @@ function GoogleSheetsSettingsCard({
                 <Upload className="h-3.5 w-3.5 mr-1.5" />
                 {backfilling ? "Syncing…" : "Backfill all receipts"}
               </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CashExportSettingsCard({
+  token,
+  updateToken,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+}) {
+  const getFn = useServerFn(getCashExportSettingsFn);
+  const updFn = useServerFn(updateCashExportSettings);
+  const testFn = useServerFn(testCashExportFn);
+  const qc = useQueryClient();
+  const [sheetId, setSheetId] = useState("");
+  const [tab, setTab] = useState("Cash Tracking");
+  const [enabled, setEnabled] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["cash-export-settings"],
+    queryFn: () =>
+      getFn({ data: { token } }).then((r) => {
+        updateToken(r.token);
+        return r;
+      }),
+  });
+
+  useEffect(() => {
+    const s = q.data?.settings;
+    if (!s) return;
+    setSheetId(s.cash_export_sheet_id || "");
+    setTab(s.cash_export_tab || "Cash Tracking");
+    setEnabled(!!s.cash_export_enabled);
+  }, [q.data]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await updFn({ data: { token, sheetId, tab, enabled } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["cash-export-settings"] });
+      toast.success("Saved");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const test = async () => {
+    setTesting(true);
+    try {
+      const r = await testFn({ data: { token } });
+      updateToken(r.token);
+      if (r.ok) {
+        toast.success(
+          `Connected — next rows: Michael ${r.nextRows.Michael}, Dylan ${r.nextRows.Dylan}`,
+        );
+      } else {
+        toast.error(r.error || "Failed");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const connectorReady = q.data?.connectorReady;
+  const resolvedId = sheetId.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || sheetId;
+  const sheetUrl = resolvedId ? `https://docs.google.com/spreadsheets/d/${resolvedId}/edit` : null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sheet className="h-4 w-4" /> Cash tracking export
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!connectorReady ? (
+          <p className="text-sm text-muted-foreground">
+            Google Sheets connection missing. Reconnect via the workspace connectors panel.
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              When a worker week is marked paid, a row is appended to the payer's column block
+              (Michael B–E, Dylan H–K) with the cash amount as money out, the date, and a
+              "Name Aug 3 to 9" comment.
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm">Write rows on mark paid</Label>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+            <div>
+              <Label className="text-xs">Sheet URL or ID</Label>
+              <Input
+                className="mt-1"
+                value={sheetId}
+                onChange={(e) => setSheetId(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/…"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Tab name</Label>
+              <Input
+                className="mt-1"
+                value={tab}
+                onChange={(e) => setTab(e.target.value)}
+                placeholder="Cash Tracking"
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground">
+                {sheetUrl && (
+                  <a href={sheetUrl} target="_blank" rel="noreferrer" className="underline">
+                    Open sheet
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={test} disabled={testing || !sheetId}>
+                  {testing ? "Testing…" : "Test connection"}
+                </Button>
+                <Button size="sm" onClick={save} disabled={saving}>
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </div>
             </div>
           </>
         )}
