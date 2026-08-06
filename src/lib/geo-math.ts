@@ -1,7 +1,7 @@
 // Pure geofence math — no database, no server-only imports.
 // Kept separate from geo.server.ts so it can be unit tested.
 
-export type GeoStatus = "verified" | "supplier" | "off_site" | "no_gps";
+export type GeoStatus = "verified" | "callback" | "supplier" | "off_site" | "no_gps";
 
 export type GeoMatch = {
   status: GeoStatus;
