@@ -5551,6 +5551,29 @@ function GeoTagEditor({
           );
         })}
 
+        {completedSites.length > 0 && (
+          <>
+            <div className="my-1 h-px bg-border" />
+            <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              Completed jobs (callback)
+            </div>
+            {completedSites.map((s) => {
+              const isCurrent = status === "callback" && entry.job_site_id === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => pick("callback", s.id)}
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${isCurrent ? "bg-secondary" : ""}`}
+                >
+                  <Building2 className="h-3 w-3 text-warning" />
+                  <span className="truncate">{s.label}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
+
         {supplierSites.length > 0 && (
           <>
             <div className="my-1 h-px bg-border" />
