@@ -359,7 +359,7 @@ function AdminDashboard({
 }) {
   const [activeTab, setActiveTab] = useState("entries");
   return (
-    <div className="min-h-dvh bg-background pb-24">
+    <div className="min-h-dvh bg-background pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
       <AppSwitcherBar onLogout={onLogout} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3">
         <SwipeableTabs tabs={[...ADMIN_TABS]} value={activeTab} onValueChange={setActiveTab}>
@@ -2743,7 +2743,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
     (materialType !== "all" ? 1 : 0);
 
   return (
-    <div className="space-y-3 pb-24">
+    <div className="space-y-3">
       {/* Search + Filter */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
