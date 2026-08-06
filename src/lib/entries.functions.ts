@@ -164,6 +164,14 @@ export const clockIn = createServerFn({ method: "POST" })
       planned_job_site_id: plannedId,
     }).select("id").single();
     if (error) throw error;
+    if (inserted?.id) {
+      await insertSegment(
+        inserted.id,
+        { started_at: ts.iso, ended_at: null, job_site_id: geo.jobSiteId, geo_status: geo.status, source: "clock_in" },
+        data.lat, data.lng,
+      );
+    }
+
     await logAudit({
       actor: { kind: "worker", id: wid },
       action: "clock_in",
