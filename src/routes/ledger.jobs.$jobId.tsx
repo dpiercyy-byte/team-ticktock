@@ -102,6 +102,24 @@ function JobDetail() {
     },
   });
 
+  const isCompleted = String(job.status).toLowerCase() === "completed";
+  const setStatus = useServerFn(updateLedgerJob);
+  const statusMutation = useMutation({
+    mutationFn: async (status: "Active" | "Completed") => {
+      const token = getAdminToken();
+      if (!token) throw new Error("Not signed in");
+      return setStatus({ data: { token, id: jobId, patch: { status } } });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["ledger", "jobs", jobId] });
+      await qc.invalidateQueries({ queryKey: ["ledger", "workspace", jobId] });
+      await qc.invalidateQueries({ queryKey: ["ledger", "jobs"] });
+      router.invalidate();
+    },
+  });
+
+
+
   return (
     <>
       <LedgerShell
