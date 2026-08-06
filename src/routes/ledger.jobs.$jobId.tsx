@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ledgerJobQuery } from "@/lib/ledger-client";
 import { workspaceQuery } from "@/lib/workspace-client";
-import { addLedgerJobEvent, deleteLedgerJob, type LedgerJob } from "@/lib/ledger.functions";
+import { addLedgerJobEvent, deleteLedgerJob, updateLedgerJob, type LedgerJob } from "@/lib/ledger.functions";
 import { completeNextAction, setNextAction } from "@/lib/crm.functions";
 import { getAdminToken } from "@/lib/session";
 import { useState } from "react";
