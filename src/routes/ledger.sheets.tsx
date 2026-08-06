@@ -28,7 +28,7 @@ export const Route = createFileRoute("/ledger/sheets")({
   component: SheetJobsPage,
 });
 
-function useToken() {
+function requireToken() {
   const t = getAdminToken();
   if (!t) throw new Response("Admin required", { status: 401 });
   return t;
@@ -40,14 +40,14 @@ function SheetJobsPage() {
 
   const q = useQuery({
     queryKey: ["ledger", "sheet-jobs"],
-    queryFn: async () => listSheetJobSources({ data: { token: useToken() } }),
+    queryFn: async () => listSheetJobSources({ data: { token: requireToken() } }),
     staleTime: 10_000,
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["ledger", "sheet-jobs"] });
 
   const discover = useMutation({
-    mutationFn: async () => discoverSheetJobs({ data: { token: useToken() } }),
+    mutationFn: async () => discoverSheetJobs({ data: { token: requireToken() } }),
     onSuccess: (r) => {
       toast.success(`Found ${r.found} ongoing sheet${r.found === 1 ? "" : "s"}`);
       refresh();
@@ -56,7 +56,7 @@ function SheetJobsPage() {
   });
 
   const syncAll = useMutation({
-    mutationFn: async () => syncSheetJobs({ data: { token: useToken() } }),
+    mutationFn: async () => syncSheetJobs({ data: { token: requireToken() } }),
     onSuccess: (r) => {
       toast.success(`Synced ${r.synced} job${r.synced === 1 ? "" : "s"}${r.failed ? `, ${r.failed} failed` : ""}`);
       refresh();
@@ -65,7 +65,7 @@ function SheetJobsPage() {
   });
 
   const syncOne = useMutation({
-    mutationFn: async (id: string) => syncSheetJob({ data: { token: useToken(), id } }),
+    mutationFn: async (id: string) => syncSheetJob({ data: { token: requireToken(), id } }),
     onSuccess: (r) => {
       if (r.ok) toast.success("Sheet imported");
       else toast.error(r.error ?? "Import failed");
@@ -77,7 +77,7 @@ function SheetJobsPage() {
 
   const toggle = useMutation({
     mutationFn: async (enabled: boolean) =>
-      setSheetJobsSyncEnabled({ data: { token: useToken(), enabled } }),
+      setSheetJobsSyncEnabled({ data: { token: requireToken(), enabled } }),
     onSuccess: () => refresh(),
     onError: (e: Error) => toast.error(e.message),
   });

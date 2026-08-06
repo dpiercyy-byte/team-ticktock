@@ -13,6 +13,7 @@ import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LedgerIndexRouteImport } from './routes/ledger.index'
+import { Route as LedgerSheetsRouteImport } from './routes/ledger.sheets'
 import { Route as LedgerProfileRouteImport } from './routes/ledger.profile'
 import { Route as LedgerPipelineRouteImport } from './routes/ledger.pipeline'
 import { Route as LedgerNotificationsRouteImport } from './routes/ledger.notifications'
@@ -46,6 +47,11 @@ const IndexRoute = IndexRouteImport.update({
 const LedgerIndexRoute = LedgerIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerSheetsRoute = LedgerSheetsRouteImport.update({
+  id: '/sheets',
+  path: '/sheets',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerProfileRoute = LedgerProfileRouteImport.update({
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/ledger/notifications': typeof LedgerNotificationsRoute
   '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
+  '/ledger/sheets': typeof LedgerSheetsRoute
   '/ledger/': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/ledger/notifications': typeof LedgerNotificationsRoute
   '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
+  '/ledger/sheets': typeof LedgerSheetsRoute
   '/ledger': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/ledger/notifications': typeof LedgerNotificationsRoute
   '/ledger/pipeline': typeof LedgerPipelineRoute
   '/ledger/profile': typeof LedgerProfileRoute
+  '/ledger/sheets': typeof LedgerSheetsRoute
   '/ledger/': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/ledger/notifications'
     | '/ledger/pipeline'
     | '/ledger/profile'
+    | '/ledger/sheets'
     | '/ledger/'
     | '/ledger/jobs/$jobId'
     | '/ledger/jobs/new'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/ledger/notifications'
     | '/ledger/pipeline'
     | '/ledger/profile'
+    | '/ledger/sheets'
     | '/ledger'
     | '/ledger/jobs/$jobId'
     | '/ledger/jobs/new'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/ledger/notifications'
     | '/ledger/pipeline'
     | '/ledger/profile'
+    | '/ledger/sheets'
     | '/ledger/'
     | '/ledger/jobs/$jobId'
     | '/ledger/jobs/new'
@@ -281,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/ledger/'
       preLoaderRoute: typeof LedgerIndexRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/ledger/sheets': {
+      id: '/ledger/sheets'
+      path: '/sheets'
+      fullPath: '/ledger/sheets'
+      preLoaderRoute: typeof LedgerSheetsRouteImport
       parentRoute: typeof LedgerRoute
     }
     '/ledger/profile': {
@@ -390,6 +409,7 @@ interface LedgerRouteChildren {
   LedgerNotificationsRoute: typeof LedgerNotificationsRoute
   LedgerPipelineRoute: typeof LedgerPipelineRoute
   LedgerProfileRoute: typeof LedgerProfileRoute
+  LedgerSheetsRoute: typeof LedgerSheetsRoute
   LedgerIndexRoute: typeof LedgerIndexRoute
   LedgerJobsJobIdRoute: typeof LedgerJobsJobIdRoute
   LedgerJobsNewRoute: typeof LedgerJobsNewRoute
@@ -405,6 +425,7 @@ const LedgerRouteChildren: LedgerRouteChildren = {
   LedgerNotificationsRoute: LedgerNotificationsRoute,
   LedgerPipelineRoute: LedgerPipelineRoute,
   LedgerProfileRoute: LedgerProfileRoute,
+  LedgerSheetsRoute: LedgerSheetsRoute,
   LedgerIndexRoute: LedgerIndexRoute,
   LedgerJobsJobIdRoute: LedgerJobsJobIdRoute,
   LedgerJobsNewRoute: LedgerJobsNewRoute,
