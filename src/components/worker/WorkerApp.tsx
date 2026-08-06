@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   Wifi, WifiOff, LogOut, Briefcase, Clock, Receipt, X, FileText, Trash2, Paperclip, Banknote,
-  MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2, ChevronLeft, ChevronRight,
+  MapPin, MapPinOff, CloudOff, RefreshCw, AlertCircle, Loader2, ChevronLeft, ChevronRight, Shuffle,
 } from "lucide-react";
 import { CameraFilePicker } from "@/components/CameraFilePicker";
 
@@ -26,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { listWorkersPublic, workerLogin } from "@/lib/auth.functions";
-import { getWorkerState, clockIn, clockOut, workerSetEntryReason, workerListActiveClientSites, workerSetPlannedJob } from "@/lib/entries.functions";
+import { getWorkerState, clockIn, clockOut, workerSetEntryReason, workerListActiveClientSites, workerSetPlannedJob, workerSwitchSite } from "@/lib/entries.functions";
 import {
   workerSubmitReimbursement, workerUploadReceipt,
   workerListReimbursements, workerDeleteReimbursement, workerListActiveSites,
@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getWorkerSession, setWorkerSession, clearWorkerSession, type WorkerSession,
 } from "@/lib/session";
+import { classifyPunch } from "@/lib/geo-math";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { enqueueClock } from "@/lib/offline-queue";
 import { workerWeekSummary } from "@/lib/payout.functions";
@@ -401,6 +402,71 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   })();
   void optimisticPendingKind;
 
+  // --- Site switching (multi-site shifts) ---
+  const segments = (data?.segments ?? []) as Array<{
+    id: string; startedAt: string; endedAt: string | null; jobSiteId: string | null;
+    label: string; geoStatus: string | null; source: string;
+  }>;
+  const currentSegment = segments.find((s) => !s.endedAt) ?? null;
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [autoPrompt, setAutoPrompt] = useState<null | { siteId: string; label: string }>(null);
+  const [autoDismissed, setAutoDismissed] = useState<string[]>([]);
+
+  const switchSitesFn = useServerFn(workerListActiveClientSites);
+  const switchSitesQ = useQuery({
+    queryKey: ["worker-client-sites", session.id],
+    queryFn: () => switchSitesFn({ data: { token: session.token } }),
+    enabled: Boolean(active),
+    staleTime: 5 * 60_000,
+  });
+  const switchSites = (switchSitesQ.data?.sites ?? []) as Array<{
+    id: string; label: string; lat: number; lng: number; radius_m: number;
+  }>;
+
+  const switchFn = useServerFn(workerSwitchSite);
+  const switchMut = useMutation({
+    mutationFn: async (siteId: string | null) => {
+      const coords = await getGeo();
+      return switchFn({ data: {
+        token: session.token,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+        jobSiteId: siteId,
+      } });
+    },
+    onSuccess: (r: any) => {
+      setSwitchOpen(false);
+      setAutoPrompt(null);
+      qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+      if (r?.unchanged) toast.info("Already tracking that site");
+      else {
+        if (r?.geo) setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+        toast.success(r?.geo?.siteLabel ? `Now tracking ${r.geo.siteLabel}` : "Site updated");
+      }
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not switch site"),
+  });
+
+  // Auto-detect: while clocked in, poll GPS and offer a switch when the worker
+  // has clearly moved into a different job site's geofence.
+  useEffect(() => {
+    if (!active || active.__pending || switchSites.length === 0) return;
+    let cancelled = false;
+    const check = async () => {
+      const coords = await getGeo();
+      if (cancelled || !coords) return;
+      const match = classifyPunch(coords.lat, coords.lng, switchSites as any);
+      if (match.status !== "verified" || !match.jobSiteId) return;
+      const currentId = currentSegment?.jobSiteId ?? active.job_site_id ?? null;
+      if (match.jobSiteId === currentId) return;
+      if (autoDismissed.includes(match.jobSiteId)) return;
+      setAutoPrompt({ siteId: match.jobSiteId, label: match.siteLabel ?? "another site" });
+    };
+    void check();
+    const i = setInterval(check, 5 * 60_000);
+    return () => { cancelled = true; clearInterval(i); };
+  }, [active?.id, active?.__pending, currentSegment?.jobSiteId, switchSites.length, autoDismissed.join(",")]);
+
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
@@ -513,6 +579,32 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               )}
             </div>
 
+            {active && !active.__pending && (
+              <div className="w-full max-w-xs flex flex-col items-center gap-2">
+                <Button variant="outline" size="sm" className="rounded-full"
+                        onClick={() => setSwitchOpen(true)}>
+                  <Shuffle className="h-3.5 w-3.5 mr-1.5" /> Switch site
+                </Button>
+                {segments.length > 1 && (
+                  <div className="w-full rounded-xl border border-border bg-card px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Today's sites</p>
+                    <ul className="space-y-0.5">
+                      {segments.map((sg) => {
+                        const end = sg.endedAt ? new Date(sg.endedAt).getTime() : Date.now();
+                        const hrs = Math.max(0, (end - new Date(sg.startedAt).getTime()) / 3600_000);
+                        return (
+                          <li key={sg.id} className="flex items-center justify-between text-xs">
+                            <span className="truncate mr-2">{sg.label}</span>
+                            <span className="tabular-nums text-muted-foreground">{fmtHours(hrs)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             <ReimbursementsSection token={session.token} workerId={session.id} />
             <PreviousWeekPill token={session.token} workerId={session.id} />
 
@@ -541,6 +633,61 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         onClose={() => setReasonPrompt(null)}
         onSaved={() => qc.invalidateQueries({ queryKey: ["worker-state", session.id] })}
       />
+
+      <Dialog open={switchOpen} onOpenChange={setSwitchOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Switch job site</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Your hours up to now stay on {currentSegment?.label ?? "your current site"}. New hours go to the site you pick.
+          </p>
+          <div className="max-h-[45vh] overflow-y-auto -mx-1 px-1 space-y-1.5">
+            {switchSites.map((s) => (
+              <button key={s.id} disabled={switchMut.isPending}
+                      onClick={() => switchMut.mutate(s.id)}
+                      className="w-full text-left rounded-xl border border-border bg-card px-4 py-3 text-sm active:scale-[0.99] disabled:opacity-50">
+                {s.label}
+              </button>
+            ))}
+            {switchSites.length === 0 && (
+              <p className="text-sm text-muted-foreground">No active job sites.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" disabled={switchMut.isPending}
+                    onClick={() => switchMut.mutate(null)}>
+              Use my GPS location
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!autoPrompt} onOpenChange={(o) => {
+        if (!o) {
+          if (autoPrompt) setAutoDismissed((prev) => [...prev, autoPrompt.siteId]);
+          setAutoPrompt(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Moved to {autoPrompt?.label}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            We noticed you're at {autoPrompt?.label}. Switch so your hours land on the right job?
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => {
+              if (autoPrompt) setAutoDismissed((prev) => [...prev, autoPrompt.siteId]);
+              setAutoPrompt(null);
+            }}>Not now</Button>
+            <Button disabled={switchMut.isPending}
+                    onClick={() => autoPrompt && switchMut.mutate(autoPrompt.siteId)}>
+              Yes, switch
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <PlannedJobDialog
         token={session.token}
