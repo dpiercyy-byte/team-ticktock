@@ -96,6 +96,8 @@ export function costSummary(input: {
     }
     if (c.category === "subcontractor") subcontractors += c.amount;
     else if (c.category === "permit") permits += c.amount;
+    else if (c.category === "material" || c.category === "finish_material")
+      materials += c.amount;
     else other += c.amount;
   }
 
