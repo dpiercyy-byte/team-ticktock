@@ -309,7 +309,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         const r = out.res;
         setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
         toast.success("Clocked in");
-        if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+        if (r.needsReason && r.entryId && r.geo.status !== "verified" && r.geo.status !== "callback") {
           setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
         }
       }
