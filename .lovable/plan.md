@@ -51,8 +51,8 @@ Both support add/edit/delete from the Financials tab, and every create/edit/dele
 ## Google Sheets
 
 - All current exports keep working untouched (worker entries, payouts, cash tracking).
-- Exported project-related rows gain a **Project ID** column where a project is known.
-- A new **Project Summary** export writes one row per project from the canonical data: contract, change orders, revised contract, received, outstanding, each cost bucket, profit and margin, plus the export timestamp.
+- A **Project ID** column is added only to the tabs this app writes and owns end to end — the per-worker Time Entries tabs and the Receipts tab — and it fills in only when the record is linked to a project. The Cash Tracking sheet's hand-made layout is not touched, and no existing column moves or is renamed.
+- A new **Project Summary** export writes one row per project from the canonical data into its own app-owned tab: contract, change orders, revised contract, received, outstanding, each cost bucket, profit and margin, plus the export timestamp.
 - One direction only — the app writes to Sheets, never reads back. Nothing existing is removed; the summary export runs alongside the old workflow so results can be compared across several completed projects first.
 - Each project shows a reconciliation indicator when its live figures differ from what was last exported.
 
