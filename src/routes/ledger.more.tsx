@@ -18,6 +18,12 @@ const LINKS = [
   { to: "/ledger/leads/new", label: "New lead", hint: "Capture an inquiry", icon: Plus },
   { to: "/ledger/jobs/new", label: "New job", hint: "Full project setup", icon: Users },
   { to: "/ledger/calendar", label: "Calendar", hint: "Scheduled work", icon: CalendarDays },
+  {
+    to: "/ledger/sheets",
+    label: "Job sheets",
+    hint: "Import ongoing Google Sheets",
+    icon: FileSpreadsheet,
+  },
   { to: "/ledger/notifications", label: "Notifications", hint: "Recent activity", icon: Bell },
   { to: "/ledger/profile", label: "Profile", hint: "Session and settings", icon: User },
 ] as const;
