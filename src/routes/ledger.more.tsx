@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, CalendarDays, Plus, User, Users } from "lucide-react";
+import { Bell, CalendarDays, FileSpreadsheet, Plus, User, Users } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 
 export const Route = createFileRoute("/ledger/more")({
