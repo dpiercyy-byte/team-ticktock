@@ -477,6 +477,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               {lastGeo && (
                 <div className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 shadow-sm text-xs ${
                   lastGeo.status === "verified" ? "text-success" :
+                  lastGeo.status === "callback" ? "text-warning" :
                   lastGeo.status === "supplier" ? "text-primary" :
                   lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
                 }`}>
@@ -484,6 +485,8 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                     ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
                     : lastGeo.status === "verified"
                     ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
+                    : lastGeo.status === "callback"
+                    ? <><MapPin className="h-3.5 w-3.5" /> Callback · {lastGeo.siteLabel}</>
                     : lastGeo.status === "supplier"
                     ? <><MapPin className="h-3.5 w-3.5" /> At {lastGeo.siteLabel}</>
                     : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
@@ -496,7 +499,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                 </div>
               )}
 
-              {active && active.geo_status && active.geo_status !== "verified" && active.geo_status !== "supplier" && !active.offsite_reason_code && (
+              {active && active.geo_status && active.geo_status !== "verified" && active.geo_status !== "callback" && active.geo_status !== "supplier" && !active.offsite_reason_code && (
                 <button
                   onClick={() => setReasonPrompt({
                     entryId: active.id,
