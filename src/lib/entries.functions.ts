@@ -300,6 +300,9 @@ export async function forceCloseEntry(opts: {
   const mirroredStatus = row.geo_status ?? "no_gps";
   const mirroredSite = row.job_site_id ?? null;
 
+  await closeOpenSegments(opts.entryId, outISO);
+
+
   const { error } = await supabaseAdmin.from("time_entries").update({
     clock_out: outISO,
     flagged_review: flagged,
