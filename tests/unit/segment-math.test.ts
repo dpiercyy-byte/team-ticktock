@@ -19,7 +19,10 @@ describe("segment-math", () => {
   });
 
   it("splits a shift 50/50 between start and end sites", () => {
-    const drafts = fiftyFiftySplit(t(8), t(16), { jobSiteId: "a", geoStatus: "verified" }, { jobSiteId: "b", geoStatus: "verified" });
+    const drafts = fiftyFiftySplit({
+      clockIn: t(8), clockOut: t(16),
+      inSiteId: "a", inStatus: "verified", outSiteId: "b", outStatus: "verified",
+    })!;
     expect(drafts).toHaveLength(2);
     expect(drafts[0].job_site_id).toBe("a");
     expect(drafts[1].job_site_id).toBe("b");
