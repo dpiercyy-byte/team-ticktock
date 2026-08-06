@@ -165,6 +165,34 @@ function JobDetail() {
 
               <ActivateJobPanel jobId={jobId} />
 
+              <section className="l-card mt-3 p-5">
+                <h2 className="l-eyebrow mb-2">Delivery status</h2>
+                <p className="text-[12px] l-muted">
+                  {isCompleted
+                    ? "This job is marked complete. Its site stays geofenced so callback visits still get tagged."
+                    : "Mark the job complete when work is finished. The site keeps its geofence for callbacks."}
+                </p>
+                <button
+                  type="button"
+                  disabled={statusMutation.isPending}
+                  onClick={() => statusMutation.mutate(isCompleted ? "Active" : "Completed")}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-bold disabled:opacity-60"
+                  style={
+                    isCompleted
+                      ? { background: "var(--l-sheet-2, hsl(40 20% 94%))" }
+                      : { background: "var(--l-ink)", color: "var(--l-on-ink)" }
+                  }
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {statusMutation.isPending
+                    ? "Saving…"
+                    : isCompleted
+                      ? "Reopen job"
+                      : "Mark job complete"}
+                </button>
+              </section>
+
+
               {job.trades.length > 0 && (
                 <section className="mt-6">
                   <h2 className="l-eyebrow mb-3 px-1">Trades</h2>
