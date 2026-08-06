@@ -15,7 +15,7 @@ export const adminListJobSites = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: rows, error } = await supabaseAdmin
       .from("job_sites")
-      .select("id, label, address, lat, lng, radius_m, created_at, kind, archived_at")
+      .select("id, label, address, lat, lng, radius_m, created_at, kind, archived_at, completed_at")
       .order("created_at", { ascending: false });
     if (error) throw error;
     return { ...refreshed, sites: rows ?? [] };
@@ -229,4 +229,35 @@ export const adminBulkAddJobSites = createServerFn({ method: "POST" })
       }
     }
     return { ...refreshed, added, failed };
+  });
+
+
+/** Move a job site between Active and Completed. Completed sites keep their
+ *  geofence so a callback visit still gets tagged (as a callback). */
+export const adminSetJobSiteCompleted = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    adminBase.extend({
+      id: z.string().uuid(),
+      completed: z.boolean(),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: prev } = await supabaseAdmin
+      .from("job_sites").select("label, completed_at").eq("id", data.id).maybeSingle();
+    const completed_at = data.completed ? new Date().toISOString() : null;
+    const { error } = await supabaseAdmin
+      .from("job_sites")
+      .update({ completed_at } as never)
+      .eq("id", data.id);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: data.completed ? "job_site_complete" : "job_site_reopen",
+      entityType: "job_site",
+      entityId: data.id,
+      before: { completed_at: (prev as any)?.completed_at ?? null, label: prev?.label ?? null },
+      after: { completed_at },
+    });
+    return refreshed;
   });

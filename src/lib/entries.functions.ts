@@ -532,6 +532,7 @@ export const workerListActiveClientSites = createServerFn({ method: "POST" })
       .select("id, label")
       .eq("kind", "client")
       .is("archived_at", null)
+      .is("completed_at", null)
       .order("label", { ascending: true });
     if (error) throw error;
     return { sites: rows ?? [] };
