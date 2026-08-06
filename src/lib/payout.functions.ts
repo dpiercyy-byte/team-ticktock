@@ -201,6 +201,7 @@ export const markWeekPaid = createServerFn({ method: "POST" })
     weekStart: z.string(),
     notes: z.string().optional(),
     actualPaid: z.number().nonnegative().optional(),
+    paidByPerson: z.enum(["Michael", "Dylan"]).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
@@ -226,6 +227,7 @@ export const markWeekPaid = createServerFn({ method: "POST" })
     const amount = wages + reimbTotal;
     const actualPaid = data.actualPaid != null ? data.actualPaid : amount;
     const tipAmount = Number((actualPaid - amount).toFixed(2));
+    const paidAt = new Date();
 
     const { error } = await supabaseAdmin.from("weekly_payouts").upsert({
       worker_id: data.workerId,
@@ -233,8 +235,9 @@ export const markWeekPaid = createServerFn({ method: "POST" })
       hours, wages, reimbursement_total: reimbTotal, amount,
       actual_paid: actualPaid,
       tip_amount: tipAmount,
-      paid_at: new Date().toISOString(),
+      paid_at: paidAt.toISOString(),
       paid_by: "Admin",
+      paid_by_person: data.paidByPerson ?? null,
       notes: data.notes ?? null,
     }, { onConflict: "worker_id,week_start" });
     if (error) throw error;
@@ -244,11 +247,40 @@ export const markWeekPaid = createServerFn({ method: "POST" })
       action: "mark_week_paid",
       entityType: "weekly_payout",
       entityId: `${data.workerId}:${data.weekStart}`,
-      after: { workerId: data.workerId, weekStart: data.weekStart, amount, actualPaid, tipAmount, hours, wages, reimbTotal },
+      after: { workerId: data.workerId, weekStart: data.weekStart, amount, actualPaid, tipAmount, hours, wages, reimbTotal, paidByPerson: data.paidByPerson ?? null },
       metadata: { workerName: w.name },
     });
 
-    return { ...refreshed, ok: true };
+    // Cash Tracking sheet export (best-effort; never blocks the payout).
+    let sheetRow: number | null = null;
+    let sheetError: string | null = null;
+    if (data.paidByPerson) {
+      try {
+        const { getCashExportSettings, appendCashPayoutRow } = await import("./cash-export.server");
+        const settings = await getCashExportSettings();
+        if (settings.enabled && settings.sheetId) {
+          const res = await appendCashPayoutRow({
+            payer: data.paidByPerson,
+            amount: actualPaid,
+            paidAt,
+            workerName: w.name,
+            weekStart: data.weekStart,
+          });
+          sheetRow = res.row;
+          await logAudit({
+            actor: { kind: "admin" },
+            action: "cash_export_row_added",
+            entityType: "weekly_payout",
+            entityId: `${data.workerId}:${data.weekStart}`,
+            after: { payer: data.paidByPerson, row: res.row, values: res.values },
+          });
+        }
+      } catch (e: any) {
+        sheetError = e?.message || String(e);
+      }
+    }
+
+    return { ...refreshed, ok: true, sheetRow, sheetError };
   });
 
 export const unmarkWeekPaid = createServerFn({ method: "POST" })
