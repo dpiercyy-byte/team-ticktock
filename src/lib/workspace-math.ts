@@ -3,6 +3,8 @@
 // workspace can never disagree with Clockwise.
 
 import { hoursBetween } from "./payout-math";
+import { segmentHours, type RawSegment } from "./segment-math";
+
 
 export type RawTimeEntry = {
   id: string;
