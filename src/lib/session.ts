@@ -23,9 +23,11 @@ export function getAdminToken(): string | null {
   return v;
 }
 export function setAdminToken(t: string) {
+  if (typeof window === "undefined") return;
   if (!t || typeof t !== "string") { sessionStorage.removeItem(ADMIN_KEY); return; }
   sessionStorage.setItem(ADMIN_KEY, t);
 }
 export function clearAdminToken() {
+  if (typeof window === "undefined") return;
   sessionStorage.removeItem(ADMIN_KEY);
 }

@@ -25,7 +25,7 @@ export const Route = createFileRoute("/ledger/")({
   component: LedgerHome,
 });
 
-const ACTIVE_STATUSES = ["Active", "Scheduled"];
+const ACTIVE_STATUSES = ["active", "scheduled"];
 
 function LedgerHome() {
   const { data: jobs } = useSuspenseQuery(ledgerJobsQuery());
@@ -39,7 +39,8 @@ function LedgerHome() {
       j.client.name.toLowerCase().includes(query) ||
       j.address.toLowerCase().includes(query);
 
-    const isActive = (j: (typeof jobs)[number]) => ACTIVE_STATUSES.includes(j.status);
+    const isActive = (j: (typeof jobs)[number]) =>
+      ACTIVE_STATUSES.includes((j.status ?? "").toLowerCase());
 
     const active = jobs.filter((j) => isActive(j) && matches(j));
     const past = query ? jobs.filter((j) => !isActive(j) && matches(j)) : [];
