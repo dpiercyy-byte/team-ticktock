@@ -110,13 +110,17 @@ export const getWorkerState = createServerFn({ method: "POST" })
       if (new Date(r.clock_in) >= dayStart) todayHours += h;
     }
 
+    const segments = active?.id ? await hydrateSegments(active.id) : [];
+
     return {
       worker,
       active,
+      segments,
       todayHours,
       weekHours,
       settings,
     };
+
   });
 
 
