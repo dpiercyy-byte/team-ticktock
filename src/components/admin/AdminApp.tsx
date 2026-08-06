@@ -5408,7 +5408,7 @@ function GeoTagEditor({
 }: {
   entry: any;
   field?: "in" | "out";
-  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
+  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null; completed_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
   onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
 }) {
