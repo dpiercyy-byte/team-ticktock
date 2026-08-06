@@ -176,7 +176,7 @@ export function FinancialsTab({
         </div>
         <p className="mt-3 text-[11px] l-muted">
           Actual figures come from recorded records. Forecast figures extrapolate recorded cost
-          over {financialsProgressNote(results.forecastProfit)} and are projections, not results.
+          over reported progress and are projections, not results.
         </p>
       </section>
 
@@ -508,10 +508,6 @@ export function FinancialsTab({
       </section>
     </div>
   );
-}
-
-function financialsProgressNote(forecast: number | null) {
-  return forecast == null ? "reported progress" : "reported progress";
 }
 
 function Big({
