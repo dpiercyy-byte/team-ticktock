@@ -4,6 +4,7 @@
 // into the app is left alone.
 import { supabaseAdmin } from "./db.server";
 import { findOrCreateClient, findOrCreateProperty } from "./ledger-crm.server";
+import { geocodeAddress } from "./geocode.server";
 import {
   addressKey,
   parseFileName,
@@ -197,6 +198,79 @@ async function createProjectFromSheet(
   return created.id as string;
 }
 
+/* ---------------- clockwise job sites ---------------- */
+
+/**
+ * Every ongoing sheet job should have a Clockwise geofence so workers can clock
+ * in there. Reuses an existing site at the same address, otherwise geocodes and
+ * creates one. Returns a warning string when the site could not be created.
+ */
+async function ensureJobSite(
+  projectId: string,
+  address: string,
+): Promise<string | null> {
+  const key = addressKey(address);
+  if (!key) return "No address to build a Clockwise job site from.";
+
+  const { data: sites, error } = await supabaseAdmin
+    .from("job_sites")
+    .select("id, address, project_id, kind, completed_at")
+    .is("archived_at", null);
+  if (error) throw error;
+
+  const hit = (sites ?? []).find(
+    (s: any) => (s.kind ?? "client") === "client" && addressKey(s.address ?? "") === key,
+  );
+  if (hit) {
+    const patch: Record<string, unknown> = {};
+    if (!(hit as any).project_id) patch.project_id = projectId;
+    if ((hit as any).completed_at) patch.completed_at = null;
+    if (Object.keys(patch).length > 0) {
+      await supabaseAdmin.from("job_sites").update(patch as never).eq("id", (hit as any).id);
+    }
+    return null;
+  }
+
+  try {
+    const geo = await geocodeAddress(address);
+    await supabaseAdmin.from("job_sites").insert({
+      label: geo.formatted.split(",")[0].trim() || address,
+      address: geo.formatted,
+      lat: geo.lat,
+      lng: geo.lng,
+      radius_m: 250,
+      kind: "client",
+      project_id: projectId,
+    } as never);
+    return null;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return `Could not create a Clockwise job site for "${address}": ${msg.slice(0, 120)}`;
+  }
+}
+
+/** Sheet no longer says "ongoing" -> the site moves to Completed but keeps its
+ *  geofence, so a callback visit still gets tagged. */
+async function completeJobSites(projectId: string, address: string | null) {
+  const key = address ? addressKey(address) : "";
+  const { data: sites } = await supabaseAdmin
+    .from("job_sites")
+    .select("id, address, project_id, kind, completed_at")
+    .is("archived_at", null);
+  const targets = (sites ?? []).filter(
+    (s: any) =>
+      (s.kind ?? "client") === "client" &&
+      !s.completed_at &&
+      (s.project_id === projectId || (key && addressKey(s.address ?? "") === key)),
+  );
+  for (const t of targets) {
+    await supabaseAdmin
+      .from("job_sites")
+      .update({ completed_at: new Date().toISOString(), project_id: projectId } as never)
+      .eq("id", (t as any).id);
+  }
+}
+
 /* ---------------- import ---------------- */
 
 async function fetchValues(fileId: string): Promise<unknown[][]> {
@@ -235,6 +309,15 @@ export async function syncSource(
     }
 
     await writeSheetRows(projectId, src.fileId, parsed);
+
+    // Keep Clockwise job sites in step with the sheets: ongoing -> live site,
+    // no longer ongoing -> completed site (address kept for callbacks).
+    if (src.ongoing) {
+      const siteWarning = await ensureJobSite(projectId, address);
+      if (siteWarning) warnings.push(siteWarning);
+    } else {
+      await completeJobSites(projectId, address);
+    }
 
     const totals = parsedTotals(parsed);
     await supabaseAdmin
@@ -343,7 +426,13 @@ export async function syncAll(): Promise<{
   results: Array<{ fileName: string; ok: boolean; error?: string; warnings: string[] }>;
 }> {
   await discoverSheets();
-  const sources = (await listSources()).filter((s) => s.ongoing);
+  // Ongoing sheets sync their rows; sheets that dropped "ongoing" still get a
+  // pass so their Clockwise job site is moved to Completed.
+  const all = await listSources();
+  const sources = [
+    ...all.filter((s) => s.ongoing),
+    ...all.filter((s) => !s.ongoing && s.projectId),
+  ];
   const results: Array<{ fileName: string; ok: boolean; error?: string; warnings: string[] }> = [];
   for (const s of sources) {
     const r = await syncSource(s.id);

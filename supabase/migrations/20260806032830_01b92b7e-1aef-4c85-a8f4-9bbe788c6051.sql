@@ -1,0 +1,1 @@
+ALTER TABLE public.job_sites ADD COLUMN IF NOT EXISTS completed_at timestamp with time zone;

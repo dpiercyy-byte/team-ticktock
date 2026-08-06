@@ -158,6 +158,7 @@ import {
   adminUpdateJobSite,
   adminDeleteJobSite,
   adminArchiveJobSite,
+  adminSetJobSiteCompleted,
   adminSearchPlaces,
   adminBulkAddJobSites,
 } from "@/lib/jobsites.functions";
@@ -4825,6 +4826,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   const updFn = useServerFn(adminUpdateJobSite);
   const delFn = useServerFn(adminDeleteJobSite);
   const archFn = useServerFn(adminArchiveJobSite);
+  const completeFn = useServerFn(adminSetJobSiteCompleted);
   const qc = useQueryClient();
 
   const q = useQuery({
@@ -4836,7 +4838,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
       }),
   });
 
-  const [view, setView] = useState<"client" | "supplier" | "archived">("client");
+  const [view, setView] = useState<"client" | "completed" | "supplier" | "archived">("client");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"client" | "supplier">("client");
@@ -4940,15 +4942,27 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
     onError: (e: any) => toast.error(e?.message || "Failed"),
   });
 
+  const completeMut = useMutation({
+    mutationFn: (v: { id: string; completed: boolean }) => completeFn({ data: { token, ...v } }),
+    onSuccess: (r, vars) => {
+      updateToken(r.token);
+      toast.success(vars.completed ? "Moved to Completed" : "Job reopened");
+      qc.invalidateQueries({ queryKey: ["job-sites"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed"),
+  });
+
   const all = q.data ?? [];
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return all.filter((s: any) => {
       const isArchived = !!s.archived_at;
+      const isCompleted = !!s.completed_at;
       const k = s.kind ?? "client";
       if (view === "archived" && !isArchived) return false;
       if (view !== "archived" && isArchived) return false;
-      if (view === "client" && k !== "client") return false;
+      if (view === "client" && (k !== "client" || isCompleted)) return false;
+      if (view === "completed" && (k !== "client" || !isCompleted)) return false;
       if (view === "supplier" && k !== "supplier") return false;
       if (!term) return true;
       return (
@@ -4960,14 +4974,16 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
 
   const counts = useMemo(() => {
     let client = 0,
+      completed = 0,
       supplier = 0,
       archived = 0;
     for (const s of all as any[]) {
       if (s.archived_at) archived++;
       else if ((s.kind ?? "client") === "supplier") supplier++;
+      else if (s.completed_at) completed++;
       else client++;
     }
-    return { client, supplier, archived };
+    return { client, completed, supplier, archived };
   }, [all]);
 
   return (
@@ -5092,7 +5108,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
 
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="inline-flex rounded-md border bg-card p-0.5 text-xs w-fit">
-          {(["client", "supplier", "archived"] as const).map((v) => (
+          {(["client", "completed", "supplier", "archived"] as const).map((v) => (
             <button
               key={v}
               type="button"
@@ -5101,9 +5117,11 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
             >
               {v === "client"
                 ? `Active jobs (${counts.client})`
-                : v === "supplier"
-                  ? `Suppliers (${counts.supplier})`
-                  : `Archived (${counts.archived})`}
+                : v === "completed"
+                  ? `Completed (${counts.completed})`
+                  : v === "supplier"
+                    ? `Suppliers (${counts.supplier})`
+                    : `Archived (${counts.archived})`}
             </button>
           ))}
         </div>
@@ -5137,6 +5155,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
               {filtered.map((s: any) => {
                 const isArchived = !!s.archived_at;
                 const isSupplier = (s.kind ?? "client") === "supplier";
+                const isCompleted = !!s.completed_at;
                 return (
                   <li key={s.id} className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -5151,7 +5170,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                             <Truck className="h-4 w-4 text-primary shrink-0" />
                           ) : (
                             <Building2
-                              className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : "text-success"}`}
+                              className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : isCompleted ? "text-warning" : "text-success"}`}
                             />
                           )}
                           <span className={isArchived ? "text-muted-foreground" : ""}>
@@ -5160,6 +5179,14 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                           {isArchived && (
                             <Badge variant="outline" className="h-4 text-[10px] ml-1">
                               Archived
+                            </Badge>
+                          )}
+                          {isCompleted && !isArchived && (
+                            <Badge
+                              variant="outline"
+                              className="h-4 text-[10px] ml-1 border-warning text-warning"
+                            >
+                              Completed
                             </Badge>
                           )}
                           {!isArchived && (
@@ -5189,6 +5216,17 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      {!isArchived && !isSupplier && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            completeMut.mutate({ id: s.id, completed: !isCompleted })
+                          }
+                        >
+                          {isCompleted ? "Reopen" : "Complete"}
+                        </Button>
+                      )}
                       {isArchived ? (
                         <>
                           <Button
@@ -5384,7 +5422,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   );
 }
 
-type GeoStatus = "verified" | "supplier" | "off_site" | "no_gps";
+type GeoStatus = "verified" | "callback" | "supplier" | "off_site" | "no_gps";
 
 const REASON_LABELS: Record<string, string> = {
   material_pickup: "Material pickup",
@@ -5408,7 +5446,7 @@ function GeoTagEditor({
 }: {
   entry: any;
   field?: "in" | "out";
-  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null }>;
+  sites: Array<{ id: string; label: string; kind?: string; archived_at?: string | null; completed_at?: string | null }>;
   onUpdate: (status: GeoStatus, jobSiteId: string | null) => void | Promise<void>;
   onUpdatePlanned?: (jobSiteId: string | null) => void | Promise<void>;
 }) {
@@ -5429,6 +5467,14 @@ function GeoTagEditor({
         <MapPin className="h-2.5 w-2.5 mr-0.5" />
         {prefix}
         {siteLabel}
+      </Badge>
+    ) : status === "callback" && siteLabel ? (
+      <Badge
+        variant="outline"
+        className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10"
+      >
+        <MapPin className="h-2.5 w-2.5 mr-0.5" />
+        {prefix}Callback · {siteLabel}
       </Badge>
     ) : status === "supplier" && siteLabel ? (
       <Badge
@@ -5471,7 +5517,8 @@ function GeoTagEditor({
   };
 
   const active = sites.filter((s) => !s.archived_at);
-  const clientSites = active.filter((s) => (s.kind ?? "client") === "client");
+  const clientSites = active.filter((s) => (s.kind ?? "client") === "client" && !s.completed_at);
+  const completedSites = active.filter((s) => (s.kind ?? "client") === "client" && !!s.completed_at);
   const supplierSites = active.filter((s) => s.kind === "supplier");
 
   return (
@@ -5541,6 +5588,29 @@ function GeoTagEditor({
             </button>
           );
         })}
+
+        {completedSites.length > 0 && (
+          <>
+            <div className="my-1 h-px bg-border" />
+            <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              Completed jobs (callback)
+            </div>
+            {completedSites.map((s) => {
+              const isCurrent = status === "callback" && entry.job_site_id === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => pick("callback", s.id)}
+                  className={`w-full text-left px-2 py-1.5 text-sm rounded hover:bg-secondary flex items-center gap-1.5 ${isCurrent ? "bg-secondary" : ""}`}
+                >
+                  <Building2 className="h-3 w-3 text-warning" />
+                  <span className="truncate">{s.label}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
 
         {supplierSites.length > 0 && (
           <>

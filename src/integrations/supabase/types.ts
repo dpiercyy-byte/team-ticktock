@@ -203,6 +203,7 @@ export type Database = {
         Row: {
           address: string
           archived_at: string | null
+          completed_at: string | null
           created_at: string
           id: string
           kind: string
@@ -215,6 +216,7 @@ export type Database = {
         Insert: {
           address: string
           archived_at?: string | null
+          completed_at?: string | null
           created_at?: string
           id?: string
           kind?: string
@@ -227,6 +229,7 @@ export type Database = {
         Update: {
           address?: string
           archived_at?: string | null
+          completed_at?: string | null
           created_at?: string
           id?: string
           kind?: string

@@ -236,7 +236,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     return () => clearInterval(i);
   }, [data?.active]);
 
-  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "supplier" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
+  const [lastGeo, setLastGeo] = useState<null | { status: "verified" | "callback" | "supplier" | "off_site" | "no_gps"; siteLabel: string | null }>(null);
   const [reasonPrompt, setReasonPrompt] = useState<null | { entryId: string; status: "off_site" | "no_gps"; kind: "in" | "out" }>(null);
   const [plannedPrompt, setPlannedPrompt] = useState<null | { entryId: string; alsoNeedsReason: boolean; reasonStatus?: "off_site" | "no_gps" }>(null);
 
@@ -244,7 +244,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     if (r.kind === "in") {
       setLastGeo({ status: r.res.geo.status, siteLabel: r.res.geo.siteLabel });
       toast.success("Clock-in synced");
-      if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified") {
+      if (r.res.needsReason && r.res.entryId && r.res.geo.status !== "verified" && r.res.geo.status !== "callback") {
         setReasonPrompt({ entryId: r.res.entryId, status: r.res.geo.status as any, kind: "in" });
       }
     } else {
@@ -309,7 +309,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         const r = out.res;
         setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
         toast.success("Clocked in");
-        if (r.needsReason && r.entryId && r.geo.status !== "verified") {
+        if (r.needsReason && r.entryId && r.geo.status !== "verified" && r.geo.status !== "callback") {
           setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "in" });
         }
       }
@@ -477,6 +477,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               {lastGeo && (
                 <div className={`inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 shadow-sm text-xs ${
                   lastGeo.status === "verified" ? "text-success" :
+                  lastGeo.status === "callback" ? "text-warning" :
                   lastGeo.status === "supplier" ? "text-primary" :
                   lastGeo.status === "off_site" ? "text-warning" : "text-muted-foreground"
                 }`}>
@@ -484,6 +485,8 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                     ? <><MapPinOff className="h-3.5 w-3.5" /> Location unavailable</>
                     : lastGeo.status === "verified"
                     ? <><MapPin className="h-3.5 w-3.5" /> Verified at {lastGeo.siteLabel}</>
+                    : lastGeo.status === "callback"
+                    ? <><MapPin className="h-3.5 w-3.5" /> Callback · {lastGeo.siteLabel}</>
                     : lastGeo.status === "supplier"
                     ? <><MapPin className="h-3.5 w-3.5" /> At {lastGeo.siteLabel}</>
                     : <><MapPin className="h-3.5 w-3.5" /> Off-site</>}
@@ -496,7 +499,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
                 </div>
               )}
 
-              {active && active.geo_status && active.geo_status !== "verified" && active.geo_status !== "supplier" && !active.offsite_reason_code && (
+              {active && active.geo_status && active.geo_status !== "verified" && active.geo_status !== "callback" && active.geo_status !== "supplier" && !active.offsite_reason_code && (
                 <button
                   onClick={() => setReasonPrompt({
                     entryId: active.id,
