@@ -23,7 +23,7 @@ export const weeklyPayout = createServerFn({ method: "POST" })
         .not("clock_out", "is", null),
       supabaseAdmin.from("reimbursements").select("worker_id, amount, description")
         .eq("week_start", data.weekStart),
-      supabaseAdmin.from("weekly_payouts").select("worker_id, paid_at, paid_by, amount, actual_paid, tip_amount")
+      supabaseAdmin.from("weekly_payouts").select("worker_id, paid_at, paid_by, paid_by_person, amount, actual_paid, tip_amount")
         .eq("week_start", data.weekStart),
     ]);
 
@@ -46,6 +46,7 @@ export const weeklyPayout = createServerFn({ method: "POST" })
         total: wages + reimbTotal,
         paidAt: paid?.paid_at ?? null,
         paidBy: paid?.paid_by ?? null,
+        paidByPerson: (paid as any)?.paid_by_person ?? null,
         actualPaid: paid?.actual_paid != null ? Number(paid.actual_paid) : null,
         tipAmount: paid?.tip_amount != null ? Number(paid.tip_amount) : null,
       };
@@ -132,7 +133,7 @@ export const listPendingWeeks = createServerFn({ method: "POST" })
       supabaseAdmin.from("time_entries").select("worker_id, clock_in, clock_out")
         .not("clock_out", "is", null),
       supabaseAdmin.from("reimbursements").select("worker_id, week_start, amount"),
-      supabaseAdmin.from("weekly_payouts").select("worker_id, week_start, paid_at, paid_by, amount, actual_paid, tip_amount"),
+      supabaseAdmin.from("weekly_payouts").select("worker_id, week_start, paid_at, paid_by, paid_by_person, amount, actual_paid, tip_amount"),
     ]);
 
     const workerMap = new Map((workers ?? []).map((w) => [w.id, w]));
@@ -182,6 +183,7 @@ export const listPendingWeeks = createServerFn({ method: "POST" })
           status,
           paidAt: paid?.paid_at ?? null,
           paidBy: paid?.paid_by ?? null,
+          paidByPerson: (paid as any)?.paid_by_person ?? null,
           paidAmount: paid ? Number(paid.amount) : null,
           actualPaid: paid?.actual_paid != null ? Number(paid.actual_paid) : null,
           tipAmount: paid?.tip_amount != null ? Number(paid.tip_amount) : null,
