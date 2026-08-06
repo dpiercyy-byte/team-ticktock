@@ -18,7 +18,12 @@ export type ChangeOrderRow = {
   notes: string | null;
 };
 
-export type ProjectCostCategory = "subcontractor" | "permit" | "other";
+export type ProjectCostCategory =
+  | "material"
+  | "finish_material"
+  | "subcontractor"
+  | "permit"
+  | "other";
 
 export type ProjectCostRow = {
   id: string;
