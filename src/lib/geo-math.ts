@@ -55,16 +55,24 @@ export function classifyPunch(
   if (!sites || sites.length === 0) {
     return { status: "off_site", jobSiteId: null, siteLabel: null };
   }
-  let best: { id: string; label: string; kind: string; dist: number } | null = null;
+  let best: { id: string; label: string; kind: string; completed: boolean; dist: number } | null =
+    null;
   for (const s of sites) {
     const d = haversineMeters(lat, lng, Number(s.lat), Number(s.lng));
     if (d <= Number(s.radius_m) && (!best || d < best.dist)) {
-      best = { id: s.id, label: s.label, kind: s.kind ?? "client", dist: d };
+      best = {
+        id: s.id,
+        label: s.label,
+        kind: s.kind ?? "client",
+        completed: !!s.completed_at,
+        dist: d,
+      };
     }
   }
   if (best) {
     return {
-      status: best.kind === "supplier" ? "supplier" : "verified",
+      status:
+        best.kind === "supplier" ? "supplier" : best.completed ? "callback" : "verified",
       jobSiteId: best.id,
       siteLabel: best.label,
     };
