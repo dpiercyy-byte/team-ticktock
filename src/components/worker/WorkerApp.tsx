@@ -46,7 +46,7 @@ import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compre
 
 type GeoCoords = { lat: number; lng: number } | null;
 
-async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
+async function getGeo(timeoutMs = 10_000, highAccuracy = true): Promise<GeoCoords> {
   if (typeof navigator === "undefined" || !navigator.geolocation) return null;
   return new Promise<GeoCoords>((resolve) => {
     let done = false;
@@ -55,7 +55,7 @@ async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
     navigator.geolocation.getCurrentPosition(
       (pos) => { clearTimeout(t); finish({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
       () => { clearTimeout(t); finish(null); },
-      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 30_000 },
+      { enableHighAccuracy: highAccuracy, timeout: timeoutMs, maximumAge: highAccuracy ? 30_000 : 300_000 },
     );
   });
 }
