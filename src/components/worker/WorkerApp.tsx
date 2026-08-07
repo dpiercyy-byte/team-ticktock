@@ -409,8 +409,9 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   }>;
   const currentSegment = segments.find((s) => !s.endedAt) ?? null;
   const [switchOpen, setSwitchOpen] = useState(false);
-  const [autoPrompt, setAutoPrompt] = useState<null | { siteId: string; label: string }>(null);
-  const [autoDismissed, setAutoDismissed] = useState<string[]>([]);
+  const [splitPrompt, setSplitPrompt] = useState<ShiftSplitPrompt | null>(null);
+  const pendingMatchRef = useRef<string | null>(null);
+  const lastManualSwitchRef = useRef<number>(0);
 
   const switchSitesFn = useServerFn(workerListActiveClientSites);
   const switchSitesQ = useQuery({
@@ -432,11 +433,13 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         lat: coords?.lat ?? null,
         lng: coords?.lng ?? null,
         jobSiteId: siteId,
+        source: "switch" as const,
       } });
     },
     onSuccess: (r: any) => {
       setSwitchOpen(false);
-      setAutoPrompt(null);
+      lastManualSwitchRef.current = Date.now();
+      pendingMatchRef.current = null;
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       if (r?.unchanged) toast.info("Already tracking that site");
       else {
@@ -445,6 +448,19 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
       }
     },
     onError: (e: any) => toast.error(e?.message || "Could not switch site"),
+  });
+
+  // Silent, GPS-driven switch. No dialog — just a quiet confirmation toast.
+  const autoSwitchMut = useMutation({
+    mutationFn: async (siteId: string) =>
+      switchFn({ data: { token: session.token, jobSiteId: siteId, source: "auto" as const } }),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+      if (r?.unchanged) return;
+      if (r?.geo) setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+      if (r?.geo?.siteLabel) toast.success(`Now tracking ${r.geo.siteLabel}`);
+    },
+    onError: () => { /* stay quiet — the worker didn't ask for this */ },
   });
 
   // Passive tracking: while clocked in, sample coarse GPS every ~12 minutes and
