@@ -14,6 +14,7 @@ import {
 } from "@/lib/calendar-math";
 
 export const Route = createFileRoute("/ledger/calendar")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Calendar — Ledger" },

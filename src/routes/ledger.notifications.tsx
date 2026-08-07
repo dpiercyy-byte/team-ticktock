@@ -6,6 +6,7 @@ import { relativeTime } from "@/components/ledger/ledger-ui";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
 
 export const Route = createFileRoute("/ledger/notifications")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Notifications — Ledger" },

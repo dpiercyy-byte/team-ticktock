@@ -22,6 +22,7 @@ const LEAD_SOURCES = [
 const TOTAL = 7;
 
 export const Route = createFileRoute("/ledger/leads/new")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "New lead — Ledger" },

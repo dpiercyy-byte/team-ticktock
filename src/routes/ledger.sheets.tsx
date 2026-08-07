@@ -19,6 +19,7 @@ const BTN_PRIMARY =
   "inline-flex items-center gap-1.5 rounded-full bg-foreground px-3.5 py-2 text-[13px] font-bold text-background disabled:opacity-50";
 
 export const Route = createFileRoute("/ledger/sheets")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Job sheets — Ledger" },

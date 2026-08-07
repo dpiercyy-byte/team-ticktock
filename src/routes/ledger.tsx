@@ -3,6 +3,7 @@ import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import { LedgerBottomNav } from "@/components/ledger/LedgerBottomNav";
 
 export const Route = createFileRoute("/ledger")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Ledger — Jobs" },

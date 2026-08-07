@@ -7,6 +7,7 @@ import { JobCard } from "@/components/ledger/JobCard";
 import { ledgerJobsQuery } from "@/lib/ledger-client";
 
 export const Route = createFileRoute("/ledger/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Jobs — Ledger" },
