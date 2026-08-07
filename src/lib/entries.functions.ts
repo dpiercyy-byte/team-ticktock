@@ -766,6 +766,7 @@ export const workerSwitchSite = createServerFn({ method: "POST" })
     lng: z.number().finite().optional().nullable(),
     jobSiteId: z.string().uuid().nullable().optional(),
     clientTimestamp: z.string().datetime().optional(),
+    source: z.enum(["switch", "auto"]).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
