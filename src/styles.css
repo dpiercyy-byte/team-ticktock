@@ -200,12 +200,15 @@
 
   /* --- Ledger design tokens (light, warm) --- */
 
-  --l-bg: hsl(38 32% 97%);
+  --l-bg: #f8fafc;
   --l-surface: #ffffff;
-  --l-surface-2: hsl(38 24% 95%);
-  --l-ink: hsl(215 30% 15%);
-  --l-muted: hsl(215 14% 47%);
-  --l-line: hsl(35 18% 90%);
+  --l-surface-2: hsl(210 30% 96%);
+  --l-ink: hsl(215 28% 17%);
+  --l-muted: hsl(215 16% 52%);
+  --l-line: hsl(214 22% 91%);
+  --l-glass: rgba(255, 255, 255, 0.8);
+  --l-glass-edge: rgba(255, 255, 255, 0.6);
+  --shadow-glass: 0 10px 40px -10px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.01);
   --l-accent: hsl(14 74% 52%);
   --l-accent-soft: hsl(14 74% 95%);
   --l-green: hsl(152 48% 32%);
@@ -291,15 +294,18 @@
   box-shadow: var(--shadow-sheet);
 }
 .ledger-scope .l-card {
-  background: var(--l-surface);
+  background: var(--l-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--l-glass-edge);
   border-radius: var(--l-radius-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-glass);
   transition:
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .ledger-scope .l-card:active {
-  transform: scale(0.988);
+  transform: scale(0.99);
+  opacity: 0.94;
 }
 .ledger-scope .l-muted {
   color: var(--l-muted);
