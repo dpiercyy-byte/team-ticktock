@@ -19,6 +19,7 @@ import { daysInStageLabel } from "@/lib/crm-math";
 import { getAdminToken } from "@/lib/session";
 
 export const Route = createFileRoute("/ledger/pipeline")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Pipeline — Ledger" },

@@ -9,6 +9,7 @@ import { ledgerJobsQuery } from "@/lib/ledger-client";
 import { LEDGER_STATUSES, type LedgerStatus } from "@/lib/ledger.functions";
 
 export const Route = createFileRoute("/ledger/jobs/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Jobs — Ledger" },

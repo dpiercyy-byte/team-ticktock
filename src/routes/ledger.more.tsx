@@ -3,6 +3,7 @@ import { Bell, CalendarDays, FileSpreadsheet, Plus, User, Users } from "lucide-r
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 
 export const Route = createFileRoute("/ledger/more")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "More — Ledger" },

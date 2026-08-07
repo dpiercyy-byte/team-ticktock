@@ -12,6 +12,7 @@ import {
 import { getAdminToken } from "@/lib/session";
 
 export const Route = createFileRoute("/ledger/jobs/new")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "New job — Ledger" },

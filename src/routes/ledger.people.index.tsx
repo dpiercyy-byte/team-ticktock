@@ -7,6 +7,7 @@ import { relativeTime } from "@/components/ledger/ledger-ui";
 import { clientsDirectoryQuery } from "@/lib/crm-client";
 
 export const Route = createFileRoute("/ledger/people/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "People — Ledger" },

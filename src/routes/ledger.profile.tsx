@@ -6,6 +6,7 @@ import { ledgerJobsQuery } from "@/lib/ledger-client";
 import { clearAdminToken, clearWorkerSession } from "@/lib/session";
 
 export const Route = createFileRoute("/ledger/profile")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Profile — Ledger" },

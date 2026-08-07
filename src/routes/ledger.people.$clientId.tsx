@@ -18,6 +18,7 @@ import type { PipelineCard } from "@/lib/crm.functions";
 
 
 export const Route = createFileRoute("/ledger/people/$clientId")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Client — Ledger" },

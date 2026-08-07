@@ -30,6 +30,7 @@ import { getAdminToken } from "@/lib/session";
 import { useState } from "react";
 
 export const Route = createFileRoute("/ledger/jobs/$jobId")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Job workspace — Ledger" },
