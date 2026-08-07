@@ -279,6 +279,7 @@ export const setClientArchived = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!row) throw new Response("Not found", { status: 404 });
     await logAudit({
+      actor: { kind: "admin" },
       action: data.archived ? "client.archive" : "client.restore",
       entityType: "client",
       entityId: data.id,
@@ -317,6 +318,7 @@ export const deleteClient = createServerFn({ method: "POST" })
     if (error) throw error;
 
     await logAudit({
+      actor: { kind: "admin" },
       action: "client.delete",
       entityType: "client",
       entityId: data.id,
