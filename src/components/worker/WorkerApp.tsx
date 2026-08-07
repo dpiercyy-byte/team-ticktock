@@ -353,6 +353,12 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
           });
         } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
           setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+        } else {
+          const segs = (r as any).segments as ShiftSegment[] | undefined;
+          const distinct = new Set((segs ?? []).map((s) => s.jobSiteId ?? "none"));
+          if (r.entryId && segs && distinct.size > 1) {
+            setSplitPrompt({ entryId: r.entryId, segments: segs });
+          }
         }
       }
     },
