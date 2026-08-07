@@ -10,11 +10,16 @@ function streetLine(job: LedgerJob) {
 }
 
 export function JobCard({ job, compact = false }: { job: LedgerJob; compact?: boolean }) {
+  const isActive = (job.status ?? "").toLowerCase() === "active";
+  const tone = isActive
+    ? "border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)]"
+    : "border-l-4 border-l-[var(--warning)] bg-[color-mix(in_oklab,var(--warning)_4%,transparent)]";
+
   return (
     <Link
       to="/ledger/jobs/$jobId"
       params={{ jobId: job.id }}
-      className="l-card block p-5 md:p-6"
+      className={`l-card block p-5 md:p-6 ${tone}`}
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <span className={statusTone(job.status)}>{job.status}</span>
