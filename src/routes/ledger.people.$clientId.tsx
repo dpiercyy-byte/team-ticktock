@@ -46,6 +46,52 @@ function ClientProfile() {
   );
   const completed = projects.filter((p) => DONE_DELIVERY.includes(p.deliveryStatus));
 
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const archiveFn = useServerFn(setClientArchived);
+  const removeFn = useServerFn(deleteClient);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const archived = !!(client as { archivedAt?: string | null }).archivedAt;
+
+  const toggleArchive = async () => {
+    const token = getAdminToken();
+    if (!token) return;
+    setBusy(true);
+    try {
+      const r: any = await archiveFn({ data: { token, id: clientId, archived: !archived } });
+      if (r?.token) setAdminToken(r.token);
+      await qc.invalidateQueries({ queryKey: ["crm"] });
+      toast.success(archived ? "Person restored" : "Person archived");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not update this person");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    const token = getAdminToken();
+    if (!token) return;
+    setBusy(true);
+    try {
+      const r: any = await removeFn({ data: { token, id: clientId } });
+      if (r?.token) setAdminToken(r.token);
+      await qc.invalidateQueries({ queryKey: ["crm"] });
+      toast.success("Person deleted");
+      navigate({ to: "/ledger/people" });
+    } catch (e: any) {
+      toast.error(
+        typeof e?.message === "string" && e.message.length < 300
+          ? e.message
+          : "Could not delete this person — they may still have projects.",
+      );
+      setConfirmDelete(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <LedgerShell>
       <Link
@@ -60,7 +106,52 @@ function ClientProfile() {
         {client.leadSource && (
           <p className="mt-1 text-[13px] l-muted">Lead source · {client.leadSource}</p>
         )}
+        {archived && <p className="mt-1 text-[12px] font-semibold l-muted">Archived</p>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={toggleArchive}
+            disabled={busy}
+            className="l-card inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold disabled:opacity-50"
+          >
+            {archived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+            {archived ? "Restore" : "Archive"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            disabled={busy}
+            className="l-card inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-destructive disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </button>
+        </div>
       </header>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {client.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes this person and their saved properties. Only possible when
+              they have no projects — otherwise archive them instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                void remove();
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <section className="l-card grid gap-2 p-4">
         {client.phone ? (
