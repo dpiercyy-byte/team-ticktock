@@ -940,8 +940,12 @@ export const workerConfirmShiftSplit = createServerFn({ method: "POST" })
       adjusted = true;
     }
 
-    // A worker-confirmed split no longer needs admin review for allocation.
-    await supabaseAdmin.from("time_entries").update({ flagged_review: false }).eq("id", data.entryId);
+    // A worker-confirmed split no longer needs admin review for allocation,
+    // but an unusually long shift still does.
+    const longShift = new Date(row.clock_out).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS;
+    if (!longShift) {
+      await supabaseAdmin.from("time_entries").update({ flagged_review: false }).eq("id", data.entryId);
+    }
 
     await logAudit({
       actor: { kind: "worker", id: wid },
