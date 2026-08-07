@@ -265,3 +265,62 @@ export const getClientProfile = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     return { ...refreshed, ...(await fetchClientProfile(data.id)) };
   });
+
+export const setClientArchived = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ id: z.string().uuid(), archived: z.boolean() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: row, error } = await supabaseAdmin
+      .from("clients")
+      .update({ archived_at: data.archived ? new Date().toISOString() : null })
+      .eq("id", data.id)
+      .select("id, name, archived_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) throw new Response("Not found", { status: 404 });
+    await logAudit({
+      action: data.archived ? "client.archive" : "client.restore",
+      entityType: "client",
+      entityId: data.id,
+      after: row as unknown as Record<string, any>,
+    });
+    return { ...refreshed, client: row as unknown as Record<string, any> };
+  });
+
+export const deleteClient = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: before, error: bErr } = await supabaseAdmin
+      .from("clients")
+      .select("id, name, email, phone")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (bErr) throw bErr;
+    if (!before) throw new Response("Not found", { status: 404 });
+
+    const { count, error: cErr } = await supabaseAdmin
+      .from("ledger_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", data.id);
+    if (cErr) throw cErr;
+    if ((count ?? 0) > 0) {
+      throw new Response(
+        `This person still has ${count} project${count === 1 ? "" : "s"}. Archive them instead, or move/delete the projects first.`,
+        { status: 409 },
+      );
+    }
+
+    const { error: pErr } = await supabaseAdmin.from("properties").delete().eq("client_id", data.id);
+    if (pErr) throw pErr;
+    const { error } = await supabaseAdmin.from("clients").delete().eq("id", data.id);
+    if (error) throw error;
+
+    await logAudit({
+      action: "client.delete",
+      entityType: "client",
+      entityId: data.id,
+      before: before as unknown as Record<string, any>,
+    });
+    return { ...refreshed, deleted: true };
+  });
