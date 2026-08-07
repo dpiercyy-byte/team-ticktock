@@ -806,7 +806,7 @@ export const workerSwitchSite = createServerFn({ method: "POST" })
     await closeOpenSegments(active.id, atISO);
     await insertSegment(
       active.id,
-      { started_at: atISO, ended_at: null, job_site_id: siteId, geo_status: status, source: "switch" },
+      { started_at: atISO, ended_at: null, job_site_id: siteId, geo_status: status, source: data.source === "auto" ? "auto_split" : "switch" },
       data.lat, data.lng,
     );
     // Keep the entry's live tag pointing at where they are now.
