@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ShiftSplitConfirmDialog, type ShiftSplitPrompt, type ShiftSegment } from "@/components/worker/ShiftSplitConfirmDialog";
 import { useServerFn } from "@tanstack/react-start";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -46,7 +47,7 @@ import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compre
 
 type GeoCoords = { lat: number; lng: number } | null;
 
-async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
+async function getGeo(timeoutMs = 10_000, highAccuracy = true): Promise<GeoCoords> {
   if (typeof navigator === "undefined" || !navigator.geolocation) return null;
   return new Promise<GeoCoords>((resolve) => {
     let done = false;
@@ -55,7 +56,7 @@ async function getGeo(timeoutMs = 10_000): Promise<GeoCoords> {
     navigator.geolocation.getCurrentPosition(
       (pos) => { clearTimeout(t); finish({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
       () => { clearTimeout(t); finish(null); },
-      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 30_000 },
+      { enableHighAccuracy: highAccuracy, timeout: timeoutMs, maximumAge: highAccuracy ? 30_000 : 300_000 },
     );
   });
 }
@@ -353,6 +354,12 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
           });
         } else if (r.needsReason && r.entryId && r.geo.status !== "verified") {
           setReasonPrompt({ entryId: r.entryId, status: r.geo.status as any, kind: "out" });
+        } else {
+          const segs = (r as any).segments as ShiftSegment[] | undefined;
+          const distinct = new Set((segs ?? []).map((s) => s.jobSiteId ?? "none"));
+          if (r.entryId && segs && distinct.size > 1) {
+            setSplitPrompt({ entryId: r.entryId, segments: segs });
+          }
         }
       }
     },
@@ -409,8 +416,9 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   }>;
   const currentSegment = segments.find((s) => !s.endedAt) ?? null;
   const [switchOpen, setSwitchOpen] = useState(false);
-  const [autoPrompt, setAutoPrompt] = useState<null | { siteId: string; label: string }>(null);
-  const [autoDismissed, setAutoDismissed] = useState<string[]>([]);
+  const [splitPrompt, setSplitPrompt] = useState<ShiftSplitPrompt | null>(null);
+  const pendingMatchRef = useRef<string | null>(null);
+  const lastManualSwitchRef = useRef<number>(0);
 
   const switchSitesFn = useServerFn(workerListActiveClientSites);
   const switchSitesQ = useQuery({
@@ -432,11 +440,13 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         lat: coords?.lat ?? null,
         lng: coords?.lng ?? null,
         jobSiteId: siteId,
+        source: "switch" as const,
       } });
     },
     onSuccess: (r: any) => {
       setSwitchOpen(false);
-      setAutoPrompt(null);
+      lastManualSwitchRef.current = Date.now();
+      pendingMatchRef.current = null;
       qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
       if (r?.unchanged) toast.info("Already tracking that site");
       else {
@@ -447,25 +457,47 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     onError: (e: any) => toast.error(e?.message || "Could not switch site"),
   });
 
-  // Auto-detect: while clocked in, poll GPS and offer a switch when the worker
-  // has clearly moved into a different job site's geofence.
+  // Silent, GPS-driven switch. No dialog — just a quiet confirmation toast.
+  const autoSwitchMut = useMutation({
+    mutationFn: async (siteId: string) =>
+      switchFn({ data: { token: session.token, jobSiteId: siteId, source: "auto" as const } }),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+      if (r?.unchanged) return;
+      if (r?.geo) setLastGeo({ status: r.geo.status, siteLabel: r.geo.siteLabel });
+      if (r?.geo?.siteLabel) toast.success(`Now tracking ${r.geo.siteLabel}`);
+    },
+    onError: () => { /* stay quiet — the worker didn't ask for this */ },
+  });
+
+  // Passive tracking: while clocked in, sample coarse GPS every ~12 minutes and
+  // switch sites silently once the same new geofence is seen twice in a row.
   useEffect(() => {
     if (!active || active.__pending || switchSites.length === 0) return;
     let cancelled = false;
     const check = async () => {
-      const coords = await getGeo();
+      if (switchMut.isPending) return;
+      // Don't override a manual choice made in the last 20 minutes.
+      if (Date.now() - lastManualSwitchRef.current < 20 * 60_000) return;
+      const coords = await getGeo(15_000, false);
       if (cancelled || !coords) return;
       const match = classifyPunch(coords.lat, coords.lng, switchSites as any);
-      if (match.status !== "verified" || !match.jobSiteId) return;
       const currentId = currentSegment?.jobSiteId ?? active.job_site_id ?? null;
-      if (match.jobSiteId === currentId) return;
-      if (autoDismissed.includes(match.jobSiteId)) return;
-      setAutoPrompt({ siteId: match.jobSiteId, label: match.siteLabel ?? "another site" });
+      if (match.status !== "verified" || !match.jobSiteId || match.jobSiteId === currentId) {
+        pendingMatchRef.current = null;
+        return;
+      }
+      if (pendingMatchRef.current !== match.jobSiteId) {
+        pendingMatchRef.current = match.jobSiteId; // confirm on the next sample
+        return;
+      }
+      pendingMatchRef.current = null;
+      autoSwitchMut.mutate(match.jobSiteId);
     };
     void check();
-    const i = setInterval(check, 5 * 60_000);
+    const i = setInterval(check, 12 * 60_000);
     return () => { cancelled = true; clearInterval(i); };
-  }, [active?.id, active?.__pending, currentSegment?.jobSiteId, switchSites.length, autoDismissed.join(",")]);
+  }, [active?.id, active?.__pending, currentSegment?.jobSiteId, switchSites.length]);
 
 
   return (
@@ -663,31 +695,14 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!autoPrompt} onOpenChange={(o) => {
-        if (!o) {
-          if (autoPrompt) setAutoDismissed((prev) => [...prev, autoPrompt.siteId]);
-          setAutoPrompt(null);
-        }
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Moved to {autoPrompt?.label}?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            We noticed you're at {autoPrompt?.label}. Switch so your hours land on the right job?
-          </p>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => {
-              if (autoPrompt) setAutoDismissed((prev) => [...prev, autoPrompt.siteId]);
-              setAutoPrompt(null);
-            }}>Not now</Button>
-            <Button disabled={switchMut.isPending}
-                    onClick={() => autoPrompt && switchMut.mutate(autoPrompt.siteId)}>
-              Yes, switch
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShiftSplitConfirmDialog
+        token={session.token}
+        prompt={splitPrompt}
+        onClose={() => {
+          setSplitPrompt(null);
+          qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+        }}
+      />
 
       <PlannedJobDialog
         token={session.token}

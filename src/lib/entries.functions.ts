@@ -275,7 +275,8 @@ export const clockOut = createServerFn({ method: "POST" })
     const needsPlannedJob = inNonClient && outNonClient && !active.planned_job_site_id;
     // (Ledger sync removed — Ledger is being rebuilt.)
 
-    return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob, autoSplit };
+    const segments = await hydrateSegments(active.id);
+    return { ok: true, geo: { ...geo, status: outTag.status, jobSiteId: outTag.jobSiteId }, entryId: active.id, needsReason, needsPlannedJob, autoSplit, segments };
   });
 
 
@@ -765,6 +766,7 @@ export const workerSwitchSite = createServerFn({ method: "POST" })
     lng: z.number().finite().optional().nullable(),
     jobSiteId: z.string().uuid().nullable().optional(),
     clientTimestamp: z.string().datetime().optional(),
+    source: z.enum(["switch", "auto"]).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
@@ -804,7 +806,7 @@ export const workerSwitchSite = createServerFn({ method: "POST" })
     await closeOpenSegments(active.id, atISO);
     await insertSegment(
       active.id,
-      { started_at: atISO, ended_at: null, job_site_id: siteId, geo_status: status, source: "switch" },
+      { started_at: atISO, ended_at: null, job_site_id: siteId, geo_status: status, source: data.source === "auto" ? "auto_split" : "switch" },
       data.lat, data.lng,
     );
     // Keep the entry's live tag pointing at where they are now.
@@ -889,3 +891,73 @@ export const adminSetEntryAllocation = createServerFn({ method: "POST" })
 
     return { ...refreshed, segments: await hydrateSegments(data.entryId) };
   });
+
+
+/** Worker confirms (or corrects) how a finished shift was split across sites. */
+export const workerConfirmShiftSplit = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    entryId: z.string().uuid(),
+    allocations: z.array(z.object({
+      jobSiteId: z.string().uuid().nullable(),
+      hours: z.number().finite().min(0),
+    })).min(1).max(6).optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const wid = requireWorker(data.token);
+    const { data: row } = await supabaseAdmin
+      .from("time_entries").select("id, worker_id, clock_in, clock_out").eq("id", data.entryId).maybeSingle();
+    if (!row || row.worker_id !== wid) throw new Response("Not found", { status: 404 });
+    if (!row.clock_out) throw new Response("Entry is still open", { status: 400 });
+    if (Date.now() - new Date(row.clock_out).getTime() > 12 * 60 * 60 * 1000) {
+      throw new Response("This shift can no longer be edited", { status: 400 });
+    }
+
+    const before = await listSegments(data.entryId);
+    let adjusted = false;
+
+    if (data.allocations) {
+      const siteIds = data.allocations.map((a) => a.jobSiteId).filter(Boolean) as string[];
+      const statusById = new Map<string, string>();
+      if (siteIds.length) {
+        const { data: sites } = await supabaseAdmin
+          .from("job_sites").select("id, kind, completed_at").in("id", siteIds);
+        for (const s of (sites ?? []) as any[]) {
+          statusById.set(s.id, s.kind === "supplier" ? "supplier" : s.completed_at ? "callback" : "verified");
+        }
+      }
+      let drafts: SegmentDraft[];
+      try {
+        drafts = allocationToSegments(row.clock_in, row.clock_out, data.allocations.map((a) => ({
+          jobSiteId: a.jobSiteId,
+          hours: a.hours,
+          geoStatus: a.jobSiteId ? statusById.get(a.jobSiteId) ?? "verified" : "off_site",
+        })));
+      } catch (e: any) {
+        throw new Response(e?.message ?? "Invalid allocation", { status: 400 });
+      }
+      await replaceSegments(data.entryId, drafts);
+      adjusted = true;
+    }
+
+    // A worker-confirmed split no longer needs admin review for allocation,
+    // but an unusually long shift still does.
+    const longShift = new Date(row.clock_out).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS;
+    if (!longShift) {
+      await supabaseAdmin.from("time_entries").update({ flagged_review: false }).eq("id", data.entryId);
+    }
+
+    await logAudit({
+      actor: { kind: "worker", id: wid },
+      action: "entry_split_confirmed",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: adjusted
+        ? { segments: before.map((s) => ({ site: s.job_site_id, from: s.started_at, to: s.ended_at })) }
+        : undefined,
+      after: { adjusted },
+    });
+
+    return { ok: true, segments: await hydrateSegments(data.entryId) };
+  });
+
