@@ -1,12 +1,21 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowLeft, Mail, MapPin, Phone } from "lucide-react";
-import type { ReactNode } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft, Archive, ArchiveRestore, Mail, MapPin, Phone, Trash2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { formatCurrency, relativeTime } from "@/components/ledger/ledger-ui";
 import { NextActionLine } from "@/components/ledger/NextActionLine";
 import { clientProfileQuery } from "@/lib/crm-client";
+import { deleteClient, setClientArchived } from "@/lib/crm.functions";
+import { getAdminToken, setAdminToken } from "@/lib/session";
 import type { PipelineCard } from "@/lib/crm.functions";
+
 
 export const Route = createFileRoute("/ledger/people/$clientId")({
   head: () => ({
