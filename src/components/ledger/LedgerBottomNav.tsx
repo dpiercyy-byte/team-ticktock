@@ -49,11 +49,6 @@ export function LedgerBottomNav() {
             </li>
           );
         })}
-
-              </Link>
-            </li>
-          );
-        })}
       </ul>
     </nav>
   );
