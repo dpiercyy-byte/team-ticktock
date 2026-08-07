@@ -18,7 +18,7 @@ export const Route = createFileRoute("/ledger/more")({
 const LINKS = [
   { to: "/ledger/leads/new", label: "New lead", hint: "Capture an inquiry", icon: Plus },
   { to: "/ledger/jobs/new", label: "New job", hint: "Full project setup", icon: Users },
-  { to: "/ledger/calendar", label: "Calendar", hint: "Scheduled work", icon: CalendarDays },
+  
   {
     to: "/ledger/sheets",
     label: "Job sheets",
