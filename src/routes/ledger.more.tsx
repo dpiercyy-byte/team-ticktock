@@ -7,7 +7,7 @@ export const Route = createFileRoute("/ledger/more")({
   head: () => ({
     meta: [
       { title: "More — Ledger" },
-      { name: "description", content: "Calendar, notifications, lead intake and your profile." },
+      { name: "description", content: "Notifications, lead intake, job sheets and your profile." },
       { property: "og:title", content: "More — Ledger" },
       { property: "og:description", content: "Everything else in Ledger." },
     ],
