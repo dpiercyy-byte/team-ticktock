@@ -10,12 +10,13 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { to: "/ledger/calendar", label: "Calendar", icon: CalendarDays },
+  { to: "/ledger/jobs", label: "Jobs", icon: Briefcase },
   { to: "/ledger/pipeline", label: "Pipeline", icon: GitBranch },
-  { to: "/ledger/jobs", label: "Jobs", icon: Briefcase, prominent: true },
+  { to: "/ledger/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/ledger/people", label: "People", icon: Users },
   { to: "/ledger/more", label: "More", icon: MoreHorizontal },
 ];
+
 
 export function LedgerBottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
