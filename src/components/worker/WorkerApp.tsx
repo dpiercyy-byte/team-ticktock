@@ -688,31 +688,14 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!autoPrompt} onOpenChange={(o) => {
-        if (!o) {
-          if (autoPrompt) setAutoDismissed((prev) => [...prev, autoPrompt.siteId]);
-          setAutoPrompt(null);
-        }
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Moved to {autoPrompt?.label}?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            We noticed you're at {autoPrompt?.label}. Switch so your hours land on the right job?
-          </p>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => {
-              if (autoPrompt) setAutoDismissed((prev) => [...prev, autoPrompt.siteId]);
-              setAutoPrompt(null);
-            }}>Not now</Button>
-            <Button disabled={switchMut.isPending}
-                    onClick={() => autoPrompt && switchMut.mutate(autoPrompt.siteId)}>
-              Yes, switch
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ShiftSplitConfirmDialog
+        token={session.token}
+        prompt={splitPrompt}
+        onClose={() => {
+          setSplitPrompt(null);
+          qc.invalidateQueries({ queryKey: ["worker-state", session.id] });
+        }}
+      />
 
       <PlannedJobDialog
         token={session.token}
