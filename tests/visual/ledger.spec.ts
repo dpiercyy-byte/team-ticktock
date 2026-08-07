@@ -11,10 +11,11 @@ test.describe("Ledger (reference style)", () => {
     await seedAdminSession(page);
   });
 
-  test("home", async ({ page }) => {
+  test("home redirects to jobs", async ({ page }) => {
     await page.goto("/ledger");
-    await checkScreen(page, { name: "ledger-home", scope: ".ledger-scope", nav: NAV });
+    await page.waitForURL(/\/ledger\/jobs$/);
   });
+
 
   test("jobs list", async ({ page }) => {
     await page.goto("/ledger/jobs");

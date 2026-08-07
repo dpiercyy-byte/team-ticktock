@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, CalendarDays, FileSpreadsheet, Plus, User, Users } from "lucide-react";
+import { Bell, FileSpreadsheet, Plus, User, Users } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 
 export const Route = createFileRoute("/ledger/more")({
@@ -7,7 +7,7 @@ export const Route = createFileRoute("/ledger/more")({
   head: () => ({
     meta: [
       { title: "More — Ledger" },
-      { name: "description", content: "Calendar, notifications, lead intake and your profile." },
+      { name: "description", content: "Notifications, lead intake, job sheets and your profile." },
       { property: "og:title", content: "More — Ledger" },
       { property: "og:description", content: "Everything else in Ledger." },
     ],
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/ledger/more")({
 const LINKS = [
   { to: "/ledger/leads/new", label: "New lead", hint: "Capture an inquiry", icon: Plus },
   { to: "/ledger/jobs/new", label: "New job", hint: "Full project setup", icon: Users },
-  { to: "/ledger/calendar", label: "Calendar", hint: "Scheduled work", icon: CalendarDays },
+  
   {
     to: "/ledger/sheets",
     label: "Job sheets",
