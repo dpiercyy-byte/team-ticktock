@@ -447,25 +447,34 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
     onError: (e: any) => toast.error(e?.message || "Could not switch site"),
   });
 
-  // Auto-detect: while clocked in, poll GPS and offer a switch when the worker
-  // has clearly moved into a different job site's geofence.
+  // Passive tracking: while clocked in, sample coarse GPS every ~12 minutes and
+  // switch sites silently once the same new geofence is seen twice in a row.
   useEffect(() => {
     if (!active || active.__pending || switchSites.length === 0) return;
     let cancelled = false;
     const check = async () => {
-      const coords = await getGeo();
+      if (switchMut.isPending) return;
+      // Don't override a manual choice made in the last 20 minutes.
+      if (Date.now() - lastManualSwitchRef.current < 20 * 60_000) return;
+      const coords = await getGeo(15_000, false);
       if (cancelled || !coords) return;
       const match = classifyPunch(coords.lat, coords.lng, switchSites as any);
-      if (match.status !== "verified" || !match.jobSiteId) return;
       const currentId = currentSegment?.jobSiteId ?? active.job_site_id ?? null;
-      if (match.jobSiteId === currentId) return;
-      if (autoDismissed.includes(match.jobSiteId)) return;
-      setAutoPrompt({ siteId: match.jobSiteId, label: match.siteLabel ?? "another site" });
+      if (match.status !== "verified" || !match.jobSiteId || match.jobSiteId === currentId) {
+        pendingMatchRef.current = null;
+        return;
+      }
+      if (pendingMatchRef.current !== match.jobSiteId) {
+        pendingMatchRef.current = match.jobSiteId; // confirm on the next sample
+        return;
+      }
+      pendingMatchRef.current = null;
+      autoSwitchMut.mutate(match.jobSiteId);
     };
     void check();
-    const i = setInterval(check, 5 * 60_000);
+    const i = setInterval(check, 12 * 60_000);
     return () => { cancelled = true; clearInterval(i); };
-  }, [active?.id, active?.__pending, currentSegment?.jobSiteId, switchSites.length, autoDismissed.join(",")]);
+  }, [active?.id, active?.__pending, currentSegment?.jobSiteId, switchSites.length]);
 
 
   return (
