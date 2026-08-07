@@ -9,29 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LedgerRouteImport } from './routes/ledger'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as LedgerIndexRouteImport } from './routes/ledger.index'
-import { Route as LedgerSheetsRouteImport } from './routes/ledger.sheets'
-import { Route as LedgerProfileRouteImport } from './routes/ledger.profile'
-import { Route as LedgerPipelineRouteImport } from './routes/ledger.pipeline'
-import { Route as LedgerNotificationsRouteImport } from './routes/ledger.notifications'
-import { Route as LedgerMoreRouteImport } from './routes/ledger.more'
 import { Route as LedgerCalendarRouteImport } from './routes/ledger.calendar'
-import { Route as LedgerPeopleIndexRouteImport } from './routes/ledger.people.index'
+import { Route as LedgerMoreRouteImport } from './routes/ledger.more'
+import { Route as LedgerNotificationsRouteImport } from './routes/ledger.notifications'
+import { Route as LedgerPipelineRouteImport } from './routes/ledger.pipeline'
+import { Route as LedgerProfileRouteImport } from './routes/ledger.profile'
+import { Route as LedgerSheetsRouteImport } from './routes/ledger.sheets'
 import { Route as LedgerJobsIndexRouteImport } from './routes/ledger.jobs.index'
-import { Route as LedgerPeopleClientIdRouteImport } from './routes/ledger.people.$clientId'
-import { Route as LedgerLeadsNewRouteImport } from './routes/ledger.leads.new'
-import { Route as LedgerJobsNewRouteImport } from './routes/ledger.jobs.new'
 import { Route as LedgerJobsJobIdRouteImport } from './routes/ledger.jobs.$jobId'
-import { Route as ApiPublicHooksSyncSheetJobsRouteImport } from './routes/api/public/hooks/sync-sheet-jobs'
-import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
+import { Route as LedgerJobsNewRouteImport } from './routes/ledger.jobs.new'
+import { Route as LedgerLeadsNewRouteImport } from './routes/ledger.leads.new'
+import { Route as LedgerPeopleIndexRouteImport } from './routes/ledger.people.index'
+import { Route as LedgerPeopleClientIdRouteImport } from './routes/ledger.people.$clientId'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
+import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
+import { Route as ApiPublicHooksSyncSheetJobsRouteImport } from './routes/api/public/hooks/sync-sheet-jobs'
 
-const LedgerRoute = LedgerRouteImport.update({
-  id: '/ledger',
-  path: '/ledger',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -39,9 +39,9 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LedgerRoute = LedgerRouteImport.update({
+  id: '/ledger',
+  path: '/ledger',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LedgerIndexRoute = LedgerIndexRouteImport.update({
@@ -49,24 +49,9 @@ const LedgerIndexRoute = LedgerIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LedgerRoute,
 } as any)
-const LedgerSheetsRoute = LedgerSheetsRouteImport.update({
-  id: '/sheets',
-  path: '/sheets',
-  getParentRoute: () => LedgerRoute,
-} as any)
-const LedgerProfileRoute = LedgerProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => LedgerRoute,
-} as any)
-const LedgerPipelineRoute = LedgerPipelineRouteImport.update({
-  id: '/pipeline',
-  path: '/pipeline',
-  getParentRoute: () => LedgerRoute,
-} as any)
-const LedgerNotificationsRoute = LedgerNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
+const LedgerCalendarRoute = LedgerCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerMoreRoute = LedgerMoreRouteImport.update({
@@ -74,14 +59,24 @@ const LedgerMoreRoute = LedgerMoreRouteImport.update({
   path: '/more',
   getParentRoute: () => LedgerRoute,
 } as any)
-const LedgerCalendarRoute = LedgerCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
+const LedgerNotificationsRoute = LedgerNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => LedgerRoute,
 } as any)
-const LedgerPeopleIndexRoute = LedgerPeopleIndexRouteImport.update({
-  id: '/people/',
-  path: '/people/',
+const LedgerPipelineRoute = LedgerPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerProfileRoute = LedgerProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerSheetsRoute = LedgerSheetsRouteImport.update({
+  id: '/sheets',
+  path: '/sheets',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerJobsIndexRoute = LedgerJobsIndexRouteImport.update({
@@ -89,14 +84,9 @@ const LedgerJobsIndexRoute = LedgerJobsIndexRouteImport.update({
   path: '/jobs/',
   getParentRoute: () => LedgerRoute,
 } as any)
-const LedgerPeopleClientIdRoute = LedgerPeopleClientIdRouteImport.update({
-  id: '/people/$clientId',
-  path: '/people/$clientId',
-  getParentRoute: () => LedgerRoute,
-} as any)
-const LedgerLeadsNewRoute = LedgerLeadsNewRouteImport.update({
-  id: '/leads/new',
-  path: '/leads/new',
+const LedgerJobsJobIdRoute = LedgerJobsJobIdRouteImport.update({
+  id: '/jobs/$jobId',
+  path: '/jobs/$jobId',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerJobsNewRoute = LedgerJobsNewRouteImport.update({
@@ -104,15 +94,25 @@ const LedgerJobsNewRoute = LedgerJobsNewRouteImport.update({
   path: '/jobs/new',
   getParentRoute: () => LedgerRoute,
 } as any)
-const LedgerJobsJobIdRoute = LedgerJobsJobIdRouteImport.update({
-  id: '/jobs/$jobId',
-  path: '/jobs/$jobId',
+const LedgerLeadsNewRoute = LedgerLeadsNewRouteImport.update({
+  id: '/leads/new',
+  path: '/leads/new',
   getParentRoute: () => LedgerRoute,
 } as any)
-const ApiPublicHooksSyncSheetJobsRoute =
-  ApiPublicHooksSyncSheetJobsRouteImport.update({
-    id: '/api/public/hooks/sync-sheet-jobs',
-    path: '/api/public/hooks/sync-sheet-jobs',
+const LedgerPeopleIndexRoute = LedgerPeopleIndexRouteImport.update({
+  id: '/people/',
+  path: '/people/',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerPeopleClientIdRoute = LedgerPeopleClientIdRouteImport.update({
+  id: '/people/$clientId',
+  path: '/people/$clientId',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const ApiPublicHooksAutoClockoutRoute =
+  ApiPublicHooksAutoClockoutRouteImport.update({
+    id: '/api/public/hooks/auto-clockout',
+    path: '/api/public/hooks/auto-clockout',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksSheetExportRoute =
@@ -121,10 +121,10 @@ const ApiPublicHooksSheetExportRoute =
     path: '/api/public/hooks/sheet-export',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksAutoClockoutRoute =
-  ApiPublicHooksAutoClockoutRouteImport.update({
-    id: '/api/public/hooks/auto-clockout',
-    path: '/api/public/hooks/auto-clockout',
+const ApiPublicHooksSyncSheetJobsRoute =
+  ApiPublicHooksSyncSheetJobsRouteImport.update({
+    id: '/api/public/hooks/sync-sheet-jobs',
+    path: '/api/public/hooks/sync-sheet-jobs',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -267,11 +267,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/ledger': {
-      id: '/ledger'
-      path: '/ledger'
-      fullPath: '/ledger'
-      preLoaderRoute: typeof LedgerRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -281,11 +281,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/ledger': {
+      id: '/ledger'
+      path: '/ledger'
+      fullPath: '/ledger'
+      preLoaderRoute: typeof LedgerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ledger/': {
@@ -295,32 +295,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerIndexRouteImport
       parentRoute: typeof LedgerRoute
     }
-    '/ledger/sheets': {
-      id: '/ledger/sheets'
-      path: '/sheets'
-      fullPath: '/ledger/sheets'
-      preLoaderRoute: typeof LedgerSheetsRouteImport
-      parentRoute: typeof LedgerRoute
-    }
-    '/ledger/profile': {
-      id: '/ledger/profile'
-      path: '/profile'
-      fullPath: '/ledger/profile'
-      preLoaderRoute: typeof LedgerProfileRouteImport
-      parentRoute: typeof LedgerRoute
-    }
-    '/ledger/pipeline': {
-      id: '/ledger/pipeline'
-      path: '/pipeline'
-      fullPath: '/ledger/pipeline'
-      preLoaderRoute: typeof LedgerPipelineRouteImport
-      parentRoute: typeof LedgerRoute
-    }
-    '/ledger/notifications': {
-      id: '/ledger/notifications'
-      path: '/notifications'
-      fullPath: '/ledger/notifications'
-      preLoaderRoute: typeof LedgerNotificationsRouteImport
+    '/ledger/calendar': {
+      id: '/ledger/calendar'
+      path: '/calendar'
+      fullPath: '/ledger/calendar'
+      preLoaderRoute: typeof LedgerCalendarRouteImport
       parentRoute: typeof LedgerRoute
     }
     '/ledger/more': {
@@ -330,18 +309,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerMoreRouteImport
       parentRoute: typeof LedgerRoute
     }
-    '/ledger/calendar': {
-      id: '/ledger/calendar'
-      path: '/calendar'
-      fullPath: '/ledger/calendar'
-      preLoaderRoute: typeof LedgerCalendarRouteImport
+    '/ledger/notifications': {
+      id: '/ledger/notifications'
+      path: '/notifications'
+      fullPath: '/ledger/notifications'
+      preLoaderRoute: typeof LedgerNotificationsRouteImport
       parentRoute: typeof LedgerRoute
     }
-    '/ledger/people/': {
-      id: '/ledger/people/'
-      path: '/people'
-      fullPath: '/ledger/people/'
-      preLoaderRoute: typeof LedgerPeopleIndexRouteImport
+    '/ledger/pipeline': {
+      id: '/ledger/pipeline'
+      path: '/pipeline'
+      fullPath: '/ledger/pipeline'
+      preLoaderRoute: typeof LedgerPipelineRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/ledger/profile': {
+      id: '/ledger/profile'
+      path: '/profile'
+      fullPath: '/ledger/profile'
+      preLoaderRoute: typeof LedgerProfileRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/ledger/sheets': {
+      id: '/ledger/sheets'
+      path: '/sheets'
+      fullPath: '/ledger/sheets'
+      preLoaderRoute: typeof LedgerSheetsRouteImport
       parentRoute: typeof LedgerRoute
     }
     '/ledger/jobs/': {
@@ -351,18 +344,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerJobsIndexRouteImport
       parentRoute: typeof LedgerRoute
     }
-    '/ledger/people/$clientId': {
-      id: '/ledger/people/$clientId'
-      path: '/people/$clientId'
-      fullPath: '/ledger/people/$clientId'
-      preLoaderRoute: typeof LedgerPeopleClientIdRouteImport
-      parentRoute: typeof LedgerRoute
-    }
-    '/ledger/leads/new': {
-      id: '/ledger/leads/new'
-      path: '/leads/new'
-      fullPath: '/ledger/leads/new'
-      preLoaderRoute: typeof LedgerLeadsNewRouteImport
+    '/ledger/jobs/$jobId': {
+      id: '/ledger/jobs/$jobId'
+      path: '/jobs/$jobId'
+      fullPath: '/ledger/jobs/$jobId'
+      preLoaderRoute: typeof LedgerJobsJobIdRouteImport
       parentRoute: typeof LedgerRoute
     }
     '/ledger/jobs/new': {
@@ -372,18 +358,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerJobsNewRouteImport
       parentRoute: typeof LedgerRoute
     }
-    '/ledger/jobs/$jobId': {
-      id: '/ledger/jobs/$jobId'
-      path: '/jobs/$jobId'
-      fullPath: '/ledger/jobs/$jobId'
-      preLoaderRoute: typeof LedgerJobsJobIdRouteImport
+    '/ledger/leads/new': {
+      id: '/ledger/leads/new'
+      path: '/leads/new'
+      fullPath: '/ledger/leads/new'
+      preLoaderRoute: typeof LedgerLeadsNewRouteImport
       parentRoute: typeof LedgerRoute
     }
-    '/api/public/hooks/sync-sheet-jobs': {
-      id: '/api/public/hooks/sync-sheet-jobs'
-      path: '/api/public/hooks/sync-sheet-jobs'
-      fullPath: '/api/public/hooks/sync-sheet-jobs'
-      preLoaderRoute: typeof ApiPublicHooksSyncSheetJobsRouteImport
+    '/ledger/people/': {
+      id: '/ledger/people/'
+      path: '/people'
+      fullPath: '/ledger/people/'
+      preLoaderRoute: typeof LedgerPeopleIndexRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/ledger/people/$clientId': {
+      id: '/ledger/people/$clientId'
+      path: '/people/$clientId'
+      fullPath: '/ledger/people/$clientId'
+      preLoaderRoute: typeof LedgerPeopleClientIdRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/api/public/hooks/auto-clockout': {
+      id: '/api/public/hooks/auto-clockout'
+      path: '/api/public/hooks/auto-clockout'
+      fullPath: '/api/public/hooks/auto-clockout'
+      preLoaderRoute: typeof ApiPublicHooksAutoClockoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/sheet-export': {
@@ -393,11 +393,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSheetExportRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/auto-clockout': {
-      id: '/api/public/hooks/auto-clockout'
-      path: '/api/public/hooks/auto-clockout'
-      fullPath: '/api/public/hooks/auto-clockout'
-      preLoaderRoute: typeof ApiPublicHooksAutoClockoutRouteImport
+    '/api/public/hooks/sync-sheet-jobs': {
+      id: '/api/public/hooks/sync-sheet-jobs'
+      path: '/api/public/hooks/sync-sheet-jobs'
+      fullPath: '/api/public/hooks/sync-sheet-jobs'
+      preLoaderRoute: typeof ApiPublicHooksSyncSheetJobsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
