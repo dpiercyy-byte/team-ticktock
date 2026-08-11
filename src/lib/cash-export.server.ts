@@ -133,8 +133,8 @@ export async function testCashExport(): Promise<{ tab: string; nextRows: Record<
   const settings = await getCashExportSettings();
   if (!settings.sheetId) throw new Error("Cash tracking sheet not configured");
   const [michael, dylan] = await Promise.all([
-    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Michael.first),
-    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Dylan.first),
+    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Michael.label, BLOCKS.Michael.first),
+    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Dylan.label, BLOCKS.Dylan.first),
   ]);
   return { tab: settings.tab, nextRows: { Michael: michael, Dylan: dylan } };
 }
