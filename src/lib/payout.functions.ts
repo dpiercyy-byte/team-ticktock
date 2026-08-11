@@ -256,11 +256,18 @@ export const markWeekPaid = createServerFn({ method: "POST" })
     // Cash Tracking sheet export (best-effort; never blocks the payout).
     let sheetRow: number | null = null;
     let sheetError: string | null = null;
-    if (data.paidByPerson) {
+    let sheetSkipped: "disabled" | "unconfigured" | "no_payer" | null = null;
+    if (!data.paidByPerson) {
+      sheetSkipped = "no_payer";
+    } else {
       try {
         const { getCashExportSettings, appendCashPayoutRow } = await import("./cash-export.server");
         const settings = await getCashExportSettings();
-        if (settings.enabled && settings.sheetId) {
+        if (!settings.sheetId) {
+          sheetSkipped = "unconfigured";
+        } else if (!settings.enabled) {
+          sheetSkipped = "disabled";
+        } else {
           const res = await appendCashPayoutRow({
             payer: data.paidByPerson,
             amount: actualPaid,
@@ -282,7 +289,7 @@ export const markWeekPaid = createServerFn({ method: "POST" })
       }
     }
 
-    return { ...refreshed, ok: true, sheetRow, sheetError };
+    return { ...refreshed, ok: true, sheetRow, sheetError, sheetSkipped };
   });
 
 export const unmarkWeekPaid = createServerFn({ method: "POST" })

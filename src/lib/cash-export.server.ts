@@ -8,9 +8,9 @@ const GW = "https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets"
 
 export type CashPayer = "Michael" | "Dylan";
 
-const BLOCKS: Record<CashPayer, { first: string; last: string }> = {
-  Michael: { first: "B", last: "E" },
-  Dylan: { first: "H", last: "K" },
+const BLOCKS: Record<CashPayer, { label: string; first: string; last: string }> = {
+  Michael: { label: "A", first: "B", last: "E" },
+  Dylan: { label: "G", first: "H", last: "K" },
 };
 
 async function gw(url: string, init?: RequestInit) {
@@ -57,18 +57,31 @@ export async function getCashExportSettings(): Promise<CashExportSettings> {
   };
 }
 
-/** First row of a payer block that has no Amount value yet (1-indexed). */
-async function nextEmptyRow(sheetId: string, tab: string, col: string): Promise<number> {
-  const res = await gw(`${GW}/${sheetId}/values/${rangePath(tab, `${col}1:${col}2000`)}`);
+/**
+ * First writable row of a payer block (1-indexed): the row directly under the
+ * last transaction. Totals rows (labelled "… Total:" in the column beside the
+ * block) sit far below the entries and must never be written over or after.
+ */
+async function nextEmptyRow(
+  sheetId: string,
+  tab: string,
+  labelCol: string,
+  amountCol: string,
+): Promise<number> {
+  const res = await gw(
+    `${GW}/${sheetId}/values/${rangePath(tab, `${labelCol}1:${amountCol}2000`)}`,
+  );
   const json: any = await res.json();
   const rows: any[][] = json?.values ?? [];
-  let last = 0;
+  const width = amountCol.charCodeAt(0) - labelCol.charCodeAt(0);
+  let last = 2; // never write above the two header rows
   for (let i = 0; i < rows.length; i++) {
-    const v = rows[i]?.[0];
-    if (v != null && String(v).trim() !== "") last = i + 1;
+    const label = String(rows[i]?.[0] ?? "").toLowerCase();
+    if (label.includes("total")) break;
+    const amount = rows[i]?.[width];
+    if (amount != null && String(amount).trim() !== "") last = i + 1;
   }
-  // Never write above the two header rows.
-  return Math.max(last + 1, 3);
+  return last + 1;
 }
 
 export type CashRowInput = {
@@ -91,7 +104,7 @@ export async function appendCashPayoutRow(input: CashRowInput): Promise<CashRowR
   const settings = await getCashExportSettings();
   if (!settings.sheetId) throw new Error("Cash tracking sheet not configured");
   const block = BLOCKS[input.payer];
-  const row = await nextEmptyRow(settings.sheetId, settings.tab, block.first);
+  const row = await nextEmptyRow(settings.sheetId, settings.tab, block.label, block.first);
 
   const values = [
     cashAmountLabel(-Math.abs(input.amount)),
@@ -120,8 +133,8 @@ export async function testCashExport(): Promise<{ tab: string; nextRows: Record<
   const settings = await getCashExportSettings();
   if (!settings.sheetId) throw new Error("Cash tracking sheet not configured");
   const [michael, dylan] = await Promise.all([
-    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Michael.first),
-    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Dylan.first),
+    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Michael.label, BLOCKS.Michael.first),
+    nextEmptyRow(settings.sheetId, settings.tab, BLOCKS.Dylan.label, BLOCKS.Dylan.first),
   ]);
   return { tab: settings.tab, nextRows: { Michael: michael, Dylan: dylan } };
 }

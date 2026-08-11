@@ -1969,6 +1969,10 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
       } else if (r.sheetRow) {
         toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
+      } else if (r.sheetSkipped === "disabled") {
+        toast.warning("Marked paid — Cash Tracking export is off, no row added.");
+      } else if (r.sheetSkipped === "unconfigured") {
+        toast.warning("Marked paid — no Cash Tracking sheet set in Settings, no row added.");
       } else {
         toast.success("Marked paid");
       }
@@ -3863,6 +3867,10 @@ function PendingPayoutsView({
         toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
       } else if (r.sheetRow) {
         toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
+      } else if (r.sheetSkipped === "disabled") {
+        toast.warning("Marked paid — Cash Tracking export is off, no row added.");
+      } else if (r.sheetSkipped === "unconfigured") {
+        toast.warning("Marked paid — no Cash Tracking sheet set in Settings, no row added.");
       } else {
         toast.success("Marked paid");
       }
@@ -4534,14 +4542,19 @@ function CashExportSettingsCard({
   const test = async () => {
     setTesting(true);
     try {
-      const r = await testFn({ data: { token } });
+      // Test the values on screen: persist them first, since the check reads
+      // the saved settings.
+      const saved = await updFn({ data: { token, sheetId, tab, enabled } });
+      updateToken(saved.token);
+      qc.invalidateQueries({ queryKey: ["cash-export-settings"] });
+      const r = await testFn({ data: { token: saved.token } });
       updateToken(r.token);
       if (r.ok) {
         toast.success(
-          `Connected — next rows: Michael ${r.nextRows.Michael}, Dylan ${r.nextRows.Dylan}`,
+          `Connected to "${r.tab}" — next rows: Michael ${r.nextRows.Michael}, Dylan ${r.nextRows.Dylan}`,
         );
       } else {
-        toast.error(r.error || "Failed");
+        toast.error(r.error || "Could not reach the Cash Tracking sheet");
       }
     } catch (e: any) {
       toast.error(e?.message || "Failed");
@@ -4553,6 +4566,7 @@ function CashExportSettingsCard({
   const connectorReady = q.data?.connectorReady;
   const resolvedId = sheetId.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || sheetId;
   const sheetUrl = resolvedId ? `https://docs.google.com/spreadsheets/d/${resolvedId}/edit` : null;
+
 
   return (
     <Card>
