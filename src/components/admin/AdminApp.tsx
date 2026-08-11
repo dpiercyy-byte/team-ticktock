@@ -4563,6 +4563,10 @@ function CashExportSettingsCard({
     }
   };
 
+  const connectorReady = q.data?.connectorReady;
+  const resolvedId = sheetId.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1] || sheetId;
+  const sheetUrl = resolvedId ? `https://docs.google.com/spreadsheets/d/${resolvedId}/edit` : null;
+
 
   return (
     <Card>
