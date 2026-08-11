@@ -1,0 +1,1 @@
+update public.workers set name = 'JR' where id = '36ccb19c-6849-46cb-b5f9-2f37cd385617';
