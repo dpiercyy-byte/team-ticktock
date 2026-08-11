@@ -1969,6 +1969,10 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
       } else if (r.sheetRow) {
         toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
+      } else if (r.sheetSkipped === "disabled") {
+        toast.warning("Marked paid — Cash Tracking export is off, no row added.");
+      } else if (r.sheetSkipped === "unconfigured") {
+        toast.warning("Marked paid — no Cash Tracking sheet set in Settings, no row added.");
       } else {
         toast.success("Marked paid");
       }
