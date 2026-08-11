@@ -104,7 +104,7 @@ export async function appendCashPayoutRow(input: CashRowInput): Promise<CashRowR
   const settings = await getCashExportSettings();
   if (!settings.sheetId) throw new Error("Cash tracking sheet not configured");
   const block = BLOCKS[input.payer];
-  const row = await nextEmptyRow(settings.sheetId, settings.tab, block.first);
+  const row = await nextEmptyRow(settings.sheetId, settings.tab, block.label, block.first);
 
   const values = [
     cashAmountLabel(-Math.abs(input.amount)),
