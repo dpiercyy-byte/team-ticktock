@@ -8,9 +8,9 @@ const GW = "https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets"
 
 export type CashPayer = "Michael" | "Dylan";
 
-const BLOCKS: Record<CashPayer, { first: string; last: string }> = {
-  Michael: { first: "B", last: "E" },
-  Dylan: { first: "H", last: "K" },
+const BLOCKS: Record<CashPayer, { label: string; first: string; last: string }> = {
+  Michael: { label: "A", first: "B", last: "E" },
+  Dylan: { label: "G", first: "H", last: "K" },
 };
 
 async function gw(url: string, init?: RequestInit) {
