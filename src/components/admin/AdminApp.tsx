@@ -3485,7 +3485,7 @@ function AdminAddReceiptsDialog({
   const [jobSiteId, setJobSiteId] = useState<string>("");
   const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [files, setFiles] = useState<File[]>([]);
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -3509,7 +3509,7 @@ function AdminAddReceiptsDialog({
       setMaterialType("regular");
       setProgress(null);
       setBusy(false);
-      setExtraOpen(false);
+      setStep(1);
       setWeekStart(currentWeekStartISOClient());
     }
   }, [open]);
