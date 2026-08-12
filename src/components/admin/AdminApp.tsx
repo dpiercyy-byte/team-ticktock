@@ -82,7 +82,7 @@ import {
   Home as HomeIcon,
   User as UserIcon,
   ShieldAlert,
-  ChevronDown,
+  
   ArrowLeft,
   Clock,
   SlidersHorizontal,
