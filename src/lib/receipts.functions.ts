@@ -49,7 +49,7 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
     "- Any field you truly cannot read → null (except confidence).\n\n" +
     "Job sites:\n" +
     (jobSites.length ? jobSites.map(j => `- ${j.id}: ${j.label}`).join("\n") : "(none)") +
-    "\n\nSchema: { vendor: string|null, date: string|null, subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number }";
+    "\n\nSchema: { vendor: string|null, date: string|null, date_raw: string|null, subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number }";
 
   const content: any[] = [{ type: "text", text: promptText }];
 
