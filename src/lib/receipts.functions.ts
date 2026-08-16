@@ -314,18 +314,21 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
       return isFinite(n) ? n : null;
     };
 
+    const dateCheck = normalizeReceiptDate(parsed.date);
+
     const patch: any = {
       parsed_vendor: parsed.vendor || null,
-      parsed_date: parsed.date || null,
+      parsed_date: dateCheck.date,
       parsed_subtotal: num(parsed.subtotal),
       parsed_tax: num(parsed.tax),
       parsed_total: num(parsed.total),
       parsed_category: category,
       parse_confidence: num(parsed.confidence),
-      parse_raw: parsed,
-      parse_status: "ok",
+      parse_raw: { ...parsed, date_check: dateCheck },
+      parse_status: dateCheck.needsReview ? "needs_review" : "ok",
       parsed_at: new Date().toISOString(),
     };
+
     // Preserve a job site already picked by the worker/admin — AI never overwrites it.
     if (r.parsed_job_site_id == null) {
       patch.parsed_job_site_id = jobSiteId;
