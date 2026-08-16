@@ -28,7 +28,11 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
     "- vendor: the merchant/store name at the TOP of the receipt (e.g. 'The Home Depot', 'Shell', 'Lowe's'). " +
     "Ignore slogans, phone numbers, addresses, and cashier names. Trim to the brand name.\n" +
     "- date: the TRANSACTION date (not the print date, not an expiry). Format strictly 'YYYY-MM-DD'. " +
-    "If year is 2 digits, assume 20YY. If ambiguous MM/DD vs DD/MM, prefer MM/DD/YYYY (US).\n" +
+    "If year is 2 digits, assume 20YY. These are CANADIAN receipts: an ambiguous all-numeric date is " +
+    "DAY/MONTH/YEAR (so '12/08/26' is 2026-08-12, not December). Only read it as month-first when the " +
+    "receipt clearly labels it that way or the first number is greater than 12.\n" +
+    "- date_raw: the date exactly as printed on the receipt, verbatim (e.g. '12/08/26'), or null.\n",
+
     "- total: the FINAL amount charged — typically labeled 'TOTAL', 'GRAND TOTAL', 'AMOUNT DUE', or the largest bold number at the bottom. " +
     "Not 'SUBTOTAL', not 'BALANCE', not 'CHANGE', not 'TENDER'.\n" +
     "- subtotal: pre-tax amount if shown. If only total and tax are shown, compute subtotal = total - tax.\n" +
