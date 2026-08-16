@@ -31,7 +31,8 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
     "If year is 2 digits, assume 20YY. These are CANADIAN receipts: an ambiguous all-numeric date is " +
     "DAY/MONTH/YEAR (so '12/08/26' is 2026-08-12, not December). Only read it as month-first when the " +
     "receipt clearly labels it that way or the first number is greater than 12.\n" +
-    "- date_raw: the date exactly as printed on the receipt, verbatim (e.g. '12/08/26'), or null.\n",
+    "- date_raw: the date exactly as printed on the receipt, verbatim (e.g. '12/08/26'), or null.\n" +
+
 
     "- total: the FINAL amount charged — typically labeled 'TOTAL', 'GRAND TOTAL', 'AMOUNT DUE', or the largest bold number at the bottom. " +
     "Not 'SUBTOTAL', not 'BALANCE', not 'CHANGE', not 'TENDER'.\n" +
