@@ -2975,7 +2975,13 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
                         <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                         <span>Scan failed</span>
                       </>
+                    ) : status === "needs_review" ? (
+                      <>
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        <span>Check the date</span>
+                      </>
                     ) : (
+
                       <>
                         <span>
                           {i.parsedDate ? fmtDate(i.parsedDate) : `wk ${fmtDate(i.weekStart)}`}

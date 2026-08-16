@@ -3,6 +3,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "./db.server";
 import { requireAdmin, requireWorker } from "./auth.server";
 import { logAudit } from "./audit.server";
+import { normalizeReceiptDate } from "./receipt-date";
+
 
 const adminBase = z.object({ token: z.string() });
 
@@ -28,7 +30,12 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
     "- vendor: the merchant/store name at the TOP of the receipt (e.g. 'The Home Depot', 'Shell', 'Lowe's'). " +
     "Ignore slogans, phone numbers, addresses, and cashier names. Trim to the brand name.\n" +
     "- date: the TRANSACTION date (not the print date, not an expiry). Format strictly 'YYYY-MM-DD'. " +
-    "If year is 2 digits, assume 20YY. If ambiguous MM/DD vs DD/MM, prefer MM/DD/YYYY (US).\n" +
+    "If year is 2 digits, assume 20YY. These are CANADIAN receipts: an ambiguous all-numeric date is " +
+    "DAY/MONTH/YEAR (so '12/08/26' is 2026-08-12, not December). Only read it as month-first when the " +
+    "receipt clearly labels it that way or the first number is greater than 12.\n" +
+    "- date_raw: the date exactly as printed on the receipt, verbatim (e.g. '12/08/26'), or null.\n" +
+
+
     "- total: the FINAL amount charged — typically labeled 'TOTAL', 'GRAND TOTAL', 'AMOUNT DUE', or the largest bold number at the bottom. " +
     "Not 'SUBTOTAL', not 'BALANCE', not 'CHANGE', not 'TENDER'.\n" +
     "- subtotal: pre-tax amount if shown. If only total and tax are shown, compute subtotal = total - tax.\n" +
@@ -44,7 +51,7 @@ async function aiParseReceipt(receiptUrl: string, mime: string, jobSites: { id: 
     "- Any field you truly cannot read → null (except confidence).\n\n" +
     "Job sites:\n" +
     (jobSites.length ? jobSites.map(j => `- ${j.id}: ${j.label}`).join("\n") : "(none)") +
-    "\n\nSchema: { vendor: string|null, date: string|null, subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number }";
+    "\n\nSchema: { vendor: string|null, date: string|null, date_raw: string|null, subtotal: number|null, tax: number|null, total: number|null, category: string|null, job_site_id: string|null, confidence: number }";
 
   const content: any[] = [{ type: "text", text: promptText }];
 
@@ -309,18 +316,21 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
       return isFinite(n) ? n : null;
     };
 
+    const dateCheck = normalizeReceiptDate(parsed.date);
+
     const patch: any = {
       parsed_vendor: parsed.vendor || null,
-      parsed_date: parsed.date || null,
+      parsed_date: dateCheck.date,
       parsed_subtotal: num(parsed.subtotal),
       parsed_tax: num(parsed.tax),
       parsed_total: num(parsed.total),
       parsed_category: category,
       parse_confidence: num(parsed.confidence),
-      parse_raw: parsed,
-      parse_status: "ok",
+      parse_raw: { ...parsed, date_check: dateCheck },
+      parse_status: dateCheck.needsReview ? "needs_review" : "ok",
       parsed_at: new Date().toISOString(),
     };
+
     // Preserve a job site already picked by the worker/admin — AI never overwrites it.
     if (r.parsed_job_site_id == null) {
       patch.parsed_job_site_id = jobSiteId;
