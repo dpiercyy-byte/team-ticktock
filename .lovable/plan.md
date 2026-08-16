@@ -1,9 +1,16 @@
-Plan
+# Make Receipts "Add" button 1–2 points larger
 
-Goal: Make the "Add" button in the Receipts tab one or two points larger without disturbing the surrounding header layout, then show a before-and-after screenshot for approval.
+## Goal
+Increase the font size of the "Add" button in the Receipts tab so it stands out slightly, without disturbing the surrounding bottom-nav layout.
 
-1. Locate the "Add" button in the receipts tab header (line ~2896 in `src/components/admin/AdminApp.tsx`).
-2. Capture a **before** screenshot of the receipts tab at the current mobile viewport (402x725).
-3. Increase the label size from `text-xs` to a slightly larger token (e.g., `text-[13px]` or `text-sm`) while keeping the button height (`h-8`), icon size (`h-3.5 w-3.5`), and horizontal padding (`px-3`) unchanged so the surrounding buttons and header row do not shift.
-4. Capture an **after** screenshot of the same receipts tab viewport.
-5. Present both screenshots side-by-side for approval; if approved, keep the change. If not, revert or tweak the size.
+## Current state
+- The button is in `src/components/admin/AdminApp.tsx` and currently uses `text-xs`.
+- A before screenshot has already been captured showing a small blue "Add" pill in the Receipts tab header.
+
+## Proposed change
+- Change `text-xs` to `text-[13px]` (one point larger) on the Add button in the Receipts tab.
+- Keep the same pill padding, height (`h-8`), and gap so the surrounding UI is not pushed around.
+- Verify the change in the live preview at the mobile viewport, then capture an after screenshot.
+
+## Approval
+Please confirm whether `text-[13px]` is the right bump, or if you prefer `text-sm` (≈14 px, two points bigger). After approval, I will apply the edit and show the after screenshot.
