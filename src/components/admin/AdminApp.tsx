@@ -396,7 +396,7 @@ function AdminDashboard({
           </Tabs>
         </SwipeableTabs>
       </div>
-      <AdminBottomNav value={activeTab} onValueChange={setActiveTab} />
+      <AdminBottomNav value={activeTab} onValueChange={setActiveTab} onLogout={onLogout} />
     </div>
   );
 }
