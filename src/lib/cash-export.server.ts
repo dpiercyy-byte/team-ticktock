@@ -74,15 +74,27 @@ async function nextEmptyRow(
   const json: any = await res.json();
   const rows: any[][] = json?.values ?? [];
   const width = amountCol.charCodeAt(0) - labelCol.charCodeAt(0);
+  let totalsRow: number | null = null;
   let last = 2; // never write above the two header rows
   for (let i = 0; i < rows.length; i++) {
+    const rowNum = i + 1;
     const label = String(rows[i]?.[0] ?? "").toLowerCase();
-    if (label.includes("total")) break;
+    if (label.includes("total")) {
+      totalsRow = rowNum;
+      break;
+    }
     const amount = rows[i]?.[width];
-    if (amount != null && String(amount).trim() !== "") last = i + 1;
+    if (amount != null && String(amount).trim() !== "") last = rowNum;
   }
-  return last + 1;
+  const target = last + 1;
+  if (totalsRow != null && target >= totalsRow) {
+    throw new Error(
+      `Cash tracking block ${amountCol} is full — no free row above the totals row ${totalsRow}`,
+    );
+  }
+  return target;
 }
+
 
 export type CashRowInput = {
   payer: CashPayer;
