@@ -364,8 +364,7 @@ function AdminDashboard({
   const [activeTab, setActiveTab] = useState("entries");
   return (
     <div className="min-h-dvh bg-background pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
-      <AppSwitcherBar onLogout={onLogout} />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-2 sm:pt-3">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4">
         <SwipeableTabs tabs={[...ADMIN_TABS]} value={activeTab} onValueChange={setActiveTab}>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
 
