@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { AppSwitcherBar } from "@/components/AppSwitcherBar";
 import { LedgerBottomNav } from "@/components/ledger/LedgerBottomNav";
 
 export const Route = createFileRoute("/ledger")({
@@ -18,7 +17,6 @@ export const Route = createFileRoute("/ledger")({
 function LedgerLayout() {
   return (
     <div className="ledger-scope min-h-screen flex flex-col">
-      <AppSwitcherBar />
       <Outlet />
       <LedgerBottomNav />
     </div>
