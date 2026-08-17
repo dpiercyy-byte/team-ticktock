@@ -75,6 +75,7 @@ import {
   RefreshCw,
   Sheet,
   ChevronLeft,
+  ChevronDown,
   ChevronRight,
   Calendar as CalendarIcon,
   Phone,
@@ -3491,7 +3492,7 @@ function AdminAddReceiptsDialog({
   const [jobSiteId, setJobSiteId] = useState<string>("");
   const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [files, setFiles] = useState<File[]>([]);
-  const [step, setStep] = useState(1);
+  const [extraOpen, setExtraOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -3515,7 +3516,7 @@ function AdminAddReceiptsDialog({
       setMaterialType("regular");
       setProgress(null);
       setBusy(false);
-      setStep(1);
+      setExtraOpen(false);
       setWeekStart(currentWeekStartISOClient());
     }
   }, [open]);
@@ -3604,16 +3605,6 @@ function AdminAddReceiptsDialog({
     if (ok > 0) onClose();
   };
 
-  const STEP_TITLES = ["Material type", "Job site", "Attachments", "Details (optional)"];
-  const canNext =
-    step === 1
-      ? true
-      : step === 2
-        ? materialType === "regular" || !!jobSiteId
-        : step === 3
-          ? files.length > 0
-          : true;
-
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent
@@ -3621,211 +3612,174 @@ function AdminAddReceiptsDialog({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle>{STEP_TITLES[step - 1]}</DialogTitle>
-          <div className="flex items-center gap-2 pt-2">
-            {[1, 2, 3, 4].map((s) => (
-              <span
-                key={s}
-                className={`h-1.5 rounded-full transition-all ${
-                  s === step ? "w-6 bg-primary" : s < step ? "w-3 bg-primary/40" : "w-3 bg-muted"
-                }`}
-              />
-            ))}
-            <span className="ml-1 text-[11px] text-muted-foreground">Step {step} of 4</span>
-          </div>
+          <DialogTitle>Add receipts</DialogTitle>
+          <p className="text-xs text-muted-foreground pt-1">
+            Business receipts not tied to a worker. Each file is parsed by AI and added to your
+            Google Sheet.
+          </p>
         </DialogHeader>
-
         <div className="space-y-3 px-6 py-3 overflow-y-auto flex-1">
-          {step === 1 && (
-            <>
-              <p className="text-xs text-muted-foreground">
-                Business receipts not tied to a worker. Each file is parsed by AI and added to your
-                Google Sheet.
-              </p>
-              <div className="grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMaterialType("regular");
-                    setStep(2);
-                  }}
-                  className={`rounded-lg border p-4 text-left transition ${
-                    materialType === "regular"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted/50"
-                  }`}
-                >
-                  <p className="text-sm font-semibold">Regular</p>
-                  <p className="text-xs text-muted-foreground">
-                    Company material or overhead — job site optional.
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMaterialType("client_billable");
-                    setStep(2);
-                  }}
-                  className={`rounded-lg border p-4 text-left transition ${
-                    materialType === "client_billable"
-                      ? "border-emerald-600 bg-emerald-50"
-                      : "border-border hover:bg-muted/50"
-                  }`}
-                >
-                  <p className="text-sm font-semibold">Client-billable</p>
-                  <p className="text-xs text-muted-foreground">
-                    Billed back to a client — a job site is required.
-                  </p>
-                </button>
-              </div>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <p className="text-xs text-muted-foreground">
-                {materialType === "client_billable"
-                  ? "Pick the job this receipt is billed to."
-                  : "Pick a job site, or continue without one."}
-              </p>
-              <div className="grid gap-2">
-                {materialType === "regular" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setJobSiteId("");
-                      setStep(3);
-                    }}
-                    className={`rounded-lg border px-4 py-3 text-left text-sm transition ${
-                      jobSiteId === "" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    No job site
-                  </button>
-                )}
-                {clientJobs.map((s: any) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      setJobSiteId(s.id);
-                      setStep(3);
-                    }}
-                    className={`rounded-lg border px-4 py-3 text-left text-sm transition ${
-                      jobSiteId === s.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-                {clientJobs.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground">
-                    No active client jobs. Add one in Job Sites.
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onDrop}
-                onClick={() => inputRef.current?.click()}
-                className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition ${
-                  dragOver ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+          <div>
+            <Label className="text-xs">Week</Label>
+            <Input
+              type="date"
+              value={weekStart}
+              onChange={(e) => {
+                const [y, m, d] = e.target.value.split("-").map(Number);
+                if (!y) return;
+                const dt = new Date(y, (m || 1) - 1, d || 1);
+                dt.setDate(dt.getDate() - dt.getDay());
+                const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+                setWeekStart(iso);
+              }}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Material type</Label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMaterialType("regular")}
+                className={`h-9 rounded-md border text-sm font-medium transition ${
+                  materialType === "regular"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
               >
-                <Paperclip className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm">Drop files or click to choose</p>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  JPG, PNG, PDF · up to 10 files · 10MB each
-                </p>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) addFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-
-              {files.length > 0 && (
-                <div className="space-y-1 max-h-40 overflow-auto">
-                  {files.map((f, idx) => (
-                    <div
-                      key={`${f.name}-${idx}`}
-                      className="flex items-center justify-between gap-2 text-xs bg-muted/50 rounded px-2 py-1"
-                    >
-                      <span className="truncate flex-1">{f.name}</span>
-                      <span className="text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
-                      <button
-                        type="button"
-                        onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
-                        className="text-muted-foreground hover:text-red-500"
-                        disabled={busy}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Nothing to add? Just hit Skip — the receipt details get filled in by AI.
+                Regular
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaterialType("client_billable")}
+                className={`h-9 rounded-md border text-sm font-medium transition ${
+                  materialType === "client_billable"
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-border bg-background text-foreground hover:bg-muted"
+                }`}
+              >
+                Client-billable
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">
+              Job {materialType === "client_billable" ? "(required)" : "(optional)"}
+            </Label>
+            <Select
+              value={jobSiteId || "none"}
+              onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="—" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— None —</SelectItem>
+                {clientJobs.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>Client jobs</SelectLabel>
+                    {clientJobs.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+              </SelectContent>
+            </Select>
+            {clientJobs.length === 0 && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                No active client jobs. Add one in Job Sites.
               </p>
-              <div>
-                <Label className="text-xs">Payee (optional)</Label>
-                <Input
-                  value={payee}
-                  onChange={(e) => setPayee(e.target.value)}
-                  placeholder="Auto-filled from receipt if left blank"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Note (optional)</Label>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="optional"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Week</Label>
-                <Input
-                  type="date"
-                  value={weekStart}
-                  onChange={(e) => {
-                    const [y, m, d] = e.target.value.split("-").map(Number);
-                    if (!y) return;
-                    const dt = new Date(y, (m || 1) - 1, d || 1);
-                    dt.setDate(dt.getDate() - dt.getDay());
-                    const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-                    setWeekStart(iso);
-                  }}
-                  className="mt-1"
-                />
-              </div>
+            )}
+          </div>
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            onClick={() => inputRef.current?.click()}
+            className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition ${
+              dragOver ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+            }`}
+          >
+            <Paperclip className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm">Drop files or click to choose</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              JPG, PNG, PDF · up to 10 files · 10MB each
+            </p>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) addFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          {files.length > 0 && (
+            <div className="space-y-1 max-h-40 overflow-auto">
+              {files.map((f, idx) => (
+                <div
+                  key={`${f.name}-${idx}`}
+                  className="flex items-center justify-between gap-2 text-xs bg-muted/50 rounded px-2 py-1"
+                >
+                  <span className="truncate flex-1">{f.name}</span>
+                  <span className="text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
+                  <button
+                    type="button"
+                    onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-muted-foreground hover:text-red-500"
+                    disabled={busy}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           )}
+
+          <div className="border-t pt-2">
+            <button
+              type="button"
+              onClick={() => setExtraOpen((v) => !v)}
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition w-full"
+            >
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${extraOpen ? "rotate-0" : "-rotate-90"}`}
+              />
+              {extraOpen ? "Hide extra details" : "Add extra details (Payee, Notes)"}
+            </button>
+            {extraOpen && (
+              <div className="space-y-3 mt-3">
+                <div>
+                  <Label className="text-xs">Payee (optional)</Label>
+                  <Input
+                    value={payee}
+                    onChange={(e) => setPayee(e.target.value)}
+                    placeholder="Auto-filled from receipt if left blank"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Note (optional)</Label>
+                  <Input
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="optional"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
           {progress && (
             <p className="text-xs text-center text-muted-foreground">
@@ -3833,34 +3787,19 @@ function AdminAddReceiptsDialog({
             </p>
           )}
         </div>
-
-        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background sm:justify-between">
-          <Button
-            variant="outline"
-            onClick={() => (step === 1 ? onClose() : setStep((s) => s - 1))}
-            disabled={busy}
-          >
-            {step === 1 ? "Cancel" : "Back"}
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background">
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
           </Button>
-          {step < 4 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={busy || !canNext}>
-              Next
-            </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={submit} disabled={busy}>
-                Skip
-              </Button>
-              <Button onClick={submit} disabled={busy || files.length === 0}>
-                {busy ? "Uploading…" : `Add ${files.length || ""}`.trim()}
-              </Button>
-            </div>
-          )}
+          <Button onClick={submit} disabled={busy || files.length === 0}>
+            {busy ? "Uploading…" : `Upload ${files.length || ""}`.trim()}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 
 // ===== Pending payouts =====
