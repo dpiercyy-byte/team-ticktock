@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   Clock,
   DollarSign,
@@ -8,6 +9,8 @@ import {
   MoreHorizontal,
   Settings as SettingsIcon,
   ShieldCheck,
+  BookOpen,
+  LogOut,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
@@ -17,11 +20,11 @@ const MAIN: Item[] = [
   { value: "entries", label: "Entries", icon: Clock },
   { value: "payouts", label: "Payout", icon: DollarSign },
   { value: "receipts", label: "Receipts", icon: Receipt },
-  { value: "workers", label: "Workers", icon: Users },
-  { value: "sites", label: "Sites", icon: MapPin },
 ];
 
 const MORE: Item[] = [
+  { value: "workers", label: "Workers", icon: Users },
+  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "audit", label: "Audit Log", icon: ShieldCheck },
   { value: "settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -29,9 +32,11 @@ const MORE: Item[] = [
 export function AdminBottomNav({
   value,
   onValueChange,
+  onLogout,
 }: {
   value: string;
   onValueChange: (v: string) => void;
+  onLogout?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const moreActive = MORE.some((m) => m.value === value);
@@ -62,6 +67,14 @@ export function AdminBottomNav({
             </li>
           );
         })}
+        <li>
+          <Link to="/ledger" className={itemClass(false)}>
+            <span className="c-nav-icon grid h-9 w-9 place-items-center rounded-full transition-colors">
+              <BookOpen className="h-[19px] w-[19px]" strokeWidth={2.1} />
+            </span>
+            <span className="tracking-tight">Ledger</span>
+          </Link>
+        </li>
         <li>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -94,6 +107,19 @@ export function AdminBottomNav({
                   </button>
                 );
               })}
+              {onLogout ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onLogout();
+                  }}
+                  className="mt-1 flex w-full items-center gap-2.5 rounded-lg border-t border-border px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              ) : null}
             </PopoverContent>
           </Popover>
         </li>
