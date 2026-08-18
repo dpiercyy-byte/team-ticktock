@@ -136,6 +136,10 @@ export type LedgerJob = {
   budget: number; // dollars
   collected: number;
   expenses: number;
+  /** Live cost breakdown from Clockwise + sheet-imported project costs. */
+  costLabour: number;
+  costMaterials: number;
+  costOther: number;
   workersOnSite: number;
   scheduledFor: string | null;
   archivedAt: string | null;
