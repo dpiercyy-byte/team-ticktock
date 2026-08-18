@@ -15,6 +15,7 @@ import {
 } from "./workspace-math";
 import type { RawSegment } from "./segment-math";
 import { costSummary, type ProjectCostRow, type ProjectCostCategory } from "./finance-math";
+import { addressKey } from "./sheet-jobs-parse";
 
 export type JobRollup = {
   labour: number;
@@ -26,21 +27,34 @@ export type JobRollup = {
 
 const cents = (n: number | string | null | undefined) => Number(n ?? 0) / 100;
 
-export async function loadJobRollups(projectIds: string[]): Promise<Map<string, JobRollup>> {
+export async function loadJobRollups(
+  projects: Array<{ id: string; address: string }>,
+): Promise<Map<string, JobRollup>> {
   const out = new Map<string, JobRollup>();
-  if (projectIds.length === 0) return out;
+  if (projects.length === 0) return out;
+  const projectIds = projects.map((p) => p.id);
 
-  // project -> its Clockwise geofences
+  // project -> its Clockwise geofences. Sites are matched on the project link
+  // and, as a fallback, on the normalised street address so labour still lands
+  // on the right job when the geofence was created outside the sheet sync.
+  const byAddress = new Map<string, string>();
+  for (const p of projects) {
+    const key = addressKey(p.address ?? "");
+    if (key && !byAddress.has(key)) byAddress.set(key, p.id);
+  }
   const { data: siteRows } = await supabaseAdmin
     .from("job_sites")
-    .select("id, project_id")
-    .in("project_id", projectIds);
+    .select("id, project_id, address, kind")
+    .is("archived_at", null);
   const siteToProject = new Map<string, string>();
   const sitesByProject = new Map<string, string[]>();
   for (const s of (siteRows ?? []) as Array<Record<string, any>>) {
-    if (!s.project_id) continue;
-    siteToProject.set(s.id, s.project_id);
-    sitesByProject.set(s.project_id, [...(sitesByProject.get(s.project_id) ?? []), s.id]);
+    const pid: string | undefined =
+      (s.project_id && projectIds.includes(s.project_id) ? s.project_id : undefined) ??
+      ((s.kind ?? "client") === "client" ? byAddress.get(addressKey(s.address ?? "")) : undefined);
+    if (!pid) continue;
+    siteToProject.set(s.id, pid);
+    sitesByProject.set(pid, [...(sitesByProject.get(pid) ?? []), s.id]);
   }
   const siteIds = [...siteToProject.keys()];
 

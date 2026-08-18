@@ -248,7 +248,7 @@ const JOB_COLS =
 async function withRollups(jobs: LedgerJob[]): Promise<LedgerJob[]> {
   if (jobs.length === 0) return jobs;
   const { loadJobRollups } = await import("./ledger-rollup.server");
-  const rollups = await loadJobRollups(jobs.map((j) => j.id));
+  const rollups = await loadJobRollups(jobs.map((j) => ({ id: j.id, address: j.address })));
   return jobs.map((j) => {
     const r = rollups.get(j.id);
     if (!r) return j;
