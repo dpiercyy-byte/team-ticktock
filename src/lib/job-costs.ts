@@ -14,7 +14,15 @@ export type JobCosts = {
   total: number;
 };
 
-export function jobCosts(job: Pick<LedgerJob, "expenses">): JobCosts {
+export function jobCosts(
+  job: Partial<Pick<LedgerJob, "costLabour" | "costMaterials" | "costOther">> &
+    Pick<LedgerJob, "expenses">,
+): JobCosts {
+  const labour = Math.max(0, job.costLabour || 0);
+  const materials = Math.max(0, job.costMaterials || 0);
+  const other = Math.max(0, job.costOther || 0);
+  const split = labour + materials + other;
+  if (split > 0) return { labour, materials, other, total: Math.round(split * 100) / 100 };
   const total = Math.max(0, job.expenses || 0);
   return { labour: 0, materials: 0, other: total, total };
 }

@@ -136,6 +136,10 @@ export type LedgerJob = {
   budget: number; // dollars
   collected: number;
   expenses: number;
+  /** Live cost breakdown from Clockwise + sheet-imported project costs. */
+  costLabour: number;
+  costMaterials: number;
+  costOther: number;
   workersOnSite: number;
   scheduledFor: string | null;
   archivedAt: string | null;
@@ -225,6 +229,9 @@ function rowToJob(r: JobRow): LedgerJob {
     budget: centsToDollars(r.budget_cents),
     collected: centsToDollars(r.collected_cents),
     expenses: centsToDollars(r.expenses_cents),
+    costLabour: 0,
+    costMaterials: 0,
+    costOther: 0,
     workersOnSite: r.workers_on_site,
     scheduledFor: r.scheduled_for,
     archivedAt: r.archived_at ?? null,
@@ -237,6 +244,25 @@ const JOB_COLS =
   "id, name, client_name, client_email, client_phone, address, client_id, property_id, sales_stage, delivery_status, estimated_value_cents, assigned_owner, next_action, next_action_due_at, expected_start_date, actual_start_date, expected_completion_date, actual_completion_date, lost_reason, project_type, trades, status, progress, budget_cents, collected_cents, expenses_cents, workers_on_site, scheduled_for, archived_at, created_at, updated_at, clients:client_id(id, name, email, phone), properties:property_id(id, address)";
 
 
+/** Overlay live costs/collections from the source tables onto the job rows. */
+async function withRollups(jobs: LedgerJob[]): Promise<LedgerJob[]> {
+  if (jobs.length === 0) return jobs;
+  const { loadJobRollups } = await import("./ledger-rollup.server");
+  const rollups = await loadJobRollups(jobs.map((j) => ({ id: j.id, address: j.address })));
+  return jobs.map((j) => {
+    const r = rollups.get(j.id);
+    if (!r) return j;
+    return {
+      ...j,
+      expenses: r.total > 0 ? r.total : j.expenses,
+      collected: r.collected > 0 ? r.collected : j.collected,
+      costLabour: r.labour,
+      costMaterials: r.materials,
+      costOther: r.other,
+    };
+  });
+}
+
 export const listLedgerJobs = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
   .handler(async ({ data }) => {
@@ -247,7 +273,8 @@ export const listLedgerJobs = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .order("updated_at", { ascending: false });
     if (error) throw error;
-    return { ...refreshed, jobs: (rows ?? []).map((r) => rowToJob(r as unknown as JobRow)) };
+    const jobs = await withRollups((rows ?? []).map((r) => rowToJob(r as unknown as JobRow)));
+    return { ...refreshed, jobs };
   });
 
 export const getLedgerJob = createServerFn({ method: "POST" })
@@ -269,7 +296,7 @@ export const getLedgerJob = createServerFn({ method: "POST" })
     if (evErr) throw evErr;
     return {
       ...refreshed,
-      job: rowToJob(row as unknown as JobRow),
+      job: (await withRollups([rowToJob(row as unknown as JobRow)]))[0],
       timeline: (events ?? []).map((e) => ({
         id: e.id,
         jobId: e.job_id,
