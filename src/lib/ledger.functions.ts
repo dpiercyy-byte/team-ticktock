@@ -296,7 +296,7 @@ export const getLedgerJob = createServerFn({ method: "POST" })
     if (evErr) throw evErr;
     return {
       ...refreshed,
-      job: rowToJob(row as unknown as JobRow),
+      job: (await withRollups([rowToJob(row as unknown as JobRow)]))[0],
       timeline: (events ?? []).map((e) => ({
         id: e.id,
         jobId: e.job_id,
