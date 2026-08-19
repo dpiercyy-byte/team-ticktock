@@ -74,7 +74,7 @@ import {
   RefreshCw,
   Sheet,
   ChevronLeft,
-  ChevronDown,
+  
   ChevronRight,
   Calendar as CalendarIcon,
   Phone,
@@ -3468,6 +3468,19 @@ function currentWeekStartISOClient(): string {
   return d.toISOString().slice(0, 10);
 }
 
+type ReceiptBatchItem = {
+  file: File;
+  previewUrl: string | null;
+  isPdf: boolean;
+  status: "pending" | "uploading" | "uploaded" | "error";
+  up: { token: string; url: string; mime: string } | null;
+  answered: boolean;
+  jobSiteId: string | null;
+  materialType: "regular" | "client_billable";
+  committed: boolean;
+  error: string | null;
+};
+
 function AdminAddReceiptsDialog({
   open,
   onClose,
@@ -3484,17 +3497,23 @@ function AdminAddReceiptsDialog({
   const uploadFn = useServerFn(uploadReceipt);
   const addFn = useServerFn(adminAddStandaloneReceipt);
   const sitesFn = useServerFn(adminListJobSites);
-  const [payee, setPayee] = useState("");
-  const [description, setDescription] = useState("");
-  const [weekStart, setWeekStart] = useState(currentWeekStartISOClient());
-  const [jobSiteId, setJobSiteId] = useState<string>("");
-  const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
+
+  const [phase, setPhase] = useState<"upload" | "assign" | "summary">("upload");
   const [files, setFiles] = useState<File[]>([]);
-  const [extraOpen, setExtraOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [items, setItems] = useState<ReceiptBatchItem[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [materialType, setMaterialType] = useState<"regular" | "client_billable">("regular");
   const [dragOver, setDragOver] = useState(false);
+  const [, forceTick] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const itemsRef = useRef<ReceiptBatchItem[]>([]);
+  const tokenRef = useRef(token);
+  const weekStartRef = useRef(currentWeekStartISOClient());
+  const inFlightRef = useRef(0);
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
   const sitesQ = useQuery({
     queryKey: ["admin-jobsites-for-receipts"],
@@ -3505,18 +3524,22 @@ function AdminAddReceiptsDialog({
     (s) => !s.archived_at && (s.kind ?? "client") === "client",
   );
 
+  const resetAll = () => {
+    for (const it of itemsRef.current) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+    itemsRef.current = [];
+    setItems([]);
+    setFiles([]);
+    setIdx(0);
+    setPhase("upload");
+    setMaterialType("regular");
+    setDragOver(false);
+    inFlightRef.current = 0;
+    weekStartRef.current = currentWeekStartISOClient();
+  };
+
   useEffect(() => {
-    if (!open) {
-      setPayee("");
-      setDescription("");
-      setFiles([]);
-      setJobSiteId("");
-      setMaterialType("regular");
-      setProgress(null);
-      setBusy(false);
-      setExtraOpen(false);
-      setWeekStart(currentWeekStartISOClient());
-    }
+    if (!open) resetAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const addFiles = (list: FileList | File[]) => {
@@ -3540,263 +3563,377 @@ function AdminAddReceiptsDialog({
     if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
   };
 
-  const submit = async () => {
-    if (files.length === 0) {
-      toast.error("Add at least one file");
-      return;
-    }
-    if (materialType === "client_billable" && !jobSiteId) {
-      toast.error("Pick a job site for client-billable receipts");
-      return;
-    }
+  const sync = () => {
+    setItems([...itemsRef.current]);
+    forceTick((t) => t + 1);
+  };
 
-    setBusy(true);
-    setProgress({ done: 0, total: files.length });
-    let ok = 0,
-      failed = 0;
-    let firstError = "";
-    for (const f of files) {
-      try {
-        const prepped = await prepareUpload(f);
-        const up = await withRetry(() =>
-          uploadFn({
-            data: {
-              token,
-              filename: prepped.filename,
-              mime: prepped.mime as any,
-              base64: prepped.base64,
-            },
-          }),
-        );
-        updateToken(up.token);
-        const r = await withRetry(() =>
-          addFn({
-            data: {
-              token: up.token,
-              payeeLabel: payee.trim() || undefined,
-              description: description.trim() || undefined,
-              weekStart,
-              receiptUrl: up.url,
-              receiptMime: up.mime,
-              jobSiteId: jobSiteId || null,
-              materialType,
-            },
-          }),
-        );
-        updateToken(r.token);
-        ok++;
-      } catch (e: any) {
-        failed++;
-        if (!firstError) firstError = String(e?.message || e || "Upload failed");
-        console.error("admin receipt upload failed", e);
-      } finally {
-        setProgress((p) => (p ? { done: p.done + 1, total: p.total } : null));
-      }
+  const commit = async (i: number) => {
+    const it = itemsRef.current[i];
+    if (!it || it.committed || !it.answered || it.status !== "uploaded" || !it.up) return;
+    it.committed = true;
+    try {
+      const r = await withRetry(() =>
+        addFn({
+          data: {
+            token: tokenRef.current,
+            weekStart: weekStartRef.current,
+            receiptUrl: it.up!.url,
+            receiptMime: it.up!.mime,
+            jobSiteId: it.jobSiteId || null,
+            materialType: it.materialType,
+          },
+        }),
+      );
+      tokenRef.current = r.token;
+      updateToken(r.token);
+    } catch (e: any) {
+      it.status = "error";
+      it.error = String(e?.message || e || "Save failed");
+      console.error("admin receipt save failed", e);
+    } finally {
+      sync();
     }
-    setBusy(false);
+  };
+
+  const runUploads = async () => {
+    const queue = itemsRef.current.map((_, i) => i);
+    const worker = async () => {
+      for (;;) {
+        const i = queue.shift();
+        if (i === undefined) return;
+        const it = itemsRef.current[i];
+        it.status = "uploading";
+        sync();
+        try {
+          const prepped = await prepareUpload(it.file);
+          const up = await withRetry(() =>
+            uploadFn({
+              data: {
+                token: tokenRef.current,
+                filename: prepped.filename,
+                mime: prepped.mime as any,
+                base64: prepped.base64,
+              },
+            }),
+          );
+          tokenRef.current = up.token;
+          updateToken(up.token);
+          it.up = { token: up.token, url: up.url, mime: up.mime };
+          it.status = "uploaded";
+          sync();
+          await commit(i);
+        } catch (e: any) {
+          it.status = "error";
+          it.error = String(e?.message || e || "Upload failed");
+          console.error("admin receipt upload failed", e);
+          sync();
+        }
+      }
+    };
+    inFlightRef.current = 1;
+    await Promise.all([worker(), worker()]);
+    inFlightRef.current = 0;
+    sync();
+  };
+
+  const startBatch = () => {
+    itemsRef.current = files.map((f) => {
+      const isPdf = (f.type || "").toLowerCase() === "application/pdf" || /\.pdf$/i.test(f.name);
+      return {
+        file: f,
+        previewUrl: isPdf ? null : URL.createObjectURL(f),
+        isPdf,
+        status: "pending",
+        up: null,
+        answered: false,
+        jobSiteId: null,
+        materialType: "regular",
+        committed: false,
+        error: null,
+      } as ReceiptBatchItem;
+    });
+    setItems([...itemsRef.current]);
+    setIdx(0);
+    setPhase("assign");
+    void runUploads();
+  };
+
+  const answer = (jobSiteId: string | null) => {
+    const it = itemsRef.current[idx];
+    if (!it) return;
+    it.answered = true;
+    it.jobSiteId = jobSiteId;
+    it.materialType = materialType;
+    sync();
+    void commit(idx);
+    advance();
+  };
+
+  const advance = () => {
+    const it = itemsRef.current[idx];
+    if (it && !it.answered) {
+      it.answered = true;
+      it.jobSiteId = null;
+      it.materialType = "regular";
+      sync();
+      void commit(idx);
+    }
+    if (idx + 1 < itemsRef.current.length) setIdx(idx + 1);
+    else {
+      setPhase("summary");
+      onDone();
+    }
+  };
+
+
+  const finish = () => {
+    onDone();
+    const failed = itemsRef.current.filter((i) => i.status === "error").length;
+    const ok = itemsRef.current.length - failed;
     if (ok > 0)
       toast.success(
         `Uploaded ${ok} receipt${ok === 1 ? "" : "s"}${failed ? ` (${failed} failed)` : ""} — parsing in background`,
       );
-    if (ok === 0 && failed > 0) toast.error(`Upload failed: ${firstError.slice(0, 160)}`);
-    onDone();
-    if (ok > 0) onClose();
+    else if (failed > 0) toast.error("Upload failed");
+    onClose();
   };
 
+  const uploading = items.some((i) => i.status === "pending" || i.status === "uploading");
+  const current = items[idx];
+  const assignedCount = items.filter((i) => i.answered && i.jobSiteId).length;
+  const noJobCount = items.filter((i) => i.answered && !i.jobSiteId).length;
+  const failedCount = items.filter((i) => i.status === "error").length;
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) return;
+        if (phase === "assign" && uploading) return;
+        onClose();
+      }}
+    >
       <DialogContent
         className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle>Add receipts</DialogTitle>
-          <p className="text-xs text-muted-foreground pt-1">
-            Business receipts not tied to a worker. Each file is parsed by AI and added to your
-            Google Sheet.
-          </p>
+          <DialogTitle>
+            {phase === "upload"
+              ? "Add receipts"
+              : phase === "assign"
+                ? `Receipt ${idx + 1} of ${items.length}`
+                : "All done"}
+          </DialogTitle>
+          {phase === "upload" && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Upload one or many. You'll assign each one a job next.
+            </p>
+          )}
         </DialogHeader>
-        <div className="space-y-3 px-6 py-3 overflow-y-auto flex-1">
-          <div>
-            <Label className="text-xs">Week</Label>
-            <Input
-              type="date"
-              value={weekStart}
-              onChange={(e) => {
-                const [y, m, d] = e.target.value.split("-").map(Number);
-                if (!y) return;
-                const dt = new Date(y, (m || 1) - 1, d || 1);
-                dt.setDate(dt.getDate() - dt.getDay());
-                const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-                setWeekStart(iso);
-              }}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">Material type</Label>
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setMaterialType("regular")}
-                className={`h-9 rounded-md border text-sm font-medium transition ${
-                  materialType === "regular"
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-foreground hover:bg-muted"
+
+        {phase === "upload" && (
+          <>
+            <div className="space-y-3 px-6 py-3 overflow-y-auto flex-1">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                onClick={() => inputRef.current?.click()}
+                className={`border-2 border-dashed rounded-md p-8 text-center cursor-pointer transition ${
+                  dragOver ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
                 }`}
               >
-                Regular
-              </button>
-              <button
-                type="button"
-                onClick={() => setMaterialType("client_billable")}
-                className={`h-9 rounded-md border text-sm font-medium transition ${
-                  materialType === "client_billable"
-                    ? "border-emerald-600 bg-emerald-600 text-white"
-                    : "border-border bg-background text-foreground hover:bg-muted"
-                }`}
-              >
-                Client-billable
-              </button>
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs">
-              Job {materialType === "client_billable" ? "(required)" : "(optional)"}
-            </Label>
-            <Select
-              value={jobSiteId || "none"}
-              onValueChange={(v) => setJobSiteId(v === "none" ? "" : v)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="—" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— None —</SelectItem>
-                {clientJobs.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>Client jobs</SelectLabel>
-                    {clientJobs.map((s: any) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-              </SelectContent>
-            </Select>
-            {clientJobs.length === 0 && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                No active client jobs. Add one in Job Sites.
-              </p>
-            )}
-          </div>
-
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={onDrop}
-            onClick={() => inputRef.current?.click()}
-            className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition ${
-              dragOver ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-            }`}
-          >
-            <Paperclip className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm">Drop files or click to choose</p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              JPG, PNG, PDF · up to 10 files · 10MB each
-            </p>
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) addFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-          </div>
-
-          {files.length > 0 && (
-            <div className="space-y-1 max-h-40 overflow-auto">
-              {files.map((f, idx) => (
-                <div
-                  key={`${f.name}-${idx}`}
-                  className="flex items-center justify-between gap-2 text-xs bg-muted/50 rounded px-2 py-1"
-                >
-                  <span className="truncate flex-1">{f.name}</span>
-                  <span className="text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
-                  <button
-                    type="button"
-                    onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-muted-foreground hover:text-red-500"
-                    disabled={busy}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="border-t pt-2">
-            <button
-              type="button"
-              onClick={() => setExtraOpen((v) => !v)}
-              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition w-full"
-            >
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${extraOpen ? "rotate-0" : "-rotate-90"}`}
-              />
-              {extraOpen ? "Hide extra details" : "Add extra details (Payee, Notes)"}
-            </button>
-            {extraOpen && (
-              <div className="space-y-3 mt-3">
-                <div>
-                  <Label className="text-xs">Payee (optional)</Label>
-                  <Input
-                    value={payee}
-                    onChange={(e) => setPayee(e.target.value)}
-                    placeholder="Auto-filled from receipt if left blank"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Note (optional)</Label>
-                  <Input
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="optional"
-                    className="mt-1"
-                  />
-                </div>
+                <Paperclip className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm">Drop files or click to choose</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  JPG, PNG, PDF · up to 10 files
+                </p>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) addFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
               </div>
-            )}
-          </div>
 
-          {progress && (
-            <p className="text-xs text-center text-muted-foreground">
-              Uploading {progress.done} / {progress.total}…
-            </p>
-          )}
-        </div>
-        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background">
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={busy || files.length === 0}>
-            {busy ? "Uploading…" : `Upload ${files.length || ""}`.trim()}
-          </Button>
-        </DialogFooter>
+              {files.length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {files.map((f, i) => (
+                    <div
+                      key={`${f.name}-${i}`}
+                      className="relative aspect-square rounded-md border bg-muted/40 overflow-hidden"
+                    >
+                      {(f.type || "").startsWith("image/") ? (
+                        <img
+                          src={URL.createObjectURL(f)}
+                          alt={f.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full grid place-items-center p-1 text-[10px] text-center text-muted-foreground">
+                          {f.name.slice(0, 24)}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-background/90 border text-xs leading-none"
+                        aria-label={`Remove ${f.name}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={startBatch} disabled={files.length === 0}>
+                Continue{files.length ? ` (${files.length})` : ""}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {phase === "assign" && current && (
+          <>
+            <div className="px-6 shrink-0">
+              <div className="h-1 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${((idx + 1) / Math.max(1, items.length)) * 100}%` }}
+                />
+              </div>
+            </div>
+            <div className="space-y-3 px-6 py-3 overflow-y-auto flex-1">
+              <div className="rounded-md border bg-muted/30 overflow-hidden h-44 grid place-items-center">
+                {current.previewUrl ? (
+                  <img
+                    src={current.previewUrl}
+                    alt={current.file.name}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center text-xs text-muted-foreground px-4">
+                    <Paperclip className="h-5 w-5 mx-auto mb-1" />
+                    {current.file.name}
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-center text-muted-foreground">
+                {current.status === "error"
+                  ? `Upload failed: ${(current.error || "").slice(0, 80)}`
+                  : current.status === "uploaded"
+                    ? "Uploaded"
+                    : "Uploading…"}
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMaterialType("regular")}
+                  className={`h-9 rounded-md border text-sm font-medium transition ${
+                    materialType === "regular"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-foreground hover:bg-muted"
+                  }`}
+                >
+                  Regular
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMaterialType("client_billable")}
+                  className={`h-9 rounded-md border text-sm font-medium transition ${
+                    materialType === "client_billable"
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-border bg-background text-foreground hover:bg-muted"
+                  }`}
+                >
+                  Client-billable
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  disabled={materialType === "client_billable"}
+                  onClick={() => answer(null)}
+                  className="w-full text-left rounded-md border px-3 py-2.5 text-sm hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  No job site
+                </button>
+                {clientJobs.map((s: any) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => answer(s.id)}
+                    className={`w-full text-left rounded-md border px-3 py-2.5 text-sm hover:bg-muted ${
+                      current.jobSiteId === s.id ? "border-primary bg-primary/5" : ""
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+                {clientJobs.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    No active client jobs. Add one in Job Sites.
+                  </p>
+                )}
+              </div>
+            </div>
+            <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background sm:justify-between">
+              <Button variant="outline" onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>
+                Back
+              </Button>
+              <Button variant="ghost" onClick={advance}>
+                Skip
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {phase === "summary" && (
+          <>
+            <div className="px-6 py-6 text-sm space-y-1">
+              <p className="font-medium">
+                {items.length} receipt{items.length === 1 ? "" : "s"}
+              </p>
+              <p className="text-muted-foreground">
+                {assignedCount} assigned · {noJobCount} no job
+                {failedCount ? ` · ${failedCount} failed` : ""}
+              </p>
+              {uploading && (
+                <p className="text-xs text-muted-foreground pt-2">Finishing uploads…</p>
+              )}
+              <p className="text-xs text-muted-foreground pt-2">
+                Vendor, amount and date are filled in automatically by AI parsing.
+              </p>
+            </div>
+            <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background">
+              <Button onClick={finish} disabled={uploading}>
+                Done
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
+
 
 
 
