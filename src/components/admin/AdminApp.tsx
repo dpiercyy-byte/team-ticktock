@@ -3671,12 +3671,21 @@ function AdminAddReceiptsDialog({
   };
 
   const advance = () => {
+    const it = itemsRef.current[idx];
+    if (it && !it.answered) {
+      it.answered = true;
+      it.jobSiteId = null;
+      it.materialType = "regular";
+      sync();
+      void commit(idx);
+    }
     if (idx + 1 < itemsRef.current.length) setIdx(idx + 1);
     else {
       setPhase("summary");
       onDone();
     }
   };
+
 
   const finish = () => {
     onDone();
