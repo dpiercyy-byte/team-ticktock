@@ -2582,6 +2582,17 @@ const RECEIPT_CATEGORIES = [
   "Other",
 ] as const;
 
+// A receipt left "pending" for longer than this never finished scanning
+// (request cut short mid-parse) — surface it as failed instead of spinning forever.
+const STALE_SCAN_MS = 2 * 60 * 1000;
+
+function isStaleScan(i: any): boolean {
+  if (i?.parseStatus !== "pending") return false;
+  const t = Date.parse(i?.parsedAt || i?.createdAt || "");
+  if (!isFinite(t)) return true;
+  return Date.now() - t > STALE_SCAN_MS;
+}
+
 function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const listFn = useServerFn(listAllReceipts);
   const parseFn = useServerFn(parseReceipt);
