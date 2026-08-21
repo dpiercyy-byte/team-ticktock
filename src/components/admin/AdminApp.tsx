@@ -2611,7 +2611,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
       }),
     refetchInterval: (query) => {
       const items = (query.state.data as any[] | undefined) ?? [];
-      return items.some((it) => it?.parse_status === "pending") ? 4000 : false;
+      return items.some((it) => it?.parseStatus === "pending" && !isStaleScan(it)) ? 4000 : false;
     },
   });
 
