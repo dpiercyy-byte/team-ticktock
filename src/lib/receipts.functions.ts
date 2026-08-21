@@ -500,7 +500,7 @@ export const parseUnprocessed = createServerFn({ method: "POST" })
       return (r.parsed_at ?? r.created_at ?? "") < staleBefore;
     });
     let started = 0;
-    for (const r of rows ?? []) {
+    for (const r of pending) {
       // Sequential to avoid rate limits
       try { await runParseForReimbursement(r.id); started++; } catch {}
     }
