@@ -472,7 +472,7 @@ export const backfillSheet = createServerFn({ method: "POST" })
       .select("id").not("receipt_url", "is", null).order("created_at", { ascending: true }).limit(500);
     let synced = 0; let failed = 0; let skipped = 0;
     let firstError: string | null = null;
-    for (const r of pending) {
+    for (const r of rows ?? []) {
       try {
         const res: any = await syncRow(r.id);
         if (res?.skipped) skipped++; else synced++;
