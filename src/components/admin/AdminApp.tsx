@@ -2672,7 +2672,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   });
 
   const totalAmt = filtered.reduce((s, i) => s + (Number(i.parsedTotal ?? i.amount) || 0), 0);
-  const unparsedCount = items.filter((i) => !i.parseStatus).length;
+  const unparsedCount = items.filter((i) => !i.parseStatus || isStaleScan(i)).length;
 
   function downloadName(i: (typeof items)[number]) {
     const ext =
@@ -2938,7 +2938,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map((i) => {
             const isPdf = (i.receiptMime || "").includes("pdf");
-            const status = i.parseStatus;
+            const status = isStaleScan(i) ? "failed" : i.parseStatus;
             const isBillable = (i.materialType ?? "regular") === "client_billable";
             return (
               <Card key={i.id} className="overflow-hidden flex flex-col">
@@ -3158,7 +3158,10 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
 
       <AdminAddReceiptsDialog
         open={adminAddOpen}
-        onClose={() => setAdminAddOpen(false)}
+        onClose={() => {
+          setAdminAddOpen(false);
+          qc.invalidateQueries({ queryKey: ["all-receipts"] });
+        }}
         token={token}
         updateToken={updateToken}
         onDone={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
