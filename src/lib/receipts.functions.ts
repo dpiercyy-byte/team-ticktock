@@ -490,11 +490,17 @@ export const parseUnprocessed = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
+    const staleBefore = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const { data: rows } = await supabaseAdmin.from("reimbursements")
-      .select("id, parse_status").not("receipt_url", "is", null)
-      .or("parse_status.is.null,parse_status.eq.failed").limit(50);
+      .select("id, parse_status, parsed_at, created_at").not("receipt_url", "is", null)
+      .or("parse_status.is.null,parse_status.eq.failed,parse_status.eq.pending").limit(50);
+    const pending = (rows ?? []).filter((r: any) => {
+      if (r.parse_status !== "pending") return true;
+      // Only re-run scans that stalled — leave in-flight ones alone.
+      return (r.parsed_at ?? r.created_at ?? "") < staleBefore;
+    });
     let started = 0;
-    for (const r of rows ?? []) {
+    for (const r of pending) {
       // Sequential to avoid rate limits
       try { await runParseForReimbursement(r.id); started++; } catch {}
     }

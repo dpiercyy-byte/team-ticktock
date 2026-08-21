@@ -2582,6 +2582,17 @@ const RECEIPT_CATEGORIES = [
   "Other",
 ] as const;
 
+// A receipt left "pending" for longer than this never finished scanning
+// (request cut short mid-parse) — surface it as failed instead of spinning forever.
+const STALE_SCAN_MS = 2 * 60 * 1000;
+
+function isStaleScan(i: any): boolean {
+  if (i?.parseStatus !== "pending") return false;
+  const t = Date.parse(i?.parsedAt || i?.createdAt || "");
+  if (!isFinite(t)) return true;
+  return Date.now() - t > STALE_SCAN_MS;
+}
+
 function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const listFn = useServerFn(listAllReceipts);
   const parseFn = useServerFn(parseReceipt);
@@ -2604,6 +2615,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
 
   const q = useQuery({
     queryKey: ["all-receipts"],
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     queryFn: () =>
       listFn({ data: { token, withReceiptOnly: true, limit: 500 } }).then((r) => {
         updateToken(r.token);
@@ -2611,7 +2623,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
       }),
     refetchInterval: (query) => {
       const items = (query.state.data as any[] | undefined) ?? [];
-      return items.some((it) => it?.parse_status === "pending") ? 4000 : false;
+      return items.some((it) => it?.parseStatus === "pending" && !isStaleScan(it)) ? 4000 : false;
     },
   });
 
@@ -2660,7 +2672,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
   });
 
   const totalAmt = filtered.reduce((s, i) => s + (Number(i.parsedTotal ?? i.amount) || 0), 0);
-  const unparsedCount = items.filter((i) => !i.parseStatus).length;
+  const unparsedCount = items.filter((i) => !i.parseStatus || isStaleScan(i)).length;
 
   function downloadName(i: (typeof items)[number]) {
     const ext =
@@ -2926,7 +2938,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map((i) => {
             const isPdf = (i.receiptMime || "").includes("pdf");
-            const status = i.parseStatus;
+            const status = isStaleScan(i) ? "failed" : i.parseStatus;
             const isBillable = (i.materialType ?? "regular") === "client_billable";
             return (
               <Card key={i.id} className="overflow-hidden flex flex-col">
@@ -3146,7 +3158,10 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
 
       <AdminAddReceiptsDialog
         open={adminAddOpen}
-        onClose={() => setAdminAddOpen(false)}
+        onClose={() => {
+          setAdminAddOpen(false);
+          qc.invalidateQueries({ queryKey: ["all-receipts"] });
+        }}
         token={token}
         updateToken={updateToken}
         onDone={() => qc.invalidateQueries({ queryKey: ["all-receipts"] })}
