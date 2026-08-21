@@ -2604,6 +2604,7 @@ function ReceiptsTab({ token, updateToken }: { token: string; updateToken: (t: s
 
   const q = useQuery({
     queryKey: ["all-receipts"],
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     queryFn: () =>
       listFn({ data: { token, withReceiptOnly: true, limit: 500 } }).then((r) => {
         updateToken(r.token);
