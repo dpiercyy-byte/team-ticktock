@@ -4332,10 +4332,13 @@ function PendingPayoutsView({
 function LifetimePayoutView({
   token,
   updateToken,
+  onEditWeek,
 }: {
   token: string;
   updateToken: (t: string) => void;
+  onEditWeek?: (f: { workerId: string; weekStart: string }) => void;
 }) {
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const payFn = useServerFn(lifetimePayout);
   const pq = useQuery({
     queryKey: ["payout-lifetime"],
