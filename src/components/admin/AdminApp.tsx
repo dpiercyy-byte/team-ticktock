@@ -361,6 +361,11 @@ function AdminDashboard({
   onLogout: () => void;
 }) {
   const [activeTab, setActiveTab] = useState("entries");
+  const [entriesFocus, setEntriesFocus] = useState<{
+    workerId: string;
+    weekStart: string;
+    nonce: number;
+  } | null>(null);
   return (
     <div className="min-h-dvh bg-background pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4">
@@ -371,10 +376,17 @@ function AdminDashboard({
 
             <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
               <TabsContent value="entries">
-                <EntriesTab token={token} updateToken={updateToken} />
+                <EntriesTab token={token} updateToken={updateToken} focus={entriesFocus} />
               </TabsContent>
               <TabsContent value="payouts">
-                <PayoutsTab token={token} updateToken={updateToken} />
+                <PayoutsTab
+                  token={token}
+                  updateToken={updateToken}
+                  onEditWeek={(f) => {
+                    setEntriesFocus({ ...f, nonce: Date.now() });
+                    setActiveTab("entries");
+                  }}
+                />
               </TabsContent>
               <TabsContent value="receipts">
                 <ReceiptsTab token={token} updateToken={updateToken} />
