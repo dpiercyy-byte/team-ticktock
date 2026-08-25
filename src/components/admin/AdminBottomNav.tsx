@@ -20,11 +20,11 @@ const MAIN: Item[] = [
   { value: "entries", label: "Entries", icon: Clock },
   { value: "payouts", label: "Payout", icon: DollarSign },
   { value: "receipts", label: "Receipts", icon: Receipt },
+  { value: "sites", label: "Job Sites", icon: MapPin },
 ];
 
 const MORE: Item[] = [
   { value: "workers", label: "Workers", icon: Users },
-  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "audit", label: "Audit Log", icon: ShieldCheck },
   { value: "settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -68,14 +68,6 @@ export function AdminBottomNav({
           );
         })}
         <li>
-          <Link to="/ledger" className={itemClass(false)}>
-            <span className="c-nav-icon grid h-9 w-9 place-items-center rounded-full transition-colors">
-              <BookOpen className="h-[19px] w-[19px]" strokeWidth={2.1} />
-            </span>
-            <span className="tracking-tight">Ledger</span>
-          </Link>
-        </li>
-        <li>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button type="button" className={itemClass(moreActive)} aria-label="More tabs">
@@ -107,6 +99,14 @@ export function AdminBottomNav({
                   </button>
                 );
               })}
+              <Link
+                to="/ledger"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+              >
+                <BookOpen className="h-4 w-4" />
+                Ledger
+              </Link>
               {onLogout ? (
                 <button
                   type="button"
