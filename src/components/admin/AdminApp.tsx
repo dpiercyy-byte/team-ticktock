@@ -1792,7 +1792,15 @@ function WorkerEditor({
 }
 
 // ===== Payouts tab =====
-function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+function PayoutsTab({
+  token,
+  updateToken,
+  onEditWeek,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+  onEditWeek?: (f: { workerId: string; weekStart: string }) => void;
+}) {
   const payFn = useServerFn(weeklyPayout);
   const csvFn = useServerFn(exportEntriesCsv);
   const reimbList = useServerFn(listReimbursements);
