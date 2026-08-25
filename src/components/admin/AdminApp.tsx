@@ -4369,6 +4369,21 @@ function LifetimePayoutView({
 
   const grandTotal = (pq.data ?? []).reduce((s: number, x: any) => s + x.total, 0);
 
+  if (selectedWorkerId) {
+    return (
+      <WorkerLifetimeDetail
+        token={token}
+        updateToken={updateToken}
+        workerId={selectedWorkerId}
+        onBack={() => setSelectedWorkerId(null)}
+        onEditWeek={(f) => {
+          setSelectedWorkerId(null);
+          onEditWeek?.(f);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
