@@ -13,13 +13,14 @@ The screen has:
 3. **Reimbursements list** — all-time receipts for that worker: date, vendor/description, job site, amount, thumbnail that opens the receipt image.
 4. **Payments history** — every `weekly_payouts` row: week, amount owed, actual paid, tip, paid by, paid date.
 5. **Per-worker CSV export** — one button that downloads that worker's full week-by-week history.
+6. **Edit shortcuts** — inside an expanded week, an "Edit in Entries" link that closes the detail view and jumps to the Entries tab scoped to that worker and week, so you can fix hours right away.
 
-## Extra suggestions (say if you want any of these included)
+## Extra suggestions (not included unless you say so)
 
 - **Job site mix**: a small breakdown of lifetime hours by job site, so you can see where a worker spends their time.
 - **Averages strip**: average hours/week, average weekly pay, first shift date, last shift date, weeks worked.
 - **Unpaid callout**: if any past week is unpaid, show a red banner at the top with a jump link to that week.
-- **Edit shortcuts**: from an expanded week, a link that jumps to the Entries tab filtered to that worker/week.
+
 
 ## Technical notes
 
