@@ -488,6 +488,15 @@ function EntriesTab({
   const [weekStart, setWeekStart] = useState<string>(() => startOfWeekISO());
   const [calOpen, setCalOpen] = useState(false);
 
+  // Jump target from the Lifetime worker detail view ("Edit in Entries").
+  useEffect(() => {
+    if (!focus) return;
+    setWorkerId(focus.workerId);
+    setWeekStart(focus.weekStart);
+  }, [focus?.nonce]);
+
+
+
   const projectsEnabled = sq.data?.project_tracking_enabled;
 
   const pendingQ = useQuery({
