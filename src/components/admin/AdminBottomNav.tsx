@@ -20,11 +20,11 @@ const MAIN: Item[] = [
   { value: "entries", label: "Entries", icon: Clock },
   { value: "payouts", label: "Payout", icon: DollarSign },
   { value: "receipts", label: "Receipts", icon: Receipt },
+  { value: "sites", label: "Job Sites", icon: MapPin },
 ];
 
 const MORE: Item[] = [
   { value: "workers", label: "Workers", icon: Users },
-  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "audit", label: "Audit Log", icon: ShieldCheck },
   { value: "settings", label: "Settings", icon: SettingsIcon },
 ];
