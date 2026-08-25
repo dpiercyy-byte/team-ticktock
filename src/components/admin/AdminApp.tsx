@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
 import { AdminBottomNav } from "@/components/admin/AdminBottomNav";
+import { WorkerLifetimeDetail } from "@/components/admin/WorkerLifetimeDetail";
 
 import { Switch } from "@/components/ui/switch";
 import {
