@@ -5719,11 +5719,22 @@ function GeoTagEditor({
 }) {
   const [open, setOpen] = useState(false);
 
-  const status: GeoStatus | null =
+  const rawStatus: string | null =
     (field === "out" ? entry.clock_out_geo_status : entry.geo_status) ?? null;
   const siteLabel: string | null =
     field === "out" ? (entry.clock_out_site?.label ?? null) : (entry.job_sites?.label ?? null);
+  const KNOWN_GEO: GeoStatus[] = ["verified", "callback", "supplier", "off_site", "no_gps"];
+  // Safety net: an unrecognized status (legacy/backfilled data) with a linked
+  // site should still show the site pill instead of falling back to "Set tag".
+  const status: GeoStatus | null = rawStatus
+    ? KNOWN_GEO.includes(rawStatus as GeoStatus)
+      ? (rawStatus as GeoStatus)
+      : siteLabel
+        ? "verified"
+        : null
+    : null;
   const prefix = field === "out" ? "Out: " : "In: ";
+
 
   const trigger =
     status === "verified" && siteLabel ? (
