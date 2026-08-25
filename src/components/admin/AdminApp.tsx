@@ -414,7 +414,15 @@ function AdminDashboard({
 
 
 // ===== Entries tab =====
-function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+function EntriesTab({
+  token,
+  updateToken,
+  focus,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+  focus?: { workerId: string; weekStart: string; nonce: number } | null;
+}) {
   const listW = useServerFn(listWorkersAdmin);
   const listE = useServerFn(adminListEntries);
   const flagFn = useServerFn(adminFlaggedEntries);
