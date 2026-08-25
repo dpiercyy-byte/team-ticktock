@@ -27,4 +27,5 @@ The screen has:
 - New server function `workerLifetimeDetail` in `src/lib/payout.functions.ts`: takes `{ token, workerId }`, requires admin, and returns worker info plus all `time_entries` (with joined job site names), `reimbursements`, and `weekly_payouts` for that worker, grouped into weeks with `startOfWeekISO` from `payout-math`.
 - New component `src/components/admin/WorkerLifetimeDetail.tsx` rendering the detail screen; `LifetimePayoutView` in `AdminApp.tsx` holds `selectedWorkerId` state and renders the detail instead of the grid when set (back button clears it). No routing change, so admin auth/session handling is untouched.
 - Cards get button semantics (keyboard focus + hover state) without changing their current visual design.
+- Edit shortcut sets the Entries tab's existing worker + week filter state in `AdminApp.tsx` and switches the active tab; no new route.
 - Reuses existing money/date formatting helpers and the receipt image viewer already in `AdminApp.tsx`.
