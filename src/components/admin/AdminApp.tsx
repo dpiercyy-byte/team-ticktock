@@ -2031,7 +2031,7 @@ function PayoutsTab({
         <PendingPayoutsView token={token} updateToken={updateToken} />
       </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
-        <LifetimePayoutView token={token} updateToken={updateToken} />
+        <LifetimePayoutView token={token} updateToken={updateToken} onEditWeek={onEditWeek} />
       </TabsContent>
 
       <TabsContent value="weekly" className="mt-0 space-y-4">
