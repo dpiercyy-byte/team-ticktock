@@ -4420,13 +4420,23 @@ function LifetimePayoutView({
             return (
               <Card
                 key={s.workerId}
-                className="overflow-hidden flex flex-col border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)]"
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedWorkerId(s.workerId)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedWorkerId(s.workerId);
+                  }
+                }}
+                className="overflow-hidden flex flex-col border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)] cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <CardHeader className="flex-row items-center gap-3 space-y-0 py-4">
                   <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
                     {initials || "?"}
                   </span>
-                  <p className="font-bold text-lg truncate">{s.name}</p>
+                  <p className="font-bold text-lg truncate flex-1">{s.name}</p>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </CardHeader>
                 <CardContent className="flex-1 space-y-3 pt-0 pb-4">
                   <div className="flex items-baseline justify-between gap-3 text-sm">
