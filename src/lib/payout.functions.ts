@@ -4,6 +4,7 @@ import { supabaseAdmin } from "./db.server";
 import { requireAdmin, requireWorker } from "./auth.server";
 import { logAudit } from "./audit.server";
 import { addDaysISO, endOfWeek, payoutStatus, startOfWeekISO } from "./payout-math";
+import { buildLifetimeWeeks, entryHours } from "./worker-lifetime";
 
 
 export const weeklyPayout = createServerFn({ method: "POST" })
@@ -90,6 +91,104 @@ export const lifetimePayout = createServerFn({ method: "POST" })
     });
 
     return { ...refreshed, summary };
+  });
+
+export const workerLifetimeDetail = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    workerId: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+
+    const [{ data: worker }, { data: entries }, { data: reimbs }, { data: payments }] =
+      await Promise.all([
+        supabaseAdmin.from("workers").select("id, name, hourly_rate").eq("id", data.workerId).maybeSingle(),
+        supabaseAdmin
+          .from("time_entries")
+          .select("id, clock_in, clock_out, project, flagged_review, job_sites!time_entries_job_site_id_fkey(label)")
+          .eq("worker_id", data.workerId)
+          .order("clock_in", { ascending: false }),
+        supabaseAdmin
+          .from("reimbursements")
+          .select("id, description, amount, week_start, created_at, receipt_url, receipt_mime, parsed_vendor, parsed_date, parsed_site:job_sites!reimbursements_parsed_job_site_id_fkey(label)")
+          .eq("worker_id", data.workerId)
+          .order("created_at", { ascending: false }),
+        supabaseAdmin
+          .from("weekly_payouts")
+          .select("week_start, amount, actual_paid, tip_amount, paid_at, paid_by, paid_by_person")
+          .eq("worker_id", data.workerId)
+          .order("week_start", { ascending: false }),
+      ]);
+
+    if (!worker) throw new Error("Worker not found");
+    const hourlyRate = Number(worker.hourly_rate);
+
+    const mappedEntries = (entries ?? []).map((e: any) => ({
+      id: e.id as string,
+      clockIn: e.clock_in as string,
+      clockOut: (e.clock_out ?? null) as string | null,
+      hours: entryHours(e.clock_in, e.clock_out ?? null),
+      siteLabel: e.job_sites?.label ?? null,
+      project: (e.project ?? null) as string | null,
+      flagged: !!e.flagged_review,
+    }));
+
+    const mappedReceipts = (reimbs ?? []).map((r: any) => ({
+      id: r.id as string,
+      description: r.description as string,
+      amount: Number(r.amount),
+      weekStart: r.week_start as string,
+      createdAt: r.created_at as string,
+      receiptUrl: (r.receipt_url ?? null) as string | null,
+      receiptMime: (r.receipt_mime ?? null) as string | null,
+      vendor: (r.parsed_vendor ?? null) as string | null,
+      date: (r.parsed_date ?? null) as string | null,
+      siteLabel: r.parsed_site?.label ?? null,
+    }));
+
+    const mappedPayments = (payments ?? []).map((p: any) => ({
+      weekStart: p.week_start as string,
+      amount: Number(p.amount),
+      actualPaid: p.actual_paid == null ? null : Number(p.actual_paid),
+      tipAmount: p.tip_amount == null ? null : Number(p.tip_amount),
+      paidAt: p.paid_at as string,
+      paidBy: (p.paid_by ?? null) as string | null,
+      paidByPerson: (p.paid_by_person ?? null) as string | null,
+    }));
+
+    const weeks = buildLifetimeWeeks({
+      hourlyRate,
+      entries: mappedEntries,
+      receipts: mappedReceipts,
+      payments: mappedPayments,
+    });
+
+    const hours = mappedEntries.reduce((s, e) => s + e.hours, 0);
+    const reimbTotal = mappedReceipts.reduce((s, r) => s + r.amount, 0);
+    const wages = hours * hourlyRate;
+    const paidTotal = mappedPayments.reduce((s, p) => s + (p.actualPaid ?? p.amount), 0);
+    const unpaidWeeks = weeks.filter((w) => !w.payment && w.total > 0.005);
+
+    return {
+      ...refreshed,
+      worker: { id: worker.id, name: worker.name, hourlyRate },
+      totals: {
+        hours,
+        wages,
+        reimbTotal,
+        total: wages + reimbTotal,
+        paidTotal,
+        outstanding: weeks.reduce((s, w) => (w.payment ? s : s + w.total), 0),
+        weeksWorked: weeks.length,
+        unpaidWeeks: unpaidWeeks.length,
+        firstShift: mappedEntries.length ? mappedEntries[mappedEntries.length - 1].clockIn : null,
+        lastShift: mappedEntries.length ? mappedEntries[0].clockIn : null,
+      },
+      weeks,
+      receipts: mappedReceipts,
+      payments: mappedPayments,
+    };
   });
 
 export const exportEntriesCsv = createServerFn({ method: "POST" })

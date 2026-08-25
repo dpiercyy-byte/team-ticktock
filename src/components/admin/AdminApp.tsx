@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
 import { AdminBottomNav } from "@/components/admin/AdminBottomNav";
+import { WorkerLifetimeDetail } from "@/components/admin/WorkerLifetimeDetail";
 
 import { Switch } from "@/components/ui/switch";
 import {
@@ -361,6 +362,11 @@ function AdminDashboard({
   onLogout: () => void;
 }) {
   const [activeTab, setActiveTab] = useState("entries");
+  const [entriesFocus, setEntriesFocus] = useState<{
+    workerId: string;
+    weekStart: string;
+    nonce: number;
+  } | null>(null);
   return (
     <div className="min-h-dvh bg-background pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4">
@@ -371,10 +377,17 @@ function AdminDashboard({
 
             <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
               <TabsContent value="entries">
-                <EntriesTab token={token} updateToken={updateToken} />
+                <EntriesTab token={token} updateToken={updateToken} focus={entriesFocus} />
               </TabsContent>
               <TabsContent value="payouts">
-                <PayoutsTab token={token} updateToken={updateToken} />
+                <PayoutsTab
+                  token={token}
+                  updateToken={updateToken}
+                  onEditWeek={(f) => {
+                    setEntriesFocus({ ...f, nonce: Date.now() });
+                    setActiveTab("entries");
+                  }}
+                />
               </TabsContent>
               <TabsContent value="receipts">
                 <ReceiptsTab token={token} updateToken={updateToken} />
@@ -402,7 +415,15 @@ function AdminDashboard({
 
 
 // ===== Entries tab =====
-function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+function EntriesTab({
+  token,
+  updateToken,
+  focus,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+  focus?: { workerId: string; weekStart: string; nonce: number } | null;
+}) {
   const listW = useServerFn(listWorkersAdmin);
   const listE = useServerFn(adminListEntries);
   const flagFn = useServerFn(adminFlaggedEntries);
@@ -467,6 +488,15 @@ function EntriesTab({ token, updateToken }: { token: string; updateToken: (t: st
   const [allocating, setAllocating] = useState<any | null>(null);
   const [weekStart, setWeekStart] = useState<string>(() => startOfWeekISO());
   const [calOpen, setCalOpen] = useState(false);
+
+  // Jump target from the Lifetime worker detail view ("Edit in Entries").
+  useEffect(() => {
+    if (!focus) return;
+    setWorkerId(focus.workerId);
+    setWeekStart(focus.weekStart);
+  }, [focus?.nonce]);
+
+
 
   const projectsEnabled = sq.data?.project_tracking_enabled;
 
@@ -1763,7 +1793,15 @@ function WorkerEditor({
 }
 
 // ===== Payouts tab =====
-function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
+function PayoutsTab({
+  token,
+  updateToken,
+  onEditWeek,
+}: {
+  token: string;
+  updateToken: (t: string) => void;
+  onEditWeek?: (f: { workerId: string; weekStart: string }) => void;
+}) {
   const payFn = useServerFn(weeklyPayout);
   const csvFn = useServerFn(exportEntriesCsv);
   const reimbList = useServerFn(listReimbursements);
@@ -1994,7 +2032,7 @@ function PayoutsTab({ token, updateToken }: { token: string; updateToken: (t: st
         <PendingPayoutsView token={token} updateToken={updateToken} />
       </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
-        <LifetimePayoutView token={token} updateToken={updateToken} />
+        <LifetimePayoutView token={token} updateToken={updateToken} onEditWeek={onEditWeek} />
       </TabsContent>
 
       <TabsContent value="weekly" className="mt-0 space-y-4">
@@ -4295,10 +4333,13 @@ function PendingPayoutsView({
 function LifetimePayoutView({
   token,
   updateToken,
+  onEditWeek,
 }: {
   token: string;
   updateToken: (t: string) => void;
+  onEditWeek?: (f: { workerId: string; weekStart: string }) => void;
 }) {
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const payFn = useServerFn(lifetimePayout);
   const pq = useQuery({
     queryKey: ["payout-lifetime"],
@@ -4328,6 +4369,21 @@ function LifetimePayoutView({
   };
 
   const grandTotal = (pq.data ?? []).reduce((s: number, x: any) => s + x.total, 0);
+
+  if (selectedWorkerId) {
+    return (
+      <WorkerLifetimeDetail
+        token={token}
+        updateToken={updateToken}
+        workerId={selectedWorkerId}
+        onBack={() => setSelectedWorkerId(null)}
+        onEditWeek={(f) => {
+          setSelectedWorkerId(null);
+          onEditWeek?.(f);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -4365,13 +4421,23 @@ function LifetimePayoutView({
             return (
               <Card
                 key={s.workerId}
-                className="overflow-hidden flex flex-col border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)]"
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedWorkerId(s.workerId)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedWorkerId(s.workerId);
+                  }
+                }}
+                className="overflow-hidden flex flex-col border-l-4 border-l-[var(--success)] bg-[color-mix(in_oklab,var(--success)_4%,transparent)] cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <CardHeader className="flex-row items-center gap-3 space-y-0 py-4">
                   <span className="h-9 w-9 shrink-0 rounded-full bg-secondary text-secondary-foreground inline-flex items-center justify-center text-xs font-semibold">
                     {initials || "?"}
                   </span>
-                  <p className="font-bold text-lg truncate">{s.name}</p>
+                  <p className="font-bold text-lg truncate flex-1">{s.name}</p>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </CardHeader>
                 <CardContent className="flex-1 space-y-3 pt-0 pb-4">
                   <div className="flex items-baseline justify-between gap-3 text-sm">
