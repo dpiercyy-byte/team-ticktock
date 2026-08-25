@@ -68,14 +68,6 @@ export function AdminBottomNav({
           );
         })}
         <li>
-          <Link to="/ledger" className={itemClass(false)}>
-            <span className="c-nav-icon grid h-9 w-9 place-items-center rounded-full transition-colors">
-              <BookOpen className="h-[19px] w-[19px]" strokeWidth={2.1} />
-            </span>
-            <span className="tracking-tight">Ledger</span>
-          </Link>
-        </li>
-        <li>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button type="button" className={itemClass(moreActive)} aria-label="More tabs">
