@@ -345,8 +345,8 @@ const ADMIN_TABS = [
   "entries",
   "payouts",
   "receipts",
-  "workers",
   "sites",
+  "workers",
   "audit",
   "settings",
 ] as const;
