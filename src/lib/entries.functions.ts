@@ -476,22 +476,25 @@ export const adminAddEntry = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
     workerId: z.string().uuid(),
     clockIn: z.string(),
-    clockOut: z.string(),
+    clockOut: z.string().optional(),
     project: z.string().trim().max(100).optional(),
     assignedJobSiteIds: z.array(z.string().uuid()).max(5).optional(),
   }).parse(d))
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
-    if (new Date(data.clockOut) <= new Date(data.clockIn))
+    const clockOut = data.clockOut || null;
+    if (clockOut && new Date(clockOut) <= new Date(data.clockIn))
       throw new Response("Clock out must be after clock in", { status: 400 });
-    if (await checkOverlap(data.workerId, data.clockIn, data.clockOut))
+    if (await checkOverlap(data.workerId, data.clockIn, clockOut))
       throw new Response("Entry overlaps an existing one", { status: 400 });
     const assignedIds = await validateAssignedSites(data.assignedJobSiteIds);
-    const flagged = new Date(data.clockOut).getTime() - new Date(data.clockIn).getTime() > FOURTEEN_HOURS_MS;
+    const flagged = clockOut
+      ? new Date(clockOut).getTime() - new Date(data.clockIn).getTime() > FOURTEEN_HOURS_MS
+      : false;
     const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: data.workerId,
       clock_in: data.clockIn,
-      clock_out: data.clockOut,
+      clock_out: clockOut,
       project: data.project || null,
       created_by: "admin",
       flagged_review: flagged,
