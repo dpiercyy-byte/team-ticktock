@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bell, Clock, FileSpreadsheet, GitBranch, LogOut, Plus, User, Users } from "lucide-react";
+import { Bell, Clock, FileSpreadsheet, GitBranch, Inbox, LogOut, Plus, User, Users } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { getAdminToken, clearAdminToken, clearWorkerSession } from "@/lib/session";
 
