@@ -64,7 +64,7 @@ function LeadInboxPage() {
           token: token(),
           id: input.id,
           qualificationStatus: input.qualified ? ("qualified" as const) : ("rejected" as const),
-          ...(input.qualified ? { stage: "Qualified" as const } : { stage: "Lost" as const, lostReason: "Marked not a fit from the inbox" }),
+          ...(input.qualified ? { stage: "New" as const, archived: false } : { archived: true, lostReason: "Marked not a fit from the inbox" }),
         },
       }),
     onSuccess: async (_r, input) => {
@@ -88,7 +88,7 @@ function LeadInboxPage() {
   const visible = useMemo(
     () =>
       leads
-        .filter((l) => (filter === "all" ? true : l.qualificationStatus === filter))
+        .filter((l) => (filter === "all" ? true : filter === "rejected" ? l.qualificationStatus === "rejected" || !!l.archivedAt : l.qualificationStatus === filter && !l.archivedAt))
         .filter((l) =>
           [l.clientName, l.address, l.phone, l.email, l.projectType].some((v) =>
             String(v ?? "").toLowerCase().includes(query.trim().toLowerCase()),

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarClock, MapPin, User } from "lucide-react";
 import type { LeadStage } from "@/lib/meta-leads";
-export type LeadCardData = { id: string; clientName: string; address: string | null; projectType: string | null; campaign: string | null; qualificationStatus: string; qualificationReasons: string[]; stage: LeadStage; assignedOwner: string | null; nextAction: string | null; nextActionDueAt: string | null; submittedAt: string | null; importedAt: string };
+export type LeadCardData = { id: string; clientName: string; address: string | null; projectType: string | null; campaign: string | null; qualificationStatus: string; qualificationReasons: string[]; stage: LeadStage; assignedOwner: string | null; nextAction: string | null; nextActionDueAt: string | null; submittedAt: string | null; importedAt: string; archivedAt?: string | null };
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((v) => v[0]?.toUpperCase()).join("") || "?";
 const age = (date: string) => { const days = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000)); return days === 0 ? "Today" : `${days}d ago`; };
 export function LeadCard({ lead }: { lead: LeadCardData }) {
@@ -18,6 +18,6 @@ export function LeadCard({ lead }: { lead: LeadCardData }) {
         {lead.nextAction && <p className="flex items-center gap-1.5 text-foreground"><CalendarClock className="h-3.5 w-3.5 shrink-0"/><span className="truncate">{lead.nextAction}</span></p>}
       </div>
     </article>
-    <div className="flex items-center justify-between border-t l-divider bg-muted/40 px-4 py-2.5 text-[11px] font-bold"><span>{lead.stage}</span><span className="l-muted">View lead</span></div>
+    <div className="flex items-center justify-between border-t l-divider bg-muted/40 px-4 py-2.5 text-[11px] font-bold"><span>{lead.archivedAt ? "Archived" : lead.stage}</span><span className="l-muted">View lead</span></div>
   </Link>;
 }
