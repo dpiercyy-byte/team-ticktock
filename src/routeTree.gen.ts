@@ -27,6 +27,7 @@ import { Route as LedgerPeopleIndexRouteImport } from './routes/ledger.people.in
 import { Route as LedgerPeopleClientIdRouteImport } from './routes/ledger.people.$clientId'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
 import { Route as ApiPublicHooksSheetExportRouteImport } from './routes/api/public/hooks/sheet-export'
+import { Route as ApiPublicHooksSyncMetaLeadsRouteImport } from './routes/api/public/hooks/sync-meta-leads'
 import { Route as ApiPublicHooksSyncSheetJobsRouteImport } from './routes/api/public/hooks/sync-sheet-jobs'
 
 const IndexRoute = IndexRouteImport.update({
@@ -121,6 +122,12 @@ const ApiPublicHooksSheetExportRoute =
     path: '/api/public/hooks/sheet-export',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksSyncMetaLeadsRoute =
+  ApiPublicHooksSyncMetaLeadsRouteImport.update({
+    id: '/api/public/hooks/sync-meta-leads',
+    path: '/api/public/hooks/sync-meta-leads',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSyncSheetJobsRoute =
   ApiPublicHooksSyncSheetJobsRouteImport.update({
     id: '/api/public/hooks/sync-sheet-jobs',
@@ -147,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
+  '/api/public/hooks/sync-meta-leads': typeof ApiPublicHooksSyncMetaLeadsRoute
   '/api/public/hooks/sync-sheet-jobs': typeof ApiPublicHooksSyncSheetJobsRoute
 }
 export interface FileRoutesByTo {
@@ -167,6 +175,7 @@ export interface FileRoutesByTo {
   '/ledger/people': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
+  '/api/public/hooks/sync-meta-leads': typeof ApiPublicHooksSyncMetaLeadsRoute
   '/api/public/hooks/sync-sheet-jobs': typeof ApiPublicHooksSyncSheetJobsRoute
 }
 export interface FileRoutesById {
@@ -189,6 +198,7 @@ export interface FileRoutesById {
   '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
+  '/api/public/hooks/sync-meta-leads': typeof ApiPublicHooksSyncMetaLeadsRoute
   '/api/public/hooks/sync-sheet-jobs': typeof ApiPublicHooksSyncSheetJobsRoute
 }
 export interface FileRouteTypes {
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
+    | '/api/public/hooks/sync-meta-leads'
     | '/api/public/hooks/sync-sheet-jobs'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/ledger/people'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
+    | '/api/public/hooks/sync-meta-leads'
     | '/api/public/hooks/sync-sheet-jobs'
   id:
     | '__root__'
@@ -253,6 +265,7 @@ export interface FileRouteTypes {
     | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
+    | '/api/public/hooks/sync-meta-leads'
     | '/api/public/hooks/sync-sheet-jobs'
   fileRoutesById: FileRoutesById
 }
@@ -262,6 +275,7 @@ export interface RootRouteChildren {
   LedgerRoute: typeof LedgerRouteWithChildren
   ApiPublicHooksAutoClockoutRoute: typeof ApiPublicHooksAutoClockoutRoute
   ApiPublicHooksSheetExportRoute: typeof ApiPublicHooksSheetExportRoute
+  ApiPublicHooksSyncMetaLeadsRoute: typeof ApiPublicHooksSyncMetaLeadsRoute
   ApiPublicHooksSyncSheetJobsRoute: typeof ApiPublicHooksSyncSheetJobsRoute
 }
 
@@ -393,6 +407,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSheetExportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-meta-leads': {
+      id: '/api/public/hooks/sync-meta-leads'
+      path: '/api/public/hooks/sync-meta-leads'
+      fullPath: '/api/public/hooks/sync-meta-leads'
+      preLoaderRoute: typeof ApiPublicHooksSyncMetaLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/sync-sheet-jobs': {
       id: '/api/public/hooks/sync-sheet-jobs'
       path: '/api/public/hooks/sync-sheet-jobs'
@@ -444,6 +465,7 @@ const rootRouteChildren: RootRouteChildren = {
   LedgerRoute: LedgerRouteWithChildren,
   ApiPublicHooksAutoClockoutRoute: ApiPublicHooksAutoClockoutRoute,
   ApiPublicHooksSheetExportRoute: ApiPublicHooksSheetExportRoute,
+  ApiPublicHooksSyncMetaLeadsRoute: ApiPublicHooksSyncMetaLeadsRoute,
   ApiPublicHooksSyncSheetJobsRoute: ApiPublicHooksSyncSheetJobsRoute,
 }
 export const routeTree = rootRouteImport
