@@ -1,4 +1,4 @@
-export const LEAD_STAGES = ["New", "Contacted", "Qualified", "Won", "Lost"] as const;
+export const LEAD_STAGES = ["New", "Contacted", "Quoted", "Won"] as const;
 export type LeadStage = (typeof LEAD_STAGES)[number];
 export type LeadField = "externalId" | "name" | "phone" | "email" | "address" | "projectType" | "budget" | "campaign" | "formName" | "notes" | "submittedAt";
 export type LeadFieldMapping = Partial<Record<LeadField, string>>;
