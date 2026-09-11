@@ -939,9 +939,10 @@ function EntriesTab({
         title="Add time entry"
         projectsEnabled={!!projectsEnabled}
         sites={sitesQ.data ?? []}
+        allowOpenEnd
         onSubmit={async (vals) => {
           try {
-            const r = await addE({ data: { token, workerId: workerId!, ...vals } });
+            const r = await addE({ data: { token, workerId: workerId!, ...vals, clockOut: vals.clockOut || undefined } });
             updateToken(r.token);
             qc.invalidateQueries({ queryKey: ["entries", workerId] });
             toast.success("Entry added");
