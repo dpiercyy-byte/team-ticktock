@@ -24,7 +24,8 @@ export async function fetchSheetPreview(input: string, tab?: string) {
   const valuesRes = await sheets(`/${id}/values/${range}?valueRenderOption=FORMATTED_VALUE`);
   const values = ((await valuesRes.json()) as { values?: unknown[][] }).values ?? [];
   const headers = (values[0] ?? []).map(String).map((v) => v.trim()).filter(Boolean);
-  return { spreadsheetId: id, title: metadata.properties?.title ?? "Lead spreadsheet", tabs, sheetTab, headers, suggestedMapping: suggestMapping(headers), sampleRows: values.slice(1, 4) };
+  const sampleRows = values.slice(1, 4).map((row) => row.map((cell) => String(cell ?? "")));
+  return { spreadsheetId: id, title: metadata.properties?.title ?? "Lead spreadsheet", tabs, sheetTab, headers, suggestedMapping: suggestMapping(headers), sampleRows };
 }
 async function getRules(): Promise<QualificationRules> {
   const { data, error } = await supabaseAdmin.from("lead_qualification_rules").select("*").eq("id", 1).single(); if (error) throw error;
