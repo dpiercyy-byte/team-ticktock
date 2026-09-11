@@ -320,6 +320,7 @@ export type Database = {
       lead_records: {
         Row: {
           address: string | null
+          archived_at: string | null
           assigned_owner: string | null
           budget_cents: number | null
           campaign: string | null
@@ -348,6 +349,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          archived_at?: string | null
           assigned_owner?: string | null
           budget_cents?: number | null
           campaign?: string | null
@@ -376,6 +378,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          archived_at?: string | null
           assigned_owner?: string | null
           budget_cents?: number | null
           campaign?: string | null
