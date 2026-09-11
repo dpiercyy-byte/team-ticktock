@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bell, Clock, FileSpreadsheet, GitBranch, Inbox, LogOut, Plus, User, Users } from "lucide-react";
+import { Bell, Clock, FileSpreadsheet, GitBranch, LogOut, Plus, User, Users } from "lucide-react";
 import { LedgerShell } from "@/components/ledger/LedgerShell";
 import { getAdminToken, clearAdminToken, clearWorkerSession } from "@/lib/session";
 
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/ledger/more")({
 });
 
 const LINKS = [
-  { to: "/ledger/leads/inbox", label: "Lead inbox", hint: "Live Meta leads to qualify", icon: Inbox },
+  
   { to: "/ledger/leads/new", label: "New lead", hint: "Capture an inquiry", icon: Plus },
   { to: "/ledger/jobs/new", label: "New job", hint: "Full project setup", icon: Users },
   { to: "/ledger/pipeline", label: "Full pipeline", hint: "Detailed sales stages", icon: GitBranch },
