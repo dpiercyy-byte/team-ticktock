@@ -1225,8 +1225,18 @@ function EntryDialog({
           </Button>
           <Button
             onClick={() => {
-              if (!ci) return;
-              if (!allowOpenEnd && !co) return;
+              if (!ci) {
+                toast.error("Pick a clock in time");
+                return;
+              }
+              if (!allowOpenEnd && !co) {
+                toast.error("Pick a clock out time");
+                return;
+              }
+              if (co && new Date(fromLocalInput(co)) <= new Date(fromLocalInput(ci))) {
+                toast.error("Clock out must be after clock in");
+                return;
+              }
               onSubmit({
                 clockIn: fromLocalInput(ci),
                 clockOut: co ? fromLocalInput(co) : "",
@@ -1237,6 +1247,7 @@ function EntryDialog({
           >
             Save
           </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>
