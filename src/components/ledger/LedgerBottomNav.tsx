@@ -1,8 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Briefcase, CalendarDays, Users, MoreHorizontal, GitBranch } from "lucide-react";
+import { Briefcase, CalendarDays, Users, MoreHorizontal, ContactRound } from "lucide-react";
 
 type NavItem = {
-  to: "/ledger/calendar" | "/ledger/pipeline" | "/ledger/jobs" | "/ledger/people" | "/ledger/more";
+  to: "/ledger/calendar" | "/ledger/leads" | "/ledger/jobs" | "/ledger/people" | "/ledger/more";
   label: string;
   icon: typeof Briefcase;
   exact?: boolean;
@@ -11,7 +11,7 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { to: "/ledger/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/ledger/pipeline", label: "Pipeline", icon: GitBranch },
+  { to: "/ledger/leads", label: "Leads", icon: ContactRound },
   { to: "/ledger/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/ledger/people", label: "People", icon: Users },
   { to: "/ledger/more", label: "More", icon: MoreHorizontal },
