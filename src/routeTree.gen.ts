@@ -22,7 +22,10 @@ import { Route as LedgerSheetsRouteImport } from './routes/ledger.sheets'
 import { Route as LedgerJobsIndexRouteImport } from './routes/ledger.jobs.index'
 import { Route as LedgerJobsJobIdRouteImport } from './routes/ledger.jobs.$jobId'
 import { Route as LedgerJobsNewRouteImport } from './routes/ledger.jobs.new'
+import { Route as LedgerLeadsIndexRouteImport } from './routes/ledger.leads.index'
+import { Route as LedgerLeadsLeadIdRouteImport } from './routes/ledger.leads.$leadId'
 import { Route as LedgerLeadsNewRouteImport } from './routes/ledger.leads.new'
+import { Route as LedgerLeadsSetupRouteImport } from './routes/ledger.leads.setup'
 import { Route as LedgerPeopleIndexRouteImport } from './routes/ledger.people.index'
 import { Route as LedgerPeopleClientIdRouteImport } from './routes/ledger.people.$clientId'
 import { Route as ApiPublicHooksAutoClockoutRouteImport } from './routes/api/public/hooks/auto-clockout'
@@ -95,9 +98,24 @@ const LedgerJobsNewRoute = LedgerJobsNewRouteImport.update({
   path: '/jobs/new',
   getParentRoute: () => LedgerRoute,
 } as any)
+const LedgerLeadsIndexRoute = LedgerLeadsIndexRouteImport.update({
+  id: '/leads/',
+  path: '/leads/',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerLeadsLeadIdRoute = LedgerLeadsLeadIdRouteImport.update({
+  id: '/leads/$leadId',
+  path: '/leads/$leadId',
+  getParentRoute: () => LedgerRoute,
+} as any)
 const LedgerLeadsNewRoute = LedgerLeadsNewRouteImport.update({
   id: '/leads/new',
   path: '/leads/new',
+  getParentRoute: () => LedgerRoute,
+} as any)
+const LedgerLeadsSetupRoute = LedgerLeadsSetupRouteImport.update({
+  id: '/leads/setup',
+  path: '/leads/setup',
   getParentRoute: () => LedgerRoute,
 } as any)
 const LedgerPeopleIndexRoute = LedgerPeopleIndexRouteImport.update({
@@ -148,9 +166,12 @@ export interface FileRoutesByFullPath {
   '/ledger/': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
+  '/ledger/leads/$leadId': typeof LedgerLeadsLeadIdRoute
   '/ledger/leads/new': typeof LedgerLeadsNewRoute
+  '/ledger/leads/setup': typeof LedgerLeadsSetupRoute
   '/ledger/people/$clientId': typeof LedgerPeopleClientIdRoute
   '/ledger/jobs/': typeof LedgerJobsIndexRoute
+  '/ledger/leads/': typeof LedgerLeadsIndexRoute
   '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
@@ -169,9 +190,12 @@ export interface FileRoutesByTo {
   '/ledger': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
+  '/ledger/leads/$leadId': typeof LedgerLeadsLeadIdRoute
   '/ledger/leads/new': typeof LedgerLeadsNewRoute
+  '/ledger/leads/setup': typeof LedgerLeadsSetupRoute
   '/ledger/people/$clientId': typeof LedgerPeopleClientIdRoute
   '/ledger/jobs': typeof LedgerJobsIndexRoute
+  '/ledger/leads': typeof LedgerLeadsIndexRoute
   '/ledger/people': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
@@ -192,9 +216,12 @@ export interface FileRoutesById {
   '/ledger/': typeof LedgerIndexRoute
   '/ledger/jobs/$jobId': typeof LedgerJobsJobIdRoute
   '/ledger/jobs/new': typeof LedgerJobsNewRoute
+  '/ledger/leads/$leadId': typeof LedgerLeadsLeadIdRoute
   '/ledger/leads/new': typeof LedgerLeadsNewRoute
+  '/ledger/leads/setup': typeof LedgerLeadsSetupRoute
   '/ledger/people/$clientId': typeof LedgerPeopleClientIdRoute
   '/ledger/jobs/': typeof LedgerJobsIndexRoute
+  '/ledger/leads/': typeof LedgerLeadsIndexRoute
   '/ledger/people/': typeof LedgerPeopleIndexRoute
   '/api/public/hooks/auto-clockout': typeof ApiPublicHooksAutoClockoutRoute
   '/api/public/hooks/sheet-export': typeof ApiPublicHooksSheetExportRoute
@@ -216,9 +243,12 @@ export interface FileRouteTypes {
     | '/ledger/'
     | '/ledger/jobs/$jobId'
     | '/ledger/jobs/new'
+    | '/ledger/leads/$leadId'
     | '/ledger/leads/new'
+    | '/ledger/leads/setup'
     | '/ledger/people/$clientId'
     | '/ledger/jobs/'
+    | '/ledger/leads/'
     | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
@@ -237,9 +267,12 @@ export interface FileRouteTypes {
     | '/ledger'
     | '/ledger/jobs/$jobId'
     | '/ledger/jobs/new'
+    | '/ledger/leads/$leadId'
     | '/ledger/leads/new'
+    | '/ledger/leads/setup'
     | '/ledger/people/$clientId'
     | '/ledger/jobs'
+    | '/ledger/leads'
     | '/ledger/people'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
@@ -259,9 +292,12 @@ export interface FileRouteTypes {
     | '/ledger/'
     | '/ledger/jobs/$jobId'
     | '/ledger/jobs/new'
+    | '/ledger/leads/$leadId'
     | '/ledger/leads/new'
+    | '/ledger/leads/setup'
     | '/ledger/people/$clientId'
     | '/ledger/jobs/'
+    | '/ledger/leads/'
     | '/ledger/people/'
     | '/api/public/hooks/auto-clockout'
     | '/api/public/hooks/sheet-export'
@@ -372,11 +408,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LedgerJobsNewRouteImport
       parentRoute: typeof LedgerRoute
     }
+    '/ledger/leads/': {
+      id: '/ledger/leads/'
+      path: '/leads'
+      fullPath: '/ledger/leads/'
+      preLoaderRoute: typeof LedgerLeadsIndexRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/ledger/leads/$leadId': {
+      id: '/ledger/leads/$leadId'
+      path: '/leads/$leadId'
+      fullPath: '/ledger/leads/$leadId'
+      preLoaderRoute: typeof LedgerLeadsLeadIdRouteImport
+      parentRoute: typeof LedgerRoute
+    }
     '/ledger/leads/new': {
       id: '/ledger/leads/new'
       path: '/leads/new'
       fullPath: '/ledger/leads/new'
       preLoaderRoute: typeof LedgerLeadsNewRouteImport
+      parentRoute: typeof LedgerRoute
+    }
+    '/ledger/leads/setup': {
+      id: '/ledger/leads/setup'
+      path: '/leads/setup'
+      fullPath: '/ledger/leads/setup'
+      preLoaderRoute: typeof LedgerLeadsSetupRouteImport
       parentRoute: typeof LedgerRoute
     }
     '/ledger/people/': {
@@ -434,9 +491,12 @@ interface LedgerRouteChildren {
   LedgerIndexRoute: typeof LedgerIndexRoute
   LedgerJobsJobIdRoute: typeof LedgerJobsJobIdRoute
   LedgerJobsNewRoute: typeof LedgerJobsNewRoute
+  LedgerLeadsLeadIdRoute: typeof LedgerLeadsLeadIdRoute
   LedgerLeadsNewRoute: typeof LedgerLeadsNewRoute
+  LedgerLeadsSetupRoute: typeof LedgerLeadsSetupRoute
   LedgerPeopleClientIdRoute: typeof LedgerPeopleClientIdRoute
   LedgerJobsIndexRoute: typeof LedgerJobsIndexRoute
+  LedgerLeadsIndexRoute: typeof LedgerLeadsIndexRoute
   LedgerPeopleIndexRoute: typeof LedgerPeopleIndexRoute
 }
 
@@ -450,9 +510,12 @@ const LedgerRouteChildren: LedgerRouteChildren = {
   LedgerIndexRoute: LedgerIndexRoute,
   LedgerJobsJobIdRoute: LedgerJobsJobIdRoute,
   LedgerJobsNewRoute: LedgerJobsNewRoute,
+  LedgerLeadsLeadIdRoute: LedgerLeadsLeadIdRoute,
   LedgerLeadsNewRoute: LedgerLeadsNewRoute,
+  LedgerLeadsSetupRoute: LedgerLeadsSetupRoute,
   LedgerPeopleClientIdRoute: LedgerPeopleClientIdRoute,
   LedgerJobsIndexRoute: LedgerJobsIndexRoute,
+  LedgerLeadsIndexRoute: LedgerLeadsIndexRoute,
   LedgerPeopleIndexRoute: LedgerPeopleIndexRoute,
 }
 
