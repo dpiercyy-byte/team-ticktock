@@ -506,7 +506,7 @@ export const adminAddEntry = createServerFn({ method: "POST" })
       action: "entry_create",
       entityType: "time_entry",
       entityId: inserted?.id,
-      after: { worker_id: data.workerId, clock_in: data.clockIn, clock_out: data.clockOut, project: data.project ?? null, flagged_review: flagged, assigned_job_site_ids: assignedIds },
+      after: { worker_id: data.workerId, clock_in: data.clockIn, clock_out: clockOut, project: data.project ?? null, flagged_review: flagged, assigned_job_site_ids: assignedIds },
     });
     return refreshed;
   });
