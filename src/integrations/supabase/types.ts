@@ -249,6 +249,227 @@ export type Database = {
           },
         ]
       }
+      lead_activities: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          kind: string
+          lead_id: string
+          metadata: Json
+          occurred_at: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind: string
+          lead_id: string
+          metadata?: Json
+          occurred_at?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          kind?: string
+          lead_id?: string
+          metadata?: Json
+          occurred_at?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_qualification_rules: {
+        Row: {
+          accepted_postal_prefixes: string[]
+          accepted_project_types: string[]
+          created_at: string
+          id: number
+          minimum_budget_cents: number | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_postal_prefixes?: string[]
+          accepted_project_types?: string[]
+          created_at?: string
+          id?: number
+          minimum_budget_cents?: number | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_postal_prefixes?: string[]
+          accepted_project_types?: string[]
+          created_at?: string
+          id?: number
+          minimum_budget_cents?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lead_records: {
+        Row: {
+          address: string | null
+          assigned_owner: string | null
+          budget_cents: number | null
+          campaign: string | null
+          client_name: string
+          email: string | null
+          external_id: string | null
+          form_name: string | null
+          id: string
+          imported_at: string
+          ledger_job_id: string | null
+          lost_reason: string | null
+          next_action: string | null
+          next_action_due_at: string | null
+          notes: string | null
+          phone: string | null
+          project_type: string | null
+          qualification_reasons: string[]
+          qualification_status: string
+          raw_data: Json
+          row_fingerprint: string
+          source_id: string | null
+          source_row_number: number | null
+          stage: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          assigned_owner?: string | null
+          budget_cents?: number | null
+          campaign?: string | null
+          client_name: string
+          email?: string | null
+          external_id?: string | null
+          form_name?: string | null
+          id?: string
+          imported_at?: string
+          ledger_job_id?: string | null
+          lost_reason?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
+          notes?: string | null
+          phone?: string | null
+          project_type?: string | null
+          qualification_reasons?: string[]
+          qualification_status?: string
+          raw_data?: Json
+          row_fingerprint: string
+          source_id?: string | null
+          source_row_number?: number | null
+          stage?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          assigned_owner?: string | null
+          budget_cents?: number | null
+          campaign?: string | null
+          client_name?: string
+          email?: string | null
+          external_id?: string | null
+          form_name?: string | null
+          id?: string
+          imported_at?: string
+          ledger_job_id?: string | null
+          lost_reason?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
+          notes?: string | null
+          phone?: string | null
+          project_type?: string | null
+          qualification_reasons?: string[]
+          qualification_status?: string
+          raw_data?: Json
+          row_fingerprint?: string
+          source_id?: string | null
+          source_row_number?: number | null
+          stage?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_records_ledger_job_id_fkey"
+            columns: ["ledger_job_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_records_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_sources: {
+        Row: {
+          created_at: string
+          field_mapping: Json
+          id: string
+          last_error: string | null
+          last_imported_count: number
+          last_rejected_count: number
+          last_skipped_count: number
+          last_synced_at: string | null
+          sheet_tab: string
+          spreadsheet_id: string
+          spreadsheet_url: string
+          status: string
+          sync_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_mapping?: Json
+          id?: string
+          last_error?: string | null
+          last_imported_count?: number
+          last_rejected_count?: number
+          last_skipped_count?: number
+          last_synced_at?: string | null
+          sheet_tab?: string
+          spreadsheet_id: string
+          spreadsheet_url: string
+          status?: string
+          sync_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_mapping?: Json
+          id?: string
+          last_error?: string | null
+          last_imported_count?: number
+          last_rejected_count?: number
+          last_skipped_count?: number
+          last_synced_at?: string | null
+          sheet_tab?: string
+          spreadsheet_id?: string
+          spreadsheet_url?: string
+          status?: string
+          sync_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ledger_job_events: {
         Row: {
           created_at: string
