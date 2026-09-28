@@ -155,6 +155,7 @@ import {
   listPendingWeeks,
   markWeekPaid,
   unmarkWeekPaid,
+  retryCashExport,
 } from "@/lib/payout.functions";
 import {
   adminListJobSites,
@@ -1844,6 +1845,28 @@ function WorkerEditor({
 }
 
 // ===== Payouts tab =====
+function useSheetRetryToast(token: string, updateToken: (t: string) => void) {
+  const retryFn = useServerFn(retryCashExport);
+  const show = (err: string, workerId: string, weekStart: string) => {
+    toast.warning(`Marked paid — Cash Tracking row not added: ${err}`, {
+      duration: 30000,
+      action: {
+        label: "Retry sheet export",
+        onClick: async () => {
+          try {
+            const r = await retryFn({ data: { token, workerId, weekStart } });
+            updateToken(r.token);
+            toast.success(r.already ? "Already in the sheet" : `Added to sheet (row ${r.row})`);
+          } catch (e: any) {
+            show(e?.message || String(e), workerId, weekStart);
+          }
+        },
+      },
+    });
+  };
+  return show;
+}
+
 function PayoutsTab({
   token,
   updateToken,
@@ -1993,6 +2016,7 @@ function PayoutsTab({
   };
 
   const markFn = useServerFn(markWeekPaid);
+  const showSheetRetry = useSheetRetryToast(token, updateToken);
   const unmarkFn = useServerFn(unmarkWeekPaid);
   const [payDialog, setPayDialog] = useState<{
     workerId: string;
@@ -2054,7 +2078,7 @@ function PayoutsTab({
       qc.invalidateQueries({ queryKey: ["payout", week] });
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
       if (r.sheetError) {
-        toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
+        showSheetRetry(r.sheetError, payDialog.workerId, week);
       } else if (r.sheetRow) {
         toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
       } else if (r.sheetSkipped === "disabled") {
@@ -4052,6 +4076,7 @@ function PendingPayoutsView({
 }) {
   const listFn = useServerFn(listPendingWeeks);
   const markFn = useServerFn(markWeekPaid);
+  const showSheetRetry = useSheetRetryToast(token, updateToken);
   const unmarkFn = useServerFn(unmarkWeekPaid);
   const qc = useQueryClient();
   const [includePaid, setIncludePaid] = useState(false);
@@ -4112,7 +4137,7 @@ function PendingPayoutsView({
       qc.invalidateQueries({ queryKey: ["pending-payouts"] });
       qc.invalidateQueries({ queryKey: ["payout"] });
       if (r.sheetError) {
-        toast.warning(`Marked paid — Cash Tracking row not added: ${r.sheetError}`);
+        showSheetRetry(r.sheetError, payDialog.workerId, payDialog.weekStart);
       } else if (r.sheetRow) {
         toast.success(`Marked paid — added to ${payer}'s column (row ${r.sheetRow})`);
       } else if (r.sheetSkipped === "disabled") {
