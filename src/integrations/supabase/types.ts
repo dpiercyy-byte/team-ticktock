@@ -1273,6 +1273,7 @@ export type Database = {
       time_entries: {
         Row: {
           assigned_job_site_ids: string[]
+          auto_clocked_out: boolean
           clock_in: string
           clock_in_lat: number | null
           clock_in_lng: number | null
@@ -1295,6 +1296,7 @@ export type Database = {
         }
         Insert: {
           assigned_job_site_ids?: string[]
+          auto_clocked_out?: boolean
           clock_in: string
           clock_in_lat?: number | null
           clock_in_lng?: number | null
@@ -1317,6 +1319,7 @@ export type Database = {
         }
         Update: {
           assigned_job_site_ids?: string[]
+          auto_clocked_out?: boolean
           clock_in?: string
           clock_in_lat?: number | null
           clock_in_lng?: number | null
