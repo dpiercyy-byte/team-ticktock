@@ -385,10 +385,57 @@ export const markWeekPaid = createServerFn({ method: "POST" })
         }
       } catch (e: any) {
         sheetError = e?.message || String(e);
+        console.error("Cash export failed:", sheetError);
+        await logAudit({
+          actor: { kind: "admin" },
+          action: "cash_export_failed",
+          entityType: "weekly_payout",
+          entityId: `${data.workerId}:${data.weekStart}`,
+          metadata: { error: sheetError, payer: data.paidByPerson, workerName: w.name },
+        }).catch(() => {});
       }
     }
 
     return { ...refreshed, ok: true, sheetRow, sheetError, sheetSkipped };
+  });
+
+/** Re-attempt the Cash Tracking row for an already-paid week (never duplicates). */
+export const retryCashExport = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    workerId: z.string().uuid(),
+    weekStart: z.string(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const entityId = `${data.workerId}:${data.weekStart}`;
+    const { data: done } = await supabaseAdmin.from("audit_log").select("id")
+      .eq("action", "cash_export_row_added").eq("entity_id", entityId).limit(1);
+    if (done && done.length) return { ...refreshed, row: null as number | null, already: true };
+    const [{ data: p }, { data: w }] = await Promise.all([
+      supabaseAdmin.from("weekly_payouts").select("amount, actual_paid, paid_at, paid_by_person")
+        .eq("worker_id", data.workerId).eq("week_start", data.weekStart).maybeSingle(),
+      supabaseAdmin.from("workers").select("name").eq("id", data.workerId).maybeSingle(),
+    ]);
+    if (!p || !w) throw new Error("Payout not found");
+    if (p.paid_by_person !== "Michael" && p.paid_by_person !== "Dylan") throw new Error("Payout has no payer");
+    const { appendCashPayoutRow } = await import("./cash-export.server");
+    const res = await appendCashPayoutRow({
+      payer: p.paid_by_person,
+      amount: Number(p.actual_paid ?? p.amount),
+      paidAt: new Date(p.paid_at),
+      workerName: w.name,
+      weekStart: data.weekStart,
+    });
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "cash_export_row_added",
+      entityType: "weekly_payout",
+      entityId,
+      after: { payer: p.paid_by_person, row: res.row, values: res.values },
+      metadata: { retry: true },
+    });
+    return { ...refreshed, row: res.row as number | null, already: false };
   });
 
 export const unmarkWeekPaid = createServerFn({ method: "POST" })

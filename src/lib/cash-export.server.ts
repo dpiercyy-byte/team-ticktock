@@ -17,19 +17,28 @@ async function gw(url: string, init?: RequestInit) {
   const lovKey = process.env.LOVABLE_API_KEY;
   const connKey = process.env.GOOGLE_SHEETS_API_KEY;
   if (!lovKey || !connKey) throw new Error("Google Sheets connector not configured");
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init?.headers || {}),
-      Authorization: `Bearer ${lovKey}`,
-      "X-Connection-Api-Key": connKey,
-    },
-  });
-  if (!res.ok) {
+  let waited = 0;
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, {
+      ...init,
+      headers: {
+        ...(init?.headers || {}),
+        Authorization: `Bearer ${lovKey}`,
+        "X-Connection-Api-Key": connKey,
+      },
+    });
+    if (res.ok) return res;
     const t = await res.text().catch(() => "");
+    const retryable = res.status === 429 || res.status >= 500;
+    if (retryable && attempt < 3 && waited < 8000) {
+      const ra = Number(res.headers.get("retry-after"));
+      const delay = Math.min(ra > 0 ? ra * 1000 : 800 * 2 ** attempt, 8000 - waited);
+      waited += delay;
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
     throw new Error(`Sheets ${res.status}: ${t.slice(0, 300)}`);
   }
-  return res;
 }
 
 /** A1 range for a URL path segment — quote the tab, keep the colon literal. */
