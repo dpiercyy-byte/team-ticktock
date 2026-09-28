@@ -1025,6 +1025,7 @@ function EntriesTab({
               });
               updateToken(r.token);
               qc.invalidateQueries({ queryKey: ["entries", workerId] });
+              qc.invalidateQueries({ queryKey: ["flagged"] });
               toast.success("Entry updated");
               setEditing(null);
             } catch (e: any) {
