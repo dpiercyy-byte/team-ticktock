@@ -86,6 +86,7 @@ import {
   
   ArrowLeft,
   Clock,
+  CircleAlert,
   SlidersHorizontal,
   Split,
 } from "lucide-react";
@@ -529,6 +530,8 @@ function EntriesTab({
   const weekWages = weekRow?.wages ?? 0;
   const weekReimb = weekRow?.reimbursements ?? 0;
   const weekTotal = weekRow?.total ?? weekWages + weekReimb;
+  const autoClockoutReviews = (flagQ.data ?? []).filter((entry: any) => entry.auto_clocked_out);
+  const otherReviews = (flagQ.data ?? []).filter((entry: any) => !entry.auto_clocked_out);
 
   // group entries by date
   const byDate = weekEntries.reduce<Record<string, any[]>>((acc, e) => {
@@ -563,14 +566,35 @@ function EntriesTab({
 
   return (
     <div className="space-y-6">
-      {flagQ.data && flagQ.data.length > 0 && (
+      {autoClockoutReviews.length > 0 && (
+        <Card className="border-destructive/50 bg-destructive/10">
+          <CardHeader className="flex-row items-center gap-2 pb-2">
+            <CircleAlert className="h-5 w-5 text-destructive" />
+            <CardTitle className="text-base text-destructive">
+              Auto clock-outs need review ({autoClockoutReviews.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {autoClockoutReviews.slice(0, 5).map((f: any) => (
+              <p key={f.id} className="font-medium">
+                <span className="text-lg font-bold">{f.workers?.name}</span> · {fmtDate(f.clock_in)}
+                {" · "}
+                {f.clock_out ? `${diffHours(f.clock_in, f.clock_out).toFixed(1)} hrs` : "still clocked in"}
+              </p>
+            ))}
+            <p className="pt-1 text-xs text-destructive">Edit each entry to confirm or correct its clock-out time.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {otherReviews.length > 0 && (
         <Card className="border-warning/40 bg-warning/5">
           <CardHeader className="flex-row items-center gap-2 pb-2">
             <AlertTriangle className="h-4 w-4 text-warning" />
-            <CardTitle className="text-base">Pending review ({flagQ.data.length})</CardTitle>
+            <CardTitle className="text-base">Pending review ({otherReviews.length})</CardTitle>
           </CardHeader>
           <CardContent className="text-sm space-y-1">
-            {flagQ.data.slice(0, 5).map((f: any) => (
+            {otherReviews.slice(0, 5).map((f: any) => (
               <p key={f.id}>
                 <span className="font-bold text-lg">{f.workers?.name}</span> · {fmtDate(f.clock_in)}
                 {" · "}
@@ -744,7 +768,15 @@ function EntriesTab({
                       </div>
                     </div>
                     {items.map((e: any) => (
-                      <div key={e.id} className="px-4 sm:px-5 py-3">
+                      <div
+                        key={e.id}
+                        data-auto-clockout={e.auto_clocked_out ? "true" : undefined}
+                        className={
+                          e.auto_clocked_out
+                            ? "border-l-4 border-l-destructive bg-destructive/10 px-4 py-3 sm:px-5"
+                            : "px-4 py-3 sm:px-5"
+                        }
+                      >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             {/* Time strip */}
@@ -761,6 +793,12 @@ function EntriesTab({
                                 </span>
                               )}
                             </p>
+                            {e.auto_clocked_out && (
+                              <div className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-destructive">
+                                <CircleAlert className="h-4 w-4 shrink-0" />
+                                <span>Auto clock-out — review time</span>
+                              </div>
+                            )}
 
                             {/* Primary title: assigned/billed job(s) */}
                             <div className="mt-1.5 flex items-start justify-between gap-2 flex-wrap">
@@ -792,8 +830,8 @@ function EntriesTab({
                                     manual
                                   </Badge>
                                 )}
-                                {e.flagged_review && (
-                                  <Badge className="h-4 text-[10px] bg-warning text-warning-foreground">
+                                {e.flagged_review && !e.auto_clocked_out && (
+                                  <Badge className="h-4 bg-warning text-[10px] text-warning-foreground">
                                     flagged
                                   </Badge>
                                 )}
@@ -987,6 +1025,7 @@ function EntriesTab({
               });
               updateToken(r.token);
               qc.invalidateQueries({ queryKey: ["entries", workerId] });
+              qc.invalidateQueries({ queryKey: ["flagged"] });
               toast.success("Entry updated");
               setEditing(null);
             } catch (e: any) {

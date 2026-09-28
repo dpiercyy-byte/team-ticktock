@@ -301,7 +301,8 @@ export async function forceCloseEntry(opts: {
   if (new Date(outISO) <= new Date(row.clock_in)) {
     outISO = new Date(new Date(row.clock_in).getTime() + 60_000).toISOString();
   }
-  const flagged = new Date(outISO).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS;
+  const autoClockedOut = opts.reason === "auto_8pm";
+  const flagged = autoClockedOut || new Date(outISO).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS;
   const mirroredStatus = row.geo_status ?? "no_gps";
   const mirroredSite = row.job_site_id ?? null;
 
@@ -311,6 +312,7 @@ export async function forceCloseEntry(opts: {
   const { error } = await supabaseAdmin.from("time_entries").update({
     clock_out: outISO,
     flagged_review: flagged,
+    auto_clocked_out: autoClockedOut,
     clock_out_geo_status: mirroredStatus,
     clock_out_job_site_id: mirroredSite,
   }).eq("id", opts.entryId);
@@ -325,6 +327,7 @@ export async function forceCloseEntry(opts: {
     after: {
       clock_out: outISO,
       flagged_review: flagged,
+      auto_clocked_out: autoClockedOut,
       clock_out_geo_status: mirroredStatus,
       clock_out_job_site_id: mirroredSite,
     },
@@ -401,7 +404,7 @@ export const adminListEntries = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     let q = supabaseAdmin.from("time_entries")
-      .select("id, clock_in, clock_out, project, created_by, flagged_review, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, clock_out_geo_status, clock_out_job_site_id, assigned_job_site_ids, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label), clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)")
+      .select("id, clock_in, clock_out, project, created_by, flagged_review, auto_clocked_out, geo_status, offsite_reason_code, offsite_reason_note, job_site_id, planned_job_site_id, clock_out_geo_status, clock_out_job_site_id, assigned_job_site_ids, job_sites!job_site_id(label, kind, archived_at), planned_job:job_sites!planned_job_site_id(label), clock_out_site:job_sites!clock_out_job_site_id(label, kind, archived_at)")
       .eq("worker_id", data.workerId).order("clock_in", { ascending: false });
 
     if (data.from) q = q.gte("clock_in", data.from);
@@ -536,7 +539,7 @@ export const adminEditEntry = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: row, error: e1 } = await supabaseAdmin
-      .from("time_entries").select("worker_id, clock_in, clock_out, project, flagged_review, assigned_job_site_ids").eq("id", data.entryId).single();
+      .from("time_entries").select("worker_id, clock_in, clock_out, project, flagged_review, auto_clocked_out, assigned_job_site_ids").eq("id", data.entryId).single();
     if (e1) throw e1;
     if (data.clockOut && new Date(data.clockOut) <= new Date(data.clockIn))
       throw new Response("Clock out must be after clock in", { status: 400 });
@@ -549,7 +552,7 @@ export const adminEditEntry = createServerFn({ method: "POST" })
       ? await validateAssignedSites(data.assignedJobSiteIds)
       : (row.assigned_job_site_ids ?? []);
     const { error } = await supabaseAdmin.from("time_entries")
-      .update({ clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, assigned_job_site_ids: assignedIds })
+      .update({ clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, auto_clocked_out: false, assigned_job_site_ids: assignedIds })
       .eq("id", data.entryId);
     if (error) throw error;
     await logAudit({
@@ -557,8 +560,8 @@ export const adminEditEntry = createServerFn({ method: "POST" })
       action: "entry_edit",
       entityType: "time_entry",
       entityId: data.entryId,
-      before: { clock_in: row.clock_in, clock_out: row.clock_out, project: row.project, flagged_review: row.flagged_review, assigned_job_site_ids: row.assigned_job_site_ids ?? [] },
-      after: { clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, assigned_job_site_ids: assignedIds },
+      before: { clock_in: row.clock_in, clock_out: row.clock_out, project: row.project, flagged_review: row.flagged_review, auto_clocked_out: row.auto_clocked_out, assigned_job_site_ids: row.assigned_job_site_ids ?? [] },
+      after: { clock_in: data.clockIn, clock_out: data.clockOut, project: data.project, flagged_review: flagged, auto_clocked_out: false, assigned_job_site_ids: assignedIds },
     });
     // (Ledger sync removed — Ledger is being rebuilt.)
 
@@ -640,7 +643,7 @@ export const adminFlaggedEntries = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const { data: rows, error } = await supabaseAdmin
       .from("time_entries")
-      .select("id, worker_id, clock_in, clock_out, project, workers(name)")
+      .select("id, worker_id, clock_in, clock_out, project, auto_clocked_out, workers(name)")
       .eq("flagged_review", true)
       .order("clock_in", { ascending: false });
     if (error) throw error;
@@ -855,7 +858,7 @@ export const adminSetEntryAllocation = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const refreshed = requireAdmin(data.token);
     const { data: row } = await supabaseAdmin
-      .from("time_entries").select("id, clock_in, clock_out, flagged_review").eq("id", data.entryId).maybeSingle();
+      .from("time_entries").select("id, clock_in, clock_out, flagged_review, auto_clocked_out").eq("id", data.entryId).maybeSingle();
     if (!row) throw new Response("Entry not found", { status: 404 });
     if (!row.clock_out) throw new Response("Entry is still open", { status: 400 });
 
@@ -881,7 +884,9 @@ export const adminSetEntryAllocation = createServerFn({ method: "POST" })
 
     const before = await listSegments(data.entryId);
     await replaceSegments(data.entryId, drafts);
-    await supabaseAdmin.from("time_entries").update({ flagged_review: false }).eq("id", data.entryId);
+    await supabaseAdmin.from("time_entries")
+      .update({ flagged_review: row.auto_clocked_out })
+      .eq("id", data.entryId);
 
     await logAudit({
       actor: { kind: "admin" },
@@ -909,7 +914,7 @@ export const workerConfirmShiftSplit = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const wid = requireWorker(data.token);
     const { data: row } = await supabaseAdmin
-      .from("time_entries").select("id, worker_id, clock_in, clock_out").eq("id", data.entryId).maybeSingle();
+      .from("time_entries").select("id, worker_id, clock_in, clock_out, auto_clocked_out").eq("id", data.entryId).maybeSingle();
     if (!row || row.worker_id !== wid) throw new Response("Not found", { status: 404 });
     if (!row.clock_out) throw new Response("Entry is still open", { status: 400 });
     if (Date.now() - new Date(row.clock_out).getTime() > 12 * 60 * 60 * 1000) {
@@ -946,7 +951,7 @@ export const workerConfirmShiftSplit = createServerFn({ method: "POST" })
     // A worker-confirmed split no longer needs admin review for allocation,
     // but an unusually long shift still does.
     const longShift = new Date(row.clock_out).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS;
-    if (!longShift) {
+    if (!longShift && !row.auto_clocked_out) {
       await supabaseAdmin.from("time_entries").update({ flagged_review: false }).eq("id", data.entryId);
     }
 
