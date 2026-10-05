@@ -4,6 +4,7 @@ import { supabaseAdmin } from "./db.server";
 import { requireAdmin, requireWorker } from "./auth.server";
 import { logAudit } from "./audit.server";
 import { normalizeReceiptDate } from "./receipt-date";
+import { formatReceiptMerchantForExport } from "./receipt-merchant";
 
 
 const adminBase = z.object({ token: z.string() });
@@ -242,7 +243,7 @@ async function syncRow(reimbursementId: string) {
     r.id,
     r.parsed_date || "",
     workerCell,
-    r.parsed_vendor || "",
+    formatReceiptMerchantForExport(r.parsed_vendor),
     r.description || "",
     r.parsed_category || "",
     (r as any).parsed_site?.label || "",
