@@ -2,14 +2,14 @@ import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Copy, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { adminWeekSchedule, copyLastWeek, deleteAssignment, upsertAssignment } from "@/lib/schedule.functions";
+import { adminWeekSchedule, deleteAssignment, upsertAssignment } from "@/lib/schedule.functions";
 import { addDaysISO, startOfWeekISO } from "@/lib/payout-math";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -30,7 +30,6 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
   const weekFn = useServerFn(adminWeekSchedule);
   const upsertFn = useServerFn(upsertAssignment);
   const delFn = useServerFn(deleteAssignment);
-  const copyFn = useServerFn(copyLastWeek);
   const [weekStart, setWeekStart] = useState(() => startOfWeekISO(new Date()));
   const [weekends, setWeekends] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -103,18 +102,6 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
     }
   };
 
-  const copy = async () => {
-    try {
-      const r = await copyFn({ data: { token, weekStart } });
-      updateToken(r.token);
-      refresh();
-      toast.success(r.copied ? `Copied ${r.copied} day${r.copied === 1 ? "" : "s"} from last week` : "Nothing new to copy");
-    } catch (e: any) {
-      toast.error(e?.message || "Failed");
-    }
-  };
-
-  const weekdays = [1, 2, 3, 4, 5].map((i) => addDaysISO(weekStart, i));
   const sortedSites = [...sites].sort((a, b) => (a.id === lastSite ? -1 : b.id === lastSite ? 1 : 0));
 
   return (
@@ -133,9 +120,6 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={() => setDraft({ workerIds: [], dates: [], jobSiteId: lastSite, arrival: "07:00", note: "" })}>
           <Users className="mr-1 h-4 w-4" /> Assign crew
-        </Button>
-        <Button size="sm" variant="secondary" onClick={copy}>
-          <Copy className="mr-1 h-4 w-4" /> Copy last week
         </Button>
         <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
           Weekends <Switch checked={weekends} onCheckedChange={setWeekends} />
@@ -257,9 +241,6 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                   <div>
                     <div className="flex items-center justify-between">
                       <Label>Days</Label>
-                      <Button size="sm" variant="ghost" onClick={() => setDraft({ ...draft, dates: weekdays })}>
-                        Fill Mon–Fri
-                      </Button>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {days.map((d) => {

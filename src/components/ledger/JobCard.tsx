@@ -3,6 +3,7 @@ import type { LedgerJob } from "@/lib/ledger.functions";
 import { formatCurrency } from "./ledger-ui";
 import { jobCosts, marginOf } from "@/lib/job-costs";
 import { JobProfitBar } from "./JobProfitBar";
+import { AssignCrewButton } from "./AssignCrewButton";
 
 /** Street number + street name, i.e. everything before the first comma. */
 function streetLine(job: LedgerJob) {
@@ -89,6 +90,11 @@ export function JobCard({ job }: { job: LedgerJob; compact?: boolean }) {
           />
         </div>
         <JobProfitBar budget={job.budget} cost={costs.total} />
+        {isActive && (
+          <div className="mt-3 flex justify-end">
+            <AssignCrewButton jobId={job.id} address={job.address} />
+          </div>
+        )}
       </div>
     </Link>
   );

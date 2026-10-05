@@ -23,7 +23,7 @@ export const adminWeekSchedule = createServerFn({ method: "POST" })
     const refreshed = requireAdmin(data.token);
     const [{ data: workers }, { data: sites }, { data: rows, error }] = await Promise.all([
       supabaseAdmin.from("workers").select("id, name").order("name"),
-      supabaseAdmin.from("job_sites").select("id, label, address, kind, archived_at, completed_at").order("label"),
+      supabaseAdmin.from("job_sites").select("id, label, address, kind, archived_at, completed_at, project_id").order("label"),
       db().select(SELECT).gte("work_date", data.weekStart).lt("work_date", addDays(data.weekStart, 7)),
     ]);
     if (error) throw error;
