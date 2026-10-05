@@ -650,6 +650,41 @@ export const adminFlaggedEntries = createServerFn({ method: "POST" })
     return { ...refreshed, entries: rows ?? [] };
   });
 
+/** Read-only snapshot of every worker's shifts today (plus any still-open shift). */
+export const adminTeamToday = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ dayStart: z.string() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: workers, error: we } = await supabaseAdmin
+      .from("workers").select("id, name").order("name");
+    if (we) throw we;
+    const { data: rows, error } = await supabaseAdmin
+      .from("time_entries")
+      .select("id, worker_id, clock_in, clock_out, project, flagged_review, auto_clocked_out, assigned_job_site_ids, created_by")
+      .or(`clock_in.gte.${data.dayStart},clock_out.is.null`)
+      .order("clock_in", { ascending: true });
+    if (error) throw error;
+    // Most-recent previous shift per worker, for "Same as yesterday".
+    const { data: prev } = await supabaseAdmin
+      .from("time_entries")
+      .select("worker_id, clock_in, clock_out, project, assigned_job_site_ids")
+      .lt("clock_in", data.dayStart)
+      .not("clock_out", "is", null)
+      .gte("clock_in", new Date(new Date(data.dayStart).getTime() - 14 * 86_400_000).toISOString())
+      .order("clock_in", { ascending: false });
+    const lastByWorker = new Map<string, any>();
+    for (const p of prev ?? []) if (!lastByWorker.has(p.worker_id)) lastByWorker.set(p.worker_id, p);
+    return {
+      ...refreshed,
+      workers: (workers ?? []).map((w) => ({
+        id: w.id,
+        name: w.name,
+        entries: (rows ?? []).filter((r) => r.worker_id === w.id),
+        lastShift: lastByWorker.get(w.id) ?? null,
+      })),
+    };
+  });
+
 // === Planned job site (heading-to) ===
 
 export const workerListActiveClientSites = createServerFn({ method: "POST" })

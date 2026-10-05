@@ -89,6 +89,7 @@ import {
   CircleAlert,
   SlidersHorizontal,
   Split,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -127,6 +128,7 @@ import {
   adminForceClockOut,
 } from "@/lib/entries.functions";
 import { AllocationDialog } from "@/components/admin/AllocationDialog";
+import { QuickTimeEdit, TeamTodayPanel, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
@@ -490,6 +492,67 @@ function EntriesTab({
   const [allocating, setAllocating] = useState<any | null>(null);
   const [weekStart, setWeekStart] = useState<string>(() => startOfWeekISO());
   const [calOpen, setCalOpen] = useState(false);
+  const [openGps, setOpenGps] = useState<Record<string, boolean>>({});
+  const [addDefaults, setAddDefaults] = useState<
+    { clockIn: string; clockOut: string; assignedJobSiteIds: string[] } | undefined
+  >(undefined);
+
+  /** Open Add with sensible defaults: today (or the selected week's Monday), 7:00–3:30, most-used site. */
+  const openAdd = (wid?: string) => {
+    const todayYmd = localYMD(new Date());
+    const inWeek = todayYmd >= weekStart && todayYmd < addDaysISO(weekStart, 7);
+    const day = wid || inWeek ? todayYmd : addDaysISO(weekStart, 1);
+    const counts = new Map<string, number>();
+    if (!wid || wid === workerId) {
+      for (const en of (eq.data ?? []) as any[])
+        for (const s of en.assigned_job_site_ids ?? []) counts.set(s, (counts.get(s) ?? 0) + 1);
+    }
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    setAddDefaults({
+      clockIn: combineLocal(day, "07:00"),
+      clockOut: combineLocal(day, "15:30"),
+      assignedJobSiteIds: top ? [top] : [],
+    });
+    setAdding(true);
+  };
+
+  /** Inline time change with an Undo toast. */
+  const quickSave = async (e: any, field: "in" | "out", iso: string) => {
+    const prev = { clockIn: e.clock_in, clockOut: e.clock_out ?? null };
+    const next = field === "in" ? { ...prev, clockIn: iso } : { ...prev, clockOut: iso };
+    if (next.clockOut && new Date(next.clockOut) <= new Date(next.clockIn)) {
+      toast.error("Clock out must be after clock in");
+      throw new Error("invalid");
+    }
+    const refresh = () => {
+      qc.invalidateQueries({ queryKey: ["entries", workerId] });
+      qc.invalidateQueries({ queryKey: ["flagged"] });
+      qc.invalidateQueries({ queryKey: ["team-today"] });
+    };
+    try {
+      const r = await editE({ data: { token, entryId: e.id, ...next, project: e.project ?? null } });
+      updateToken(r.token);
+      refresh();
+      toast.success("Time updated", {
+        duration: 6000,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              const u = await editE({ data: { token, entryId: e.id, ...prev, project: e.project ?? null } });
+              updateToken(u.token);
+              refresh();
+            } catch (err: any) {
+              toast.error(err?.message || "Undo failed");
+            }
+          },
+        },
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed");
+      throw err;
+    }
+  };
 
   // Jump target from the Lifetime worker detail view ("Edit in Entries").
   useEffect(() => {
@@ -608,6 +671,21 @@ function EntriesTab({
         </Card>
       )}
 
+      <TeamTodayPanel
+        token={token}
+        updateToken={updateToken}
+        onFix={(wid, entry) => {
+          setWorkerId(wid);
+          setWeekStart(startOfWeekISO(new Date(entry.clock_in)));
+          setEditing(entry);
+        }}
+        onAddShift={(wid) => {
+          setWorkerId(wid);
+          setWeekStart(startOfWeekISO(new Date()));
+          openAdd(wid);
+        }}
+      />
+
       <div className="w-full">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Worker</p>
         <Select value={workerId ?? ""} onValueChange={setWorkerId}>
@@ -723,7 +801,7 @@ function EntriesTab({
       <Button
         variant="secondary"
         className="w-full"
-        onClick={() => setAdding(true)}
+        onClick={() => openAdd()}
         disabled={!workerId}
       >
         <Plus className="h-4 w-4 mr-2" /> Add entry
@@ -782,11 +860,22 @@ function EntriesTab({
                           <div className="min-w-0 flex-1">
                             {/* Time strip */}
                             <p className="font-medium tabular-nums text-sm sm:text-base flex items-center gap-2">
-                              {fmtTime(e.clock_in)} –{" "}
+                              <QuickTimeEdit iso={e.clock_in} label="Clock in"
+                                onSave={(iso) => quickSave(e, "in", iso)}>
+                                {fmtTime(e.clock_in)}
+                              </QuickTimeEdit>{" "}
+                              –{" "}
                               {e.clock_out ? (
-                                fmtTime(e.clock_out)
+                                <QuickTimeEdit iso={e.clock_out} label="Clock out"
+                                  onSave={(iso) => quickSave(e, "out", iso)}>
+                                  {fmtTime(e.clock_out)}
+                                </QuickTimeEdit>
                               ) : (
-                                <span className="text-success">active</span>
+                                <QuickTimeEdit iso={new Date().toISOString().replace(/T.*/, "") === e.clock_in.slice(0, 10) ? new Date().toISOString() : e.clock_in}
+                                  label="Set clock out"
+                                  onSave={(iso) => quickSave(e, "out", iso)}>
+                                  <span className="text-success">active</span>
+                                </QuickTimeEdit>
                               )}
                               {e.clock_out && (
                                 <span className="text-xs text-muted-foreground font-normal">
@@ -865,32 +954,41 @@ function EntriesTab({
                             )}
                           </div>
                           <div className="flex gap-0.5 shrink-0">
-                            {!e.clock_out && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Force clock out"
-                                onClick={() => setConfirmForce(e.id)}
-                              >
-                                <PowerOff className="h-4 w-4 text-warning" />
-                              </Button>
-                            )}
-                            {e.clock_out && (
-                              <Button variant="ghost" size="icon" title="Split hours across sites"
-                                      onClick={() => setAllocating(e)}>
-                                <Split className={`h-4 w-4 ${e.flagged_review ? "text-warning" : ""}`} />
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon" onClick={() => setEditing(e)}>
+                            <Button variant="ghost" size="icon" title="Edit" onClick={() => setEditing(e)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setConfirmDel(e.id)}>
+                            <Button variant="ghost" size="icon" title="Delete" onClick={() => setConfirmDel(e.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" title="More">
+                                  <MoreHorizontal className={`h-4 w-4 ${e.flagged_review ? "text-warning" : ""}`} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {!e.clock_out && (
+                                  <DropdownMenuItem onClick={() => setConfirmForce(e.id)}>
+                                    <PowerOff className="mr-2 h-4 w-4 text-warning" /> Force clock out
+                                  </DropdownMenuItem>
+                                )}
+                                {e.clock_out && (
+                                  <DropdownMenuItem onClick={() => setAllocating(e)}>
+                                    <Split className="mr-2 h-4 w-4" /> Split hours across sites
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => setOpenGps((s) => ({ ...s, [e.id]: !s[e.id] }))}
+                                >
+                                  <MapPin className="mr-2 h-4 w-4" /> {openGps[e.id] ? "Hide" : "Show"} GPS tags
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
 
-                        {/* Footer: raw GPS audit timeline */}
+                        {/* Footer: raw GPS audit timeline (hidden until requested) */}
+                        {openGps[e.id] && (
                         <div className="mt-2.5 pt-2 border-t border-dashed border-border">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
                             GPS audit
@@ -962,6 +1060,7 @@ function EntriesTab({
                             )}
                           </div>
                         </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -978,12 +1077,14 @@ function EntriesTab({
         title="Add time entry"
         projectsEnabled={!!projectsEnabled}
         sites={sitesQ.data ?? []}
+        initial={addDefaults}
         allowOpenEnd
         onSubmit={async (vals) => {
           try {
             const r = await addE({ data: { token, workerId: workerId!, ...vals, clockOut: vals.clockOut || undefined } });
             updateToken(r.token);
             qc.invalidateQueries({ queryKey: ["entries", workerId] });
+            qc.invalidateQueries({ queryKey: ["team-today"] });
             toast.success("Entry added");
             setAdding(false);
           } catch (e: any) {
@@ -1176,6 +1277,19 @@ function EntryDialog({
     }
   }, [open, initial]);
 
+  // Split "YYYY-MM-DDTHH:MM" into date + time; clock out shares the clock-in date.
+  const ciDate = ci.slice(0, 10);
+  const ciTime = ci.slice(11, 16);
+  const coDate = co ? co.slice(0, 10) : ciDate;
+  const coTime = co ? co.slice(11, 16) : "";
+  const overnight = !!co && coDate !== ciDate;
+  const setCiDate = (d: string) => {
+    setCi(`${d}T${ciTime || "07:00"}`);
+    if (co && !overnight) setCo(`${d}T${coTime}`);
+  };
+  const liveHours =
+    ci && co ? (new Date(co).getTime() - new Date(ci).getTime()) / 3_600_000 : null;
+
   const activeSites = (sites ?? []).filter(
     (s) => !s.archived_at && (s.kind ?? "client") === "client",
   );
@@ -1190,17 +1304,49 @@ function EntryDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Clock in</Label>
-            <Input type="datetime-local" value={ci} onChange={(e) => setCi(e.target.value)} />
+            <Label>Date</Label>
+            <Input type="date" value={ciDate} onChange={(e) => e.target.value && setCiDate(e.target.value)} />
           </div>
-          <div>
-            <Label>
-              Clock out{" "}
-              {allowOpenEnd && (
-                <span className="text-xs text-muted-foreground">(blank = still active)</span>
-              )}
-            </Label>
-            <Input type="datetime-local" value={co} onChange={(e) => setCo(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Clock in</Label>
+              <Input
+                type="time"
+                value={ciTime}
+                onChange={(e) => setCi(`${ciDate}T${e.target.value}`)}
+              />
+              <div className="mt-1 flex flex-wrap gap-1">
+                {["07:00", "07:30", "08:00"].map((t) => (
+                  <button key={t} type="button" className="rounded bg-secondary px-1.5 py-0.5 text-[11px]"
+                          onClick={() => setCi(`${ciDate}T${t}`)}>{presetLabel(t)}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label>
+                Clock out{" "}
+                {allowOpenEnd && <span className="text-xs text-muted-foreground">(blank = active)</span>}
+              </Label>
+              <Input
+                type="time"
+                value={coTime}
+                onChange={(e) => setCo(e.target.value ? `${coDate}T${e.target.value}` : "")}
+              />
+              <div className="mt-1 flex flex-wrap gap-1">
+                {["15:30", "16:00", "17:00"].map((t) => (
+                  <button key={t} type="button" className="rounded bg-secondary px-1.5 py-0.5 text-[11px]"
+                          onClick={() => setCo(`${coDate}T${t}`)}>{presetLabel(t)}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm">
+            <span className="text-muted-foreground">
+              {overnight ? `Ends ${coDate}` : "Total"}
+            </span>
+            <span className={`font-semibold tabular-nums ${liveHours !== null && liveHours <= 0 ? "text-destructive" : ""}`}>
+              {liveHours === null ? "Still active" : `${liveHours.toFixed(2)} hrs`}
+            </span>
           </div>
           <div>
             <Label>
