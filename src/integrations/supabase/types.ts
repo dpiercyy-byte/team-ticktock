@@ -1205,6 +1205,54 @@ export type Database = {
           },
         ]
       }
+      schedule_assignments: {
+        Row: {
+          arrival_time: string | null
+          created_at: string
+          id: string
+          job_site_id: string
+          note: string | null
+          updated_at: string
+          work_date: string
+          worker_id: string
+        }
+        Insert: {
+          arrival_time?: string | null
+          created_at?: string
+          id?: string
+          job_site_id: string
+          note?: string | null
+          updated_at?: string
+          work_date: string
+          worker_id: string
+        }
+        Update: {
+          arrival_time?: string | null
+          created_at?: string
+          id?: string
+          job_site_id?: string
+          note?: string | null
+          updated_at?: string
+          work_date?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_assignments_job_site_id_fkey"
+            columns: ["job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_assignments_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sheet_job_sources: {
         Row: {
           address: string | null
