@@ -12,7 +12,7 @@ describe("formatReceiptMerchantForExport", () => {
 
   it("capitalizes words after apostrophes and hyphens", () => {
     expect(formatReceiptMerchantForExport("LOWE'S BUILDING-SUPPLIES")).toBe(
-      "Lowe'S Building-Supplies",
+      "Lowe's Building-Supplies",
     );
   });
 
