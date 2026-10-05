@@ -37,7 +37,12 @@ export function AssignCrewButton({ jobId, address }: { jobId: string; address?: 
       >
         <CalendarPlus className="mr-1 h-3.5 w-3.5" /> Assign crew
       </Button>
-      {open && <AssignDialog jobId={jobId} address={address} onClose={() => setOpen(false)} />}
+      {open && (
+        // Stop dialog clicks (rendered in a portal) from bubbling to the card link.
+        <span onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+          <AssignDialog jobId={jobId} address={address} onClose={() => setOpen(false)} />
+        </span>
+      )}
     </>
   );
 }
@@ -96,7 +101,7 @@ function AssignDialog({ jobId, address, onClose }: { jobId: string; address?: st
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Assign crew{site ? ` · ${site.label}` : ""}</DialogTitle>
         </DialogHeader>
