@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   BookOpen,
   LogOut,
+  CalendarDays,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
@@ -18,12 +19,13 @@ type Item = { value: string; label: string; icon: typeof Clock };
 
 const MAIN: Item[] = [
   { value: "entries", label: "Entries", icon: Clock },
+  { value: "schedule", label: "Schedule", icon: CalendarDays },
   { value: "payouts", label: "Payout", icon: DollarSign },
   { value: "receipts", label: "Receipts", icon: Receipt },
-  { value: "sites", label: "Job Sites", icon: MapPin },
 ];
 
 const MORE: Item[] = [
+  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "workers", label: "Workers", icon: Users },
   { value: "audit", label: "Audit Log", icon: ShieldCheck },
   { value: "settings", label: "Settings", icon: SettingsIcon },

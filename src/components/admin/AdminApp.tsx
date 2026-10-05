@@ -127,6 +127,7 @@ import {
   adminUpdateEntryPlannedJob,
   adminForceClockOut,
 } from "@/lib/entries.functions";
+import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { AllocationDialog } from "@/components/admin/AllocationDialog";
 import { QuickTimeEdit, TeamTodayPanel, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
 
@@ -348,6 +349,7 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
 
 const ADMIN_TABS = [
   "entries",
+  "schedule",
   "payouts",
   "receipts",
   "sites",
@@ -382,6 +384,9 @@ function AdminDashboard({
             <SwipeTabPanel tabKey={activeTab} tabs={ADMIN_TABS}>
               <TabsContent value="entries">
                 <EntriesTab token={token} updateToken={updateToken} focus={entriesFocus} />
+              </TabsContent>
+              <TabsContent value="schedule">
+                <SchedulePanel token={token} updateToken={updateToken} />
               </TabsContent>
               <TabsContent value="payouts">
                 <PayoutsTab
