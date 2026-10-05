@@ -89,6 +89,7 @@ import {
   CircleAlert,
   SlidersHorizontal,
   Split,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -127,6 +128,7 @@ import {
   adminForceClockOut,
 } from "@/lib/entries.functions";
 import { AllocationDialog } from "@/components/admin/AllocationDialog";
+import { QuickTimeEdit, TeamTodayPanel, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
@@ -679,7 +681,7 @@ function EntriesTab({
         }}
         onAddShift={(wid) => {
           setWorkerId(wid);
-          setWeekStart(startOfWeekISO());
+          setWeekStart(startOfWeekISO(new Date()));
           openAdd(wid);
         }}
       />
@@ -799,7 +801,7 @@ function EntriesTab({
       <Button
         variant="secondary"
         className="w-full"
-        onClick={() => setAdding(true)}
+        onClick={() => openAdd()}
         disabled={!workerId}
       >
         <Plus className="h-4 w-4 mr-2" /> Add entry
@@ -1058,6 +1060,7 @@ function EntriesTab({
                             )}
                           </div>
                         </div>
+                        )}
                       </div>
                     ))}
                   </div>

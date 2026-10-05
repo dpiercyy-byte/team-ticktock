@@ -58,6 +58,8 @@ export function QuickTimeEdit({
     try {
       await onSave(combineLocal(localYMD(iso), hhmm));
       setOpen(false);
+    } catch {
+      /* error already shown */
     } finally {
       setBusy(false);
     }
