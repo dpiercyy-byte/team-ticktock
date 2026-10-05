@@ -1,1 +1,2 @@
 - Store automatic clock-out review state on `time_entries.auto_clocked_out`; the audit log remains immutable history, while the row marker controls unresolved admin review UI.
+- Format receipt merchant names only at the Google Sheets export boundary so stored scan and edit values remain unchanged.
