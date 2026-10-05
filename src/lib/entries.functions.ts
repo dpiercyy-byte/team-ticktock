@@ -155,7 +155,14 @@ export const clockIn = createServerFn({ method: "POST" })
     if (existing) throw new Response("Already clocked in", { status: 400 });
     const geo = await resolveSite(data.lat, data.lng);
     const ts = resolveClientTimestamp(data.clientTimestamp);
-    const plannedId = data.plannedJobSiteId ?? null;
+    let plannedId = data.plannedJobSiteId ?? null;
+    if (!plannedId) {
+      // Pre-tag the shift with today's scheduled job (business runs on Toronto time).
+      const localDay = new Date(ts.iso).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+      const { data: sched } = await (supabaseAdmin.from("schedule_assignments") as any)
+        .select("job_site_id").eq("worker_id", wid).eq("work_date", localDay).maybeSingle();
+      plannedId = sched?.job_site_id ?? null;
+    }
     const { data: inserted, error } = await supabaseAdmin.from("time_entries").insert({
       worker_id: wid,
       clock_in: ts.iso,
