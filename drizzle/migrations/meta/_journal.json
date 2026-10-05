@@ -8,6 +8,13 @@
       "when": 1790619141611,
       "tag": "0000_add_auto_clockout_review_marker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791243860417,
+      "tag": "0001_create_schedule_assignments",
+      "breakpoints": true
     }
   ]
 }
