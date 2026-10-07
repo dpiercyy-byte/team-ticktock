@@ -124,6 +124,7 @@ import {
   adminDeleteEntry,
   adminFlaggedEntries,
   adminUpdateEntryGeo,
+  adminLookupEntryAddress,
   adminUpdateEntryPlannedJob,
   adminForceClockOut,
 } from "@/lib/entries.functions";
