@@ -129,7 +129,7 @@ import {
 } from "@/lib/entries.functions";
 import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { AllocationDialog } from "@/components/admin/AllocationDialog";
-import { QuickTimeEdit, TeamTodayPanel, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
+import { QuickTimeEdit, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
