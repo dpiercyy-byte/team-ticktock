@@ -5945,8 +5945,7 @@ function EntryAddressLine({
     try {
       const r = await lookup({ data: { token, entryId: entry.id, field } });
       updateToken(r.token);
-      qc.invalidateQueries({ queryKey: ["entries", entry.worker_id] });
-      qc.invalidateQueries({ queryKey: ["entries"] });
+      qc.invalidateQueries({ queryKey: ["entries", workerId] });
     } catch (err: any) {
       toast.error(err?.message || "Address lookup failed");
     } finally {
