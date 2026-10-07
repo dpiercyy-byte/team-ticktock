@@ -675,21 +675,6 @@ function EntriesTab({
         </Card>
       )}
 
-      <TeamTodayPanel
-        token={token}
-        updateToken={updateToken}
-        onFix={(wid, entry) => {
-          setWorkerId(wid);
-          setWeekStart(startOfWeekISO(new Date(entry.clock_in)));
-          setEditing(entry);
-        }}
-        onAddShift={(wid) => {
-          setWorkerId(wid);
-          setWeekStart(startOfWeekISO(new Date()));
-          openAdd(wid);
-        }}
-      />
-
       <div className="w-full">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Worker</p>
         <Select value={workerId ?? ""} onValueChange={setWorkerId}>
