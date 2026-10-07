@@ -129,7 +129,7 @@ import {
 } from "@/lib/entries.functions";
 import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { AllocationDialog } from "@/components/admin/AllocationDialog";
-import { QuickTimeEdit, TeamTodayPanel, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
+import { QuickTimeEdit, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
@@ -674,21 +674,6 @@ function EntriesTab({
           </CardContent>
         </Card>
       )}
-
-      <TeamTodayPanel
-        token={token}
-        updateToken={updateToken}
-        onFix={(wid, entry) => {
-          setWorkerId(wid);
-          setWeekStart(startOfWeekISO(new Date(entry.clock_in)));
-          setEditing(entry);
-        }}
-        onAddShift={(wid) => {
-          setWorkerId(wid);
-          setWeekStart(startOfWeekISO(new Date()));
-          openAdd(wid);
-        }}
-      />
 
       <div className="w-full">
         <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Worker</p>
