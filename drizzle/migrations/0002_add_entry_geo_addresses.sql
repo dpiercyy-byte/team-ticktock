@@ -1,0 +1,1 @@
+ALTER TABLE public.time_entries ADD COLUMN clock_in_address text, ADD COLUMN clock_out_address text;

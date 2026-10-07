@@ -15,6 +15,13 @@
       "when": 1791243860417,
       "tag": "0001_create_schedule_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791332973410,
+      "tag": "0002_add_entry_geo_addresses",
+      "breakpoints": true
     }
   ]
 }
