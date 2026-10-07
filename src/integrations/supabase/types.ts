@@ -1323,9 +1323,11 @@ export type Database = {
           assigned_job_site_ids: string[]
           auto_clocked_out: boolean
           clock_in: string
+          clock_in_address: string | null
           clock_in_lat: number | null
           clock_in_lng: number | null
           clock_out: string | null
+          clock_out_address: string | null
           clock_out_geo_status: string | null
           clock_out_job_site_id: string | null
           clock_out_lat: number | null
@@ -1346,9 +1348,11 @@ export type Database = {
           assigned_job_site_ids?: string[]
           auto_clocked_out?: boolean
           clock_in: string
+          clock_in_address?: string | null
           clock_in_lat?: number | null
           clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_address?: string | null
           clock_out_geo_status?: string | null
           clock_out_job_site_id?: string | null
           clock_out_lat?: number | null
@@ -1369,9 +1373,11 @@ export type Database = {
           assigned_job_site_ids?: string[]
           auto_clocked_out?: boolean
           clock_in?: string
+          clock_in_address?: string | null
           clock_in_lat?: number | null
           clock_in_lng?: number | null
           clock_out?: string | null
+          clock_out_address?: string | null
           clock_out_geo_status?: string | null
           clock_out_job_site_id?: string | null
           clock_out_lat?: number | null
