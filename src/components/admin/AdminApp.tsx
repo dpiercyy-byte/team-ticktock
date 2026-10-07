@@ -497,7 +497,6 @@ function EntriesTab({
   const [allocating, setAllocating] = useState<any | null>(null);
   const [weekStart, setWeekStart] = useState<string>(() => startOfWeekISO());
   const [calOpen, setCalOpen] = useState(false);
-  const [openGps, setOpenGps] = useState<Record<string, boolean>>({});
   const [addDefaults, setAddDefaults] = useState<
     { clockIn: string; clockOut: string; assignedJobSiteIds: string[] } | undefined
   >(undefined);
