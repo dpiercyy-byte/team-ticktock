@@ -981,11 +981,6 @@ function EntriesTab({
                                     <Split className="mr-2 h-4 w-4" /> Split hours across sites
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem
-                                  onClick={() => setOpenGps((s) => ({ ...s, [e.id]: !s[e.id] }))}
-                                >
-                                  <MapPin className="mr-2 h-4 w-4" /> {openGps[e.id] ? "Hide" : "Show"} GPS tags
-                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
