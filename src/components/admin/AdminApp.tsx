@@ -1053,9 +1053,9 @@ function EntriesTab({
                                 />
                               </div>
                             )}
+                            <EntryAddressLine entry={e} token={token} updateToken={updateToken} />
                           </div>
                         </div>
-                        )}
                       </div>
                     ))}
                   </div>
