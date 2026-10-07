@@ -5922,6 +5922,68 @@ function reasonLabel(code: string | null | undefined) {
   return REASON_LABELS[code] ?? code;
 }
 
+/** Saved street address for a punch, with an on-demand lookup button. */
+function EntryAddressLine({
+  entry,
+  token,
+  updateToken,
+}: {
+  entry: any;
+  token: string;
+  updateToken: (t: string) => void;
+}) {
+  const qc = useQueryClient();
+  const lookup = useServerFn(adminLookupEntryAddress);
+  const [busy, setBusy] = useState<"in" | "out" | null>(null);
+  const hasIn = entry.clock_in_lat != null && entry.clock_in_lng != null;
+  const hasOut = entry.clock_out && entry.clock_out_lat != null && entry.clock_out_lng != null;
+
+  const run = async (field: "in" | "out") => {
+    setBusy(field);
+    try {
+      const r = await lookup({ data: { token, entryId: entry.id, field } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["entries", entry.worker_id] });
+      qc.invalidateQueries({ queryKey: ["entries"] });
+    } catch (err: any) {
+      toast.error(err?.message || "Address lookup failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const Row = ({ field, label }: { field: "in" | "out"; label: string }) => {
+    const saved = field === "out" ? entry.clock_out_address : entry.clock_in_address;
+    const hasCoords = field === "out" ? hasOut : hasIn;
+    if (saved) {
+      return (
+        <p className="text-[11px] text-muted-foreground truncate">
+          <span className="font-semibold text-foreground/70">{label}:</span> {saved}
+        </p>
+      );
+    }
+    if (!hasCoords) return null;
+    return (
+      <button
+        type="button"
+        disabled={busy !== null}
+        onClick={() => run(field)}
+        className="self-start text-[11px] text-primary underline decoration-dotted underline-offset-2 disabled:opacity-50"
+      >
+        {busy === field ? "Looking up…" : `Look up ${label.toLowerCase()} address`}
+      </button>
+    );
+  };
+
+  if (!hasIn && !hasOut && !entry.clock_in_address && !entry.clock_out_address) return null;
+  return (
+    <div className="mt-1 flex flex-col gap-0.5">
+      <Row field="in" label="In" />
+      {entry.clock_out && <Row field="out" label="Out" />}
+    </div>
+  );
+}
+
 function GeoTagEditor({
   entry,
   sites,
