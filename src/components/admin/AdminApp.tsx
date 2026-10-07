@@ -1054,7 +1054,7 @@ function EntriesTab({
                                 />
                               </div>
                             )}
-                            <EntryAddressLine entry={e} token={token} updateToken={updateToken} />
+                            <EntryAddressLine entry={e} workerId={workerId} token={token} updateToken={updateToken} />
                           </div>
                         </div>
                       </div>
@@ -5925,10 +5925,12 @@ function reasonLabel(code: string | null | undefined) {
 /** Saved street address for a punch, with an on-demand lookup button. */
 function EntryAddressLine({
   entry,
+  workerId,
   token,
   updateToken,
 }: {
   entry: any;
+  workerId: string;
   token: string;
   updateToken: (t: string) => void;
 }) {
