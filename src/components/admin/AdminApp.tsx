@@ -986,12 +986,8 @@ function EntriesTab({
                           </div>
                         </div>
 
-                        {/* Footer: raw GPS audit timeline (hidden until requested) */}
-                        {openGps[e.id] && (
+                        {/* GPS tags: always visible on the row */}
                         <div className="mt-2.5 pt-2 border-t border-dashed border-border">
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                            GPS audit
-                          </div>
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1.5">
                               <GeoTagEditor
