@@ -644,44 +644,6 @@ export const adminUpdateEntryGeo = createServerFn({ method: "POST" })
   });
 
 
-/** Reverse-geocode an entry's clock-in/out coordinates into a saved street address. */
-export const adminLookupEntryAddress = createServerFn({ method: "POST" })
-  .inputValidator((d) => adminBase.extend({
-    entryId: z.string().uuid(),
-    field: z.enum(["in", "out"]),
-  }).parse(d))
-  .handler(async ({ data }) => {
-    const refreshed = requireAdmin(data.token);
-    const { data: row } = await supabaseAdmin
-      .from("time_entries")
-      .select("clock_in_lat, clock_in_lng, clock_out_lat, clock_out_lng, clock_in_address, clock_out_address")
-      .eq("id", data.entryId).maybeSingle();
-    if (!row) throw new Response("Entry not found", { status: 404 });
-    const addrCol = data.field === "out" ? "clock_out_address" : "clock_in_address";
-    const latCol = data.field === "out" ? "clock_out_lat" : "clock_in_lat";
-    const lngCol = data.field === "out" ? "clock_out_lng" : "clock_in_lng";
-    if ((row as any)[addrCol]) return { ...refreshed, address: (row as any)[addrCol] };
-    const lat = (row as any)[latCol];
-    const lng = (row as any)[lngCol];
-    if (lat == null || lng == null) {
-      throw new Response("No GPS coordinates were recorded for this punch", { status: 400 });
-    }
-    const { reverseGeocode } = await import("./geocode.server");
-    const address = await reverseGeocode(Number(lat), Number(lng));
-    const { error } = await (supabaseAdmin.from("time_entries") as any)
-      .update({ [addrCol]: address })
-      .eq("id", data.entryId);
-    if (error) throw error;
-    await logAudit({
-      actor: { kind: "admin" },
-      action: "entry_address_lookup",
-      entityType: "time_entry",
-      entityId: data.entryId,
-      after: { [addrCol]: address },
-      metadata: { field: data.field },
-    });
-    return { ...refreshed, address };
-  });
 
 
 export const adminFlaggedEntries = createServerFn({ method: "POST" })
