@@ -7,7 +7,7 @@ export async function geocodeAddress(address: string): Promise<Geocoded> {
   const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
   const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!LOVABLE_API_KEY || !GMAPS_KEY) {
-    throw new Response("Geocoding not configured", { status: 500 });
+    throw new Error("Geocoding not configured");
   }
   const res = await fetch(
     `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}`,
@@ -20,11 +20,11 @@ export async function geocodeAddress(address: string): Promise<Geocoded> {
   );
   if (!res.ok) {
     const body = await res.text();
-    throw new Response(`Geocoding failed (${res.status}): ${body.slice(0, 200)}`, { status: 502 });
+    throw new Error(`Address lookup failed (${res.status})`);
   }
   const json: any = await res.json();
   if (json.status !== "OK" || !json.results?.length) {
-    throw new Response(`Address not found${json.error_message ? `: ${json.error_message}` : ""}`, { status: 400 });
+    throw new Error(`Address not found${json.error_message ? `: ${json.error_message}` : ""}`);
   }
   const r = json.results[0];
   return {
