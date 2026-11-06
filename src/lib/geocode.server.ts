@@ -9,9 +9,9 @@ export async function geocodeAddress(address: string): Promise<Geocoded> {
   if (!LOVABLE_API_KEY || !GMAPS_KEY) {
     throw new Error("Geocoding not configured");
   }
-  const lookup = async (q: string) => {
+  const lookup = async (q: string, components = "country:CA") => {
     const res = await fetch(
-      `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(q)}&region=ca&components=country:CA`,
+      `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(q)}&region=ca&components=${encodeURIComponent(components)}`,
       {
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -28,9 +28,15 @@ export async function geocodeAddress(address: string): Promise<Geocoded> {
     if (json.status !== "OK") console.warn(`Geocode status ${json.status} for "${q}": ${json.error_message ?? ""}`);
     return json;
   };
-  let json: any = await lookup(address);
-  if (json.status === "ZERO_RESULTS" && !/ontario|\bON\b|canada/i.test(address)) {
-    json = await lookup(`${address}, ON, Canada`);
+  // The crew works in Ontario: unless the address names another province,
+  // search Ontario first so "5039 Franklin St" lands in Pickering, not Vancouver.
+  const otherProvince =
+    /\b(BC|AB|SK|MB|QC|NB|NS|PE|PEI|NL|YT|NT|NU)\b|british columbia|alberta|saskatchewan|manitoba\b(?!\s+(st|street|ave|rd|dr))|quebec|qu[ée]bec|new brunswick|nova scotia|prince edward|newfoundland|yukon|northwest territories|nunavut/i.test(address);
+  let json: any = otherProvince
+    ? await lookup(address)
+    : await lookup(address, "country:CA|administrative_area:ON");
+  if (json.status === "ZERO_RESULTS" && !otherProvince) {
+    json = await lookup(address);
   }
   if (json.status !== "OK" || !json.results?.length) {
     if (json.status === "ZERO_RESULTS") {
