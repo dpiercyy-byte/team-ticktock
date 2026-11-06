@@ -31,7 +31,7 @@ export async function geocodeAddress(address: string): Promise<Geocoded> {
   // The crew works in Ontario: unless the address names another province,
   // search Ontario first so "5039 Franklin St" lands in Pickering, not Vancouver.
   const otherProvince =
-    /\b(BC|AB|SK|MB|QC|NB|NS|PE|PEI|NL|YT|NT|NU)\b|british columbia|alberta|saskatchewan|manitoba\b(?!\s+(st|street|ave|rd|dr))|quebec|qu[ée]bec|new brunswick|nova scotia|prince edward|newfoundland|yukon|northwest territories|nunavut/i.test(address);
+    /\b(BC|AB|SK|MB|QC|NB|NS|PE|PEI|NL|YT|NT|NU)\b|british columbia|alberta|saskatchewan|qu[ée]bec|new brunswick|nova scotia|prince edward|newfoundland|yukon|northwest territories|nunavut/i.test(address);
   let json: any = otherProvince
     ? await lookup(address)
     : await lookup(address, "country:CA|administrative_area:ON");
