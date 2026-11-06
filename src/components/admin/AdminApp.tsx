@@ -5337,8 +5337,8 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
   };
 
   const add = useMutation({
-    mutationFn: () =>
-      addFn({
+    mutationFn: async () => {
+      const r: any = await addFn({
         data: {
           token,
           address: address.trim(),
@@ -5346,7 +5346,16 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
           radius_m: radius,
           kind,
         },
-      }),
+      });
+      if (r instanceof Response || !r?.token) {
+        const status = r instanceof Response ? r.status : 0;
+        const msg = r instanceof Response ? await r.text().catch(() => "") : "";
+        throw new Error(
+          status === 401 ? "Your admin session expired — sign in again and retry." : msg || "Job site was not saved",
+        );
+      }
+      return r as { token: string };
+    },
     onSuccess: (r) => {
       updateToken(r.token);
       toast.success(kind === "supplier" ? "Supplier location added" : "Job site added");
