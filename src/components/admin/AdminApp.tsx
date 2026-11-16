@@ -131,7 +131,7 @@ import {
 } from "@/lib/entries.functions";
 import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { AllocationDialog } from "@/components/admin/AllocationDialog";
-import { QuickTimeEdit, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
+import { QuickTimeEdit, TimeSelect, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
@@ -1419,11 +1419,7 @@ function EntryDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Clock in</Label>
-              <Input
-                type="time"
-                value={ciTime}
-                onChange={(e) => setCi(`${ciDate}T${e.target.value}`)}
-              />
+              <TimeSelect value={ciTime} onChange={(v) => v && setCi(`${ciDate}T${v}`)} />
               <div className="mt-1 flex flex-wrap gap-1">
                 {["07:00", "07:30", "08:00"].map((t) => (
                   <button key={t} type="button" className="rounded bg-secondary px-1.5 py-0.5 text-[11px]"
@@ -1436,11 +1432,8 @@ function EntryDialog({
                 Clock out{" "}
                 {allowOpenEnd && <span className="text-xs text-muted-foreground">(blank = active)</span>}
               </Label>
-              <Input
-                type="time"
-                value={coTime}
-                onChange={(e) => setCo(e.target.value ? `${coDate}T${e.target.value}` : "")}
-              />
+              <TimeSelect value={coTime} allowEmpty={allowOpenEnd}
+                onChange={(v) => setCo(v ? `${coDate}T${v}` : "")} />
               <div className="mt-1 flex flex-wrap gap-1">
                 {["15:30", "16:00", "17:00"].map((t) => (
                   <button key={t} type="button" className="rounded bg-secondary px-1.5 py-0.5 text-[11px]"

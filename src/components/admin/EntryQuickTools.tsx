@@ -38,6 +38,48 @@ function nudge(hhmm: string, mins: number) {
   return `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
 }
 
+/** Hour / minute / AM-PM picker; value is "HH:MM" (24h) or "" when allowEmpty. */
+export function TimeSelect({
+  value,
+  onChange,
+  allowEmpty,
+}: {
+  value: string;
+  onChange: (hhmm: string) => void;
+  allowEmpty?: boolean;
+}) {
+  const empty = !value;
+  const [h24, m] = (value || "12:00").split(":").map(Number);
+  const pm = h24 >= 12;
+  const h12 = h24 % 12 || 12;
+  const set = (hr12: number, min: number, isPm: boolean) =>
+    onChange(`${pad((hr12 % 12) + (isPm ? 12 : 0))}:${pad(min)}`);
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+  if (!minutes.includes(m)) minutes.push(m);
+  minutes.sort((a, b) => a - b);
+  const cls =
+    "h-10 min-w-0 rounded-md border border-input bg-background px-1.5 text-base font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-ring";
+  return (
+    <div className="flex items-center gap-1">
+      <select aria-label="Hour" className={cls} value={empty ? "" : h12}
+        onChange={(e) => e.target.value === "" ? onChange("") : set(Number(e.target.value), empty ? 0 : m, empty ? true : pm)}>
+        {(allowEmpty || empty) && <option value="">--</option>}
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <select aria-label="Minute" className={cls} value={empty ? "" : m} disabled={empty}
+        onChange={(e) => set(h12, Number(e.target.value), pm)}>
+        {empty && <option value="">--</option>}
+        {minutes.map((x) => <option key={x} value={x}>{pad(x)}</option>)}
+      </select>
+      <button type="button" disabled={empty} onClick={() => set(h12, m, !pm)}
+        aria-label="Toggle AM/PM"
+        className="h-10 rounded-md border border-input bg-foreground px-2 text-sm font-bold text-background disabled:opacity-40">
+        {empty ? "--" : pm ? "PM" : "AM"}
+      </button>
+    </div>
+  );
+}
+
 /** Tap-the-time popover: change only the time, keep the date. */
 export function QuickTimeEdit({
   iso,
