@@ -5769,15 +5769,15 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                 const isSupplier = (s.kind ?? "client") === "supplier";
                 const isCompleted = !!s.completed_at;
                 return (
-                  <li key={s.id} className="p-4 flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
+                  <li key={s.id} className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    <div className="min-w-0 w-full sm:flex-1">
                       <button
                         type="button"
                         onClick={() => !isArchived && openEdit(s)}
                         className={`block w-full text-left rounded -mx-1 px-1 py-0.5 ${isArchived ? "cursor-default" : "hover:bg-secondary/60 cursor-pointer"}`}
                         title={isArchived ? undefined : "Click to edit"}
                       >
-                        <p className="font-medium truncate flex items-center gap-1.5">
+                        <p className="font-medium flex min-w-0 items-center gap-1.5">
                           {isSupplier ? (
                             <Truck className="h-4 w-4 text-primary shrink-0" />
                           ) : (
@@ -5785,18 +5785,18 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                               className={`h-4 w-4 shrink-0 ${isArchived ? "text-muted-foreground" : isCompleted ? "text-warning" : "text-success"}`}
                             />
                           )}
-                          <span className={isArchived ? "text-muted-foreground" : ""}>
+                          <span className={`min-w-0 truncate ${isArchived ? "text-muted-foreground" : ""}`}>
                             {s.label}
                           </span>
                           {isArchived && (
-                            <Badge variant="outline" className="h-4 text-[10px] ml-1">
+                            <Badge variant="outline" className="h-4 shrink-0 text-[10px] ml-1">
                               Archived
                             </Badge>
                           )}
                           {isCompleted && !isArchived && (
                             <Badge
                               variant="outline"
-                              className="h-4 text-[10px] ml-1 border-warning text-warning"
+                              className="h-4 shrink-0 text-[10px] ml-1 border-warning text-warning"
                             >
                               Completed
                             </Badge>
@@ -5821,13 +5821,13 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                               const v = parseInt(e.target.value);
                               upd.mutate({ id: s.id, label: s.label, radius_m: v });
                             }}
-                            className="flex-1 max-w-[200px]"
+                            className="flex-1 min-w-0 sm:max-w-[200px]"
                           />
-                          <span className="text-xs tabular-nums w-16">{s.radius_m} m</span>
+                          <span className="text-xs tabular-nums w-14 shrink-0">{s.radius_m} m</span>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end gap-1 -mr-2 sm:mr-0 sm:shrink-0">
                       {!isArchived && !isSupplier && (
                         <Button
                           variant="ghost"
