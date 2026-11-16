@@ -2352,7 +2352,7 @@ function PayoutsTab({
         <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
       </TabsList>
       <TabsContent value="pending" className="mt-0">
-        <PendingPayoutsView token={token} updateToken={updateToken} />
+        <PendingPayoutsView token={token} updateToken={updateToken} onEditWeek={onEditWeek} />
       </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
         <LifetimePayoutView token={token} updateToken={updateToken} onEditWeek={onEditWeek} />
@@ -4318,9 +4318,11 @@ function AdminAddReceiptsDialog({
 function PendingPayoutsView({
   token,
   updateToken,
+  onEditWeek,
 }: {
   token: string;
   updateToken: (t: string) => void;
+  onEditWeek?: (f: { workerId: string; weekStart: string }) => void;
 }) {
   const listFn = useServerFn(listPendingWeeks);
   const markFn = useServerFn(markWeekPaid);
@@ -4486,7 +4488,16 @@ function PendingPayoutsView({
             return (
               <Card
                 key={`${row.workerId}-${row.weekStart}`}
-                className={`border-l-4 ${s.border} ${s.tint}`}
+                className={`border-l-4 ${s.border} ${s.tint} cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                role="button"
+                tabIndex={0}
+                onClick={() => onEditWeek?.({ workerId: row.workerId, weekStart: row.weekStart })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onEditWeek?.({ workerId: row.workerId, weekStart: row.weekStart });
+                  }
+                }}
               >
                 <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-1">
@@ -4523,7 +4534,8 @@ function PendingPayoutsView({
                   <Button
                     size="sm"
                     variant={row.status === "paid" ? "outline" : "default"}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (row.status === "paid") {
                         unmark(row.workerId, row.weekStart);
                       } else {
