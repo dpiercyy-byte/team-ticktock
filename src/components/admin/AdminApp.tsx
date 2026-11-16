@@ -2352,7 +2352,7 @@ function PayoutsTab({
         <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
       </TabsList>
       <TabsContent value="pending" className="mt-0">
-        <PendingPayoutsView token={token} updateToken={updateToken} />
+        <PendingPayoutsView token={token} updateToken={updateToken} onEditWeek={onEditWeek} />
       </TabsContent>
       <TabsContent value="lifetime" className="mt-0">
         <LifetimePayoutView token={token} updateToken={updateToken} onEditWeek={onEditWeek} />
@@ -4318,9 +4318,11 @@ function AdminAddReceiptsDialog({
 function PendingPayoutsView({
   token,
   updateToken,
+  onEditWeek,
 }: {
   token: string;
   updateToken: (t: string) => void;
+  onEditWeek?: (f: { workerId: string; weekStart: string }) => void;
 }) {
   const listFn = useServerFn(listPendingWeeks);
   const markFn = useServerFn(markWeekPaid);
