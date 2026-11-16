@@ -87,6 +87,7 @@ import {
   ArrowLeft,
   Clock,
   CircleAlert,
+  CircleCheck,
   SlidersHorizontal,
   Split,
   MoreHorizontal,
@@ -121,6 +122,7 @@ import {
   adminListEntries,
   adminAddEntry,
   adminEditEntry,
+  adminAcknowledgeAutoClockout,
   adminDeleteEntry,
   adminFlaggedEntries,
   adminUpdateEntryGeo,
@@ -129,7 +131,7 @@ import {
 } from "@/lib/entries.functions";
 import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { AllocationDialog } from "@/components/admin/AllocationDialog";
-import { QuickTimeEdit, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
+import { QuickTimeEdit, TimeSelect, combineLocal, localYMD, presetLabel } from "@/components/admin/EntryQuickTools";
 
 import { getPublicSettings, updateSettings } from "@/lib/settings.functions";
 import {
@@ -424,6 +426,13 @@ function AdminDashboard({
 
 
 // ===== Entries tab =====
+function timeOrderMsg(inIso: string, outIso: string) {
+  const t = (iso: string) => new Date(iso).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+  const out = new Date(outIso);
+  const hint = out.getHours() < 12 ? " — did you mean PM?" : "";
+  return `Clock out ${t(outIso)} is before clock in ${t(inIso)}${hint}`;
+}
+
 function EntriesTab({
   token,
   updateToken,
@@ -438,6 +447,7 @@ function EntriesTab({
   const flagFn = useServerFn(adminFlaggedEntries);
   const addE = useServerFn(adminAddEntry);
   const editE = useServerFn(adminEditEntry);
+  const ackFn = useServerFn(adminAcknowledgeAutoClockout);
   const delE = useServerFn(adminDeleteEntry);
   const forceOut = useServerFn(adminForceClockOut);
   const updGeo = useServerFn(adminUpdateEntryGeo);
@@ -525,8 +535,7 @@ function EntriesTab({
     const prev = { clockIn: e.clock_in, clockOut: e.clock_out ?? null };
     const next = field === "in" ? { ...prev, clockIn: iso } : { ...prev, clockOut: iso };
     if (next.clockOut && new Date(next.clockOut) <= new Date(next.clockIn)) {
-      toast.error("Clock out must be after clock in");
-      throw new Error("invalid");
+      throw new Error(timeOrderMsg(next.clockIn, next.clockOut));
     }
     const refresh = () => {
       qc.invalidateQueries({ queryKey: ["entries", workerId] });
@@ -555,6 +564,65 @@ function EntriesTab({
     } catch (err: any) {
       toast.error(err?.message || "Failed");
       throw err;
+    }
+  };
+
+  // ---- Auto clock-out alert: jump, resolved state, dismiss ----
+  type SeenAuto = { id: string; workerId: string; name: string; clockIn: string };
+  const SEEN_KEY = "cw-auto-clockout-seen";
+  const [seenAuto, setSeenAuto] = useState<Record<string, SeenAuto>>({});
+  useEffect(() => {
+    try {
+      setSeenAuto(JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const saveSeen = (next: Record<string, SeenAuto>) => {
+    setSeenAuto(next);
+    try {
+      localStorage.setItem(SEEN_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  };
+  useEffect(() => {
+    if (!flagQ.data) return;
+    const autos = (flagQ.data as any[]).filter((f) => f.auto_clocked_out);
+    if (!autos.some((f) => !seenAuto[f.id])) return;
+    const next = { ...seenAuto };
+    for (const f of autos)
+      next[f.id] = { id: f.id, workerId: f.worker_id, name: f.workers?.name ?? "Worker", clockIn: f.clock_in };
+    saveSeen(next);
+  }, [flagQ.data]);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const focusEntry = (id: string, wid: string, clockIn: string) => {
+    setWorkerId(wid);
+    setWeekStart(startOfWeekISO(new Date(clockIn)));
+    setHighlightId(id);
+  };
+  useEffect(() => {
+    if (!highlightId) return;
+    const el = document.querySelector(`[data-entry-id="${highlightId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => setHighlightId(null), 2500);
+    return () => clearTimeout(t);
+  }, [highlightId, eq.data, weekStart]);
+  const dismissAuto = (id: string) => {
+    const next = { ...seenAuto };
+    delete next[id];
+    saveSeen(next);
+  };
+  const keepAsIs = async (id: string) => {
+    try {
+      const r = await ackFn({ data: { token, entryId: id } });
+      updateToken(r.token);
+      qc.invalidateQueries({ queryKey: ["flagged"] });
+      qc.invalidateQueries({ queryKey: ["entries"] });
+      toast.success("Kept as is — alert cleared");
+    } catch (err: any) {
+      toast.error(err?.message || "Couldn't clear the alert");
     }
   };
 
@@ -634,26 +702,85 @@ function EntriesTab({
 
   return (
     <div className="space-y-6">
-      {autoClockoutReviews.length > 0 && (
-        <Card className="border-destructive/50 bg-destructive/10">
-          <CardHeader className="flex-row items-center gap-2 pb-2">
-            <CircleAlert className="h-5 w-5 text-destructive" />
-            <CardTitle className="text-base text-destructive">
-              Auto clock-outs need review ({autoClockoutReviews.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            {autoClockoutReviews.slice(0, 5).map((f: any) => (
-              <p key={f.id} className="font-medium">
-                <span className="text-lg font-bold">{f.workers?.name}</span> · {fmtDate(f.clock_in)}
-                {" · "}
-                {f.clock_out ? `${diffHours(f.clock_in, f.clock_out).toFixed(1)} hrs` : "still clocked in"}
-              </p>
-            ))}
-            <p className="pt-1 text-xs text-destructive">Edit each entry to confirm or correct its clock-out time.</p>
-          </CardContent>
-        </Card>
-      )}
+      {(() => {
+        const autoIds = new Set(autoClockoutReviews.map((f: any) => f.id));
+        const rows: Array<SeenAuto & { resolved: boolean; hrs: string }> = [
+          ...autoClockoutReviews.map((f: any) => ({
+            id: f.id,
+            workerId: f.worker_id,
+            name: f.workers?.name ?? "Worker",
+            clockIn: f.clock_in,
+            resolved: false,
+            hrs: f.clock_out ? `${diffHours(f.clock_in, f.clock_out).toFixed(1)} hrs` : "still clocked in",
+          })),
+          ...(flagQ.data ? Object.values(seenAuto).filter((x) => !autoIds.has(x.id)) : []).map((x) => ({
+            ...x,
+            resolved: true,
+            hrs: "",
+          })),
+        ];
+        if (!rows.length) return null;
+        const allResolved = rows.every((r) => r.resolved);
+        return (
+          <Card className={allResolved ? "border-success/50 bg-success/10" : "border-destructive/50 bg-destructive/10"}>
+            <CardHeader className="flex-row items-center gap-2 space-y-0 pb-2">
+              {allResolved ? (
+                <CircleCheck className="h-5 w-5 text-success" />
+              ) : (
+                <CircleAlert className="h-5 w-5 text-destructive" />
+              )}
+              <CardTitle className={`flex-1 text-base ${allResolved ? "text-success" : "text-destructive"}`}>
+                {allResolved
+                  ? "All auto clock-outs resolved"
+                  : `Auto clock-outs need review (${autoClockoutReviews.length})`}
+              </CardTitle>
+              {allResolved && (
+                <button type="button" aria-label="Dismiss alert"
+                  onClick={() => saveSeen({})}
+                  className="rounded-full p-1.5 text-success hover:bg-success/15">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-1.5 text-sm">
+              {rows.map((r) => (
+                <div key={r.id}
+                  className={`flex items-center gap-2 rounded-md px-2 py-1.5 ${r.resolved ? "bg-success/10" : "bg-background/60"}`}>
+                  <button type="button" onClick={() => focusEntry(r.id, r.workerId, r.clockIn)}
+                    className="min-w-0 flex-1 text-left">
+                    <span className="text-base font-bold">{r.name}</span>
+                    <span className="text-muted-foreground"> · {fmtDate(r.clockIn)}</span>
+                    {r.resolved ? (
+                      <span className="ml-1.5 inline-flex items-center gap-1 text-xs font-bold text-success">
+                        <CircleCheck className="h-3.5 w-3.5" /> Resolved
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground"> · {r.hrs} · <span className="font-semibold text-destructive underline underline-offset-2">Open</span></span>
+                    )}
+                  </button>
+                  {r.resolved ? (
+                    <button type="button" aria-label={`Dismiss ${r.name}`} onClick={() => dismissAuto(r.id)}
+                      className="rounded-full p-1.5 text-success hover:bg-success/15">
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button type="button" aria-label={`Keep ${r.name}'s time as is`} title="Keep time as is"
+                      onClick={() => keepAsIs(r.id)}
+                      className="rounded-full p-1.5 text-destructive hover:bg-destructive/15">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!allResolved && (
+                <p className="pt-1 text-xs text-destructive">
+                  Tap a name to jump to the shift. Tap × to keep the time as is.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {otherReviews.length > 0 && (
         <Card className="border-warning/40 bg-warning/5">
@@ -838,24 +965,27 @@ function EntriesTab({
                     {items.map((e: any) => (
                       <div
                         key={e.id}
+                        data-entry-id={e.id}
                         data-auto-clockout={e.auto_clocked_out ? "true" : undefined}
-                        className={
+                        className={`${
                           e.auto_clocked_out
                             ? "border-l-4 border-l-destructive bg-destructive/10 px-4 py-3 sm:px-5"
                             : "px-4 py-3 sm:px-5"
-                        }
+                        } transition-shadow ${highlightId === e.id ? "ring-2 ring-inset ring-primary" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             {/* Time strip */}
                             <p className="font-medium tabular-nums text-sm sm:text-base flex items-center gap-2">
                               <QuickTimeEdit iso={e.clock_in} label="Clock in"
+                                validate={(iso) => e.clock_out && new Date(e.clock_out) <= new Date(iso) ? timeOrderMsg(iso, e.clock_out) : null}
                                 onSave={(iso) => quickSave(e, "in", iso)}>
                                 {fmtTime(e.clock_in)}
                               </QuickTimeEdit>{" "}
                               –{" "}
                               {e.clock_out ? (
                                 <QuickTimeEdit iso={e.clock_out} label="Clock out"
+                                  validate={(iso) => new Date(iso) <= new Date(e.clock_in) ? timeOrderMsg(e.clock_in, iso) : null}
                                   onSave={(iso) => quickSave(e, "out", iso)}>
                                   {fmtTime(e.clock_out)}
                                 </QuickTimeEdit>
@@ -1289,11 +1419,7 @@ function EntryDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Clock in</Label>
-              <Input
-                type="time"
-                value={ciTime}
-                onChange={(e) => setCi(`${ciDate}T${e.target.value}`)}
-              />
+              <TimeSelect value={ciTime} onChange={(v) => v && setCi(`${ciDate}T${v}`)} />
               <div className="mt-1 flex flex-wrap gap-1">
                 {["07:00", "07:30", "08:00"].map((t) => (
                   <button key={t} type="button" className="rounded bg-secondary px-1.5 py-0.5 text-[11px]"
@@ -1306,11 +1432,8 @@ function EntryDialog({
                 Clock out{" "}
                 {allowOpenEnd && <span className="text-xs text-muted-foreground">(blank = active)</span>}
               </Label>
-              <Input
-                type="time"
-                value={coTime}
-                onChange={(e) => setCo(e.target.value ? `${coDate}T${e.target.value}` : "")}
-              />
+              <TimeSelect value={coTime} allowEmpty={allowOpenEnd}
+                onChange={(v) => setCo(v ? `${coDate}T${v}` : "")} />
               <div className="mt-1 flex flex-wrap gap-1">
                 {["15:30", "16:00", "17:00"].map((t) => (
                   <button key={t} type="button" className="rounded bg-secondary px-1.5 py-0.5 text-[11px]"

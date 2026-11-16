@@ -38,38 +38,107 @@ function nudge(hhmm: string, mins: number) {
   return `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
 }
 
+/** Hour / minute / AM-PM picker; value is "HH:MM" (24h) or "" when allowEmpty. */
+export function TimeSelect({
+  value,
+  onChange,
+  allowEmpty,
+}: {
+  value: string;
+  onChange: (hhmm: string) => void;
+  allowEmpty?: boolean;
+}) {
+  const empty = !value;
+  const [h24, m] = (value || "12:00").split(":").map(Number);
+  const pm = h24 >= 12;
+  const h12 = h24 % 12 || 12;
+  const set = (hr12: number, min: number, isPm: boolean) =>
+    onChange(`${pad((hr12 % 12) + (isPm ? 12 : 0))}:${pad(min)}`);
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+  if (!minutes.includes(m)) minutes.push(m);
+  minutes.sort((a, b) => a - b);
+  const cls =
+    "h-10 min-w-0 rounded-md border border-input bg-background px-1.5 text-base font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-ring";
+  return (
+    <div className="flex items-center gap-1">
+      <select aria-label="Hour" className={cls} value={empty ? "" : h12}
+        onChange={(e) => e.target.value === "" ? onChange("") : set(Number(e.target.value), empty ? 0 : m, empty ? true : pm)}>
+        {(allowEmpty || empty) && <option value="">--</option>}
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <select aria-label="Minute" className={cls} value={empty ? "" : m} disabled={empty}
+        onChange={(e) => set(h12, Number(e.target.value), pm)}>
+        {empty && <option value="">--</option>}
+        {minutes.map((x) => <option key={x} value={x}>{pad(x)}</option>)}
+      </select>
+      <button type="button" disabled={empty} onClick={() => set(h12, m, !pm)}
+        aria-label="Toggle AM/PM"
+        className="h-10 rounded-md border border-input bg-foreground px-2 text-sm font-bold text-background disabled:opacity-40">
+        {empty ? "--" : pm ? "PM" : "AM"}
+      </button>
+    </div>
+  );
+}
+
 /** Tap-the-time popover: change only the time, keep the date. */
 export function QuickTimeEdit({
   iso,
   label,
   children,
   onSave,
+  validate,
 }: {
   iso: string;
   label: string;
   children: React.ReactNode;
   onSave: (newIso: string) => Promise<void> | void;
+  /** Return an error message to block the save, or null. */
+  validate?: (newIso: string, hhmm: string) => string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [val, setVal] = useState(localHHMM(iso));
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [h24, m] = val.split(":").map(Number);
+  const pm = h24 >= 12;
+  const h12 = h24 % 12 || 12;
+  const setParts = (hr12: number, min: number, isPm: boolean) => {
+    const h = (hr12 % 12) + (isPm ? 12 : 0);
+    setVal(`${pad(h)}:${pad(min)}`);
+    setErr(null);
+  };
   const save = async (hhmm: string) => {
+    const next = combineLocal(localYMD(iso), hhmm);
+    const msg = validate?.(next, hhmm) ?? null;
+    if (msg) {
+      setErr(msg);
+      return;
+    }
     setBusy(true);
+    setErr(null);
     try {
-      await onSave(combineLocal(localYMD(iso), hhmm));
+      await onSave(next);
       setOpen(false);
-    } catch {
-      /* error already shown */
+    } catch (e: any) {
+      setErr(e?.message && e.message !== "invalid" ? e.message : "Couldn't save — check the time and try again.");
     } finally {
       setBusy(false);
     }
   };
+  const selCls =
+    "h-11 rounded-md border border-input bg-background px-2 text-lg font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-ring";
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+  if (!minutes.includes(m)) minutes.push(m);
+  minutes.sort((a, b) => a - b);
   return (
     <Popover
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (o) setVal(localHHMM(iso));
+        if (o) {
+          setVal(localHHMM(iso));
+          setErr(null);
+        }
       }}
     >
       <PopoverTrigger asChild>
@@ -81,21 +150,38 @@ export function QuickTimeEdit({
           {children}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 space-y-3" align="start">
+      <PopoverContent className="w-80 space-y-3" align="start">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setVal(nudge(val, -15))}>
-            −15
-          </Button>
-          <Input
-            type="time"
-            value={val}
-            onChange={(e) => setVal(e.target.value)}
-            className="text-center text-lg font-semibold tabular-nums"
-          />
-          <Button size="sm" variant="outline" onClick={() => setVal(nudge(val, 15))}>
-            +15
-          </Button>
+        <div className="flex items-center gap-1.5">
+          <select aria-label="Hour" className={selCls} value={h12}
+            onChange={(e) => setParts(Number(e.target.value), m, pm)}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+          </select>
+          <span className="text-lg font-semibold">:</span>
+          <select aria-label="Minute" className={selCls} value={m}
+            onChange={(e) => setParts(h12, Number(e.target.value), pm)}>
+            {minutes.map((x) => (
+              <option key={x} value={x}>{pad(x)}</option>
+            ))}
+          </select>
+          <div className="ml-1 inline-flex overflow-hidden rounded-md border border-input">
+            {(["AM", "PM"] as const).map((k) => {
+              const active = (k === "PM") === pm;
+              return (
+                <button key={k} type="button" aria-pressed={active}
+                  onClick={() => setParts(h12, m, k === "PM")}
+                  className={`h-11 px-3 text-sm font-bold ${active ? "bg-foreground text-background" : "bg-background text-muted-foreground"}`}>
+                  {k}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => { setVal(nudge(val, -15)); setErr(null); }}>−15 min</Button>
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => { setVal(nudge(val, 15)); setErr(null); }}>+15 min</Button>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {TIME_PRESETS.map((p) => (
@@ -104,8 +190,14 @@ export function QuickTimeEdit({
             </Button>
           ))}
         </div>
+        {err && (
+          <p role="alert" className="flex items-start gap-1.5 rounded-md bg-destructive/10 p-2 text-sm font-medium text-destructive">
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            {err}
+          </p>
+        )}
         <Button className="w-full" disabled={busy || !val} onClick={() => save(val)}>
-          Save {val ? presetLabel(val) : ""}
+          {busy ? "Saving…" : `Save ${presetLabel(val)}`}
         </Button>
       </PopoverContent>
     </Popover>

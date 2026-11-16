@@ -535,6 +535,31 @@ async function validateAssignedSites(ids?: string[]): Promise<string[]> {
   return out;
 }
 
+export const adminAcknowledgeAutoClockout = createServerFn({ method: "POST" })
+  .inputValidator((d) => adminBase.extend({ entryId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const refreshed = requireAdmin(data.token);
+    const { data: row, error: e1 } = await supabaseAdmin
+      .from("time_entries").select("clock_in, clock_out, flagged_review, auto_clocked_out").eq("id", data.entryId).single();
+    if (e1) throw e1;
+    const longShift = row.clock_out
+      ? new Date(row.clock_out).getTime() - new Date(row.clock_in).getTime() > FOURTEEN_HOURS_MS
+      : false;
+    const { error } = await supabaseAdmin.from("time_entries")
+      .update({ auto_clocked_out: false, flagged_review: longShift })
+      .eq("id", data.entryId);
+    if (error) throw error;
+    await logAudit({
+      actor: { kind: "admin" },
+      action: "entry_auto_clockout_acknowledged",
+      entityType: "time_entry",
+      entityId: data.entryId,
+      before: { auto_clocked_out: row.auto_clocked_out, flagged_review: row.flagged_review },
+      after: { auto_clocked_out: false, flagged_review: longShift },
+    });
+    return refreshed;
+  });
+
 export const adminEditEntry = createServerFn({ method: "POST" })
   .inputValidator((d) => adminBase.extend({
     entryId: z.string().uuid(),
