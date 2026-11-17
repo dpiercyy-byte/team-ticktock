@@ -2,14 +2,14 @@ import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { adminWeekSchedule, deleteAssignment, upsertAssignment } from "@/lib/schedule.functions";
+import { adminWeekSchedule, archiveSub, deleteAssignment, deleteSubAssignment, upsertAssignment, upsertSub } from "@/lib/schedule.functions";
 import { addDaysISO, startOfWeekISO } from "@/lib/payout-math";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -23,13 +23,17 @@ export function fmtArrival(t?: string | null) {
 const shortDate = (d: string) =>
   new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
-type Draft = { workerIds: string[]; dates: string[]; jobSiteId: string; arrival: string; note: string; existingId?: string };
+type Draft = { workerIds: string[]; subIds: string[]; existingIsSub?: boolean; dates: string[]; jobSiteId: string; arrival: string; note: string; existingId?: string };
 
 export function SchedulePanel({ token, updateToken }: { token: string; updateToken: (t: string) => void }) {
   const qc = useQueryClient();
   const weekFn = useServerFn(adminWeekSchedule);
   const upsertFn = useServerFn(upsertAssignment);
   const delFn = useServerFn(deleteAssignment);
+  const delSubFn = useServerFn(deleteSubAssignment);
+  const upsertSubFn = useServerFn(upsertSub);
+  const archiveSubFn = useServerFn(archiveSub);
+  const [subDraft, setSubDraft] = useState<{ id?: string; name: string; trade: string; phone: string } | null>(null);
   const [weekStart, setWeekStart] = useState(() => startOfWeekISO(new Date()));
   const [weekends, setWeekends] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -50,22 +54,59 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
   );
   const byCell = useMemo(() => {
     const m = new Map<string, any>();
-    for (const a of q.data?.assignments ?? []) m.set(`${a.worker_id}|${a.work_date}`, a);
+    for (const a of q.data?.assignments ?? []) m.set(`w:${a.worker_id}|${a.work_date}`, a);
+    for (const a of (q.data as any)?.subAssignments ?? []) m.set(`s:${a.sub_id}|${a.work_date}`, a);
     return m;
   }, [q.data]);
   const sites: any[] = q.data?.sites ?? [];
   const workers: any[] = q.data?.workers ?? [];
+  const subs: any[] = (q.data as any)?.subs ?? [];
+  const rows = [
+    ...workers.map((w) => ({ kind: "w" as const, id: w.id, name: w.name, sub: "" })),
+    ...subs.map((s) => ({ kind: "s" as const, id: s.id, name: s.name, sub: s.trade ?? "", raw: s })),
+  ];
   const today = new Date().toLocaleDateString("en-CA");
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["schedule"] });
 
-  const openCell = (workerId: string, date: string) => {
-    const a = byCell.get(`${workerId}|${date}`);
+  const openCell = (kind: "w" | "s", id: string, date: string) => {
+    const a = byCell.get(`${kind}:${id}|${date}`);
+    const who = kind === "w" ? { workerIds: [id], subIds: [] } : { workerIds: [], subIds: [id] };
     setDraft(
       a
-        ? { workerIds: [workerId], dates: [date], jobSiteId: a.job_site_id, arrival: a.arrival_time?.slice(0, 5) ?? "", note: a.note ?? "", existingId: a.id }
-        : { workerIds: [workerId], dates: [date], jobSiteId: lastSite, arrival: "07:00", note: "" },
+        ? { ...who, existingIsSub: kind === "s", dates: [date], jobSiteId: a.job_site_id, arrival: a.arrival_time?.slice(0, 5) ?? "", note: a.note ?? "", existingId: a.id }
+        : { ...who, dates: [date], jobSiteId: lastSite, arrival: "07:00", note: "" },
     );
+  };
+
+  const saveSub = async () => {
+    if (!subDraft?.name.trim()) return toast.error("Add a name");
+    setBusy(true);
+    try {
+      const r = await upsertSubFn({ data: { token, id: subDraft.id, name: subDraft.name, trade: subDraft.trade || null, phone: subDraft.phone || null } });
+      updateToken(r.token);
+      refresh();
+      setSubDraft(null);
+      toast.success("Sub trade saved");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const removeSub = async () => {
+    if (!subDraft?.id) return;
+    setBusy(true);
+    try {
+      const r = await archiveSubFn({ data: { token, id: subDraft.id } });
+      updateToken(r.token);
+      refresh();
+      setSubDraft(null);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const save = async () => {
@@ -73,7 +114,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
     setBusy(true);
     try {
       const r = await upsertFn({
-        data: { token, workerIds: draft.workerIds, dates: draft.dates, jobSiteId: draft.jobSiteId, arrivalTime: draft.arrival || null, note: draft.note || null },
+        data: { token, workerIds: draft.workerIds, subIds: draft.subIds, dates: draft.dates, jobSiteId: draft.jobSiteId, arrivalTime: draft.arrival || null, note: draft.note || null },
       });
       updateToken(r.token);
       setLastSite(draft.jobSiteId);
@@ -91,7 +132,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
     if (!draft?.existingId) return;
     setBusy(true);
     try {
-      const r = await delFn({ data: { token, id: draft.existingId } });
+      const r = await (draft.existingIsSub ? delSubFn : delFn)({ data: { token, id: draft.existingId } });
       updateToken(r.token);
       refresh();
       setDraft(null);
@@ -118,7 +159,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => setDraft({ workerIds: [], dates: [], jobSiteId: lastSite, arrival: "07:00", note: "" })}>
+        <Button size="sm" onClick={() => setDraft({ workerIds: [], subIds: [], dates: [], jobSiteId: lastSite, arrival: "07:00", note: "" })}>
           <Users className="mr-1 h-4 w-4" /> Assign crew
         </Button>
         <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
@@ -143,16 +184,25 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
             {q.isLoading ? (
               <tr><td colSpan={days.length + 1} className="p-4 text-muted-foreground">Loading…</td></tr>
             ) : (
-              workers.map((w) => (
-                <tr key={w.id} className="border-t border-border">
-                  <td className="sticky left-0 z-10 bg-card px-3 py-2 font-semibold whitespace-nowrap">{w.name}</td>
+              rows.map((w, i) => (
+                <tr key={w.kind + w.id} className={`border-t ${w.kind === "s" && rows[i - 1]?.kind === "w" ? "border-t-2 border-primary/40" : "border-border"}`}>
+                  <td className="sticky left-0 z-10 bg-card px-3 py-2 whitespace-nowrap">
+                    {w.kind === "w" ? (
+                      <span className="font-semibold">{w.name}</span>
+                    ) : (
+                      <button type="button" className="text-left" onClick={() => setSubDraft({ id: w.id, name: w.name, trade: w.raw.trade ?? "", phone: w.raw.phone ?? "" })}>
+                        <div className="font-semibold">{w.name}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-primary">{w.sub || "Sub trade"}</div>
+                      </button>
+                    )}
+                  </td>
                   {days.map((d) => {
-                    const a = byCell.get(`${w.id}|${d}`);
+                    const a = byCell.get(`${w.kind}:${w.id}|${d}`);
                     return (
                       <td key={d} className="p-1">
                         <button
                           type="button"
-                          onClick={() => openCell(w.id, d)}
+                          onClick={() => openCell(w.kind, w.id, d)}
                           className={`h-14 w-full min-w-[84px] rounded-lg px-1.5 text-left text-xs transition-colors ${
                             a ? "bg-primary/10 hover:bg-primary/20" : "border border-dashed border-border text-muted-foreground hover:bg-secondary"
                           }`}
@@ -175,13 +225,53 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
           </tbody>
         </table>
       </div>
+      <div className="flex justify-center">
+        <Button className="w-1/2" onClick={() => setSubDraft({ name: "", trade: "", phone: "" })}>
+          <Plus className="mr-1 h-4 w-4" /> Add sub trade
+        </Button>
+      </div>
+
+      <Dialog open={!!subDraft} onOpenChange={(o) => !o && setSubDraft(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{subDraft?.id ? "Edit sub trade" : "Add sub trade"}</DialogTitle>
+          </DialogHeader>
+          {subDraft && (
+            <div className="space-y-3">
+              <div>
+                <Label>Company / name</Label>
+                <Input value={subDraft.name} maxLength={80} placeholder="e.g. Ace Electric" onChange={(e) => setSubDraft({ ...subDraft, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>Trade</Label>
+                <Input value={subDraft.trade} maxLength={60} placeholder="e.g. Electrician" onChange={(e) => setSubDraft({ ...subDraft, trade: e.target.value })} />
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {["Electrician", "Plumber", "HVAC", "Drywall", "Painter"].map((t) => (
+                    <Button key={t} size="sm" variant={subDraft.trade === t ? "default" : "secondary"} onClick={() => setSubDraft({ ...subDraft, trade: t })}>{t}</Button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Phone (optional)</Label>
+                <Input type="tel" value={subDraft.phone} maxLength={30} onChange={(e) => setSubDraft({ ...subDraft, phone: e.target.value })} />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            {subDraft?.id && (
+              <Button variant="outline" className="text-destructive" disabled={busy} onClick={removeSub}>Remove</Button>
+            )}
+            <Button disabled={busy || !subDraft?.name.trim()} onClick={saveSub}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {draft?.workerIds.length === 1 && draft.dates.length === 1
-                ? `${workers.find((w) => w.id === draft.workerIds[0])?.name} · ${shortDate(draft.dates[0])}`
+              {draft && draft.workerIds.length + draft.subIds.length === 1 && draft.dates.length === 1
+                ? `${(workers.find((w) => w.id === draft.workerIds[0]) ?? subs.find((s) => s.id === draft.subIds[0]))?.name} · ${shortDate(draft.dates[0])}`
                 : "Assign crew"}
             </DialogTitle>
           </DialogHeader>
@@ -238,6 +328,24 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                       ))}
                     </div>
                   </div>
+                  {subs.length > 0 && (
+                    <div>
+                      <Label>Sub trades</Label>
+                      <div className="mt-1 grid grid-cols-2 gap-1.5">
+                        {subs.map((s) => (
+                          <label key={s.id} className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={draft.subIds.includes(s.id)}
+                              onCheckedChange={(c) =>
+                                setDraft({ ...draft, subIds: c ? [...draft.subIds, s.id] : draft.subIds.filter((x) => x !== s.id) })
+                              }
+                            />
+                            {s.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <div className="flex items-center justify-between">
                       <Label>Days</Label>
@@ -264,7 +372,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                 Remove
               </Button>
             )}
-            <Button disabled={busy || !draft?.jobSiteId || !draft?.workerIds.length || !draft?.dates.length} onClick={save}>
+            <Button disabled={busy || !draft?.jobSiteId || !(draft && draft.workerIds.length + draft.subIds.length) || !draft?.dates.length} onClick={save}>
               Save
             </Button>
           </DialogFooter>

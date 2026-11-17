@@ -1253,6 +1253,81 @@ export type Database = {
           },
         ]
       }
+      schedule_sub_assignments: {
+        Row: {
+          arrival_time: string | null
+          created_at: string
+          id: string
+          job_site_id: string
+          note: string | null
+          sub_id: string
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          arrival_time?: string | null
+          created_at?: string
+          id?: string
+          job_site_id: string
+          note?: string | null
+          sub_id: string
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          arrival_time?: string | null
+          created_at?: string
+          id?: string
+          job_site_id?: string
+          note?: string | null
+          sub_id?: string
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_sub_assignments_job_site_id_fkey"
+            columns: ["job_site_id"]
+            isOneToOne: false
+            referencedRelation: "job_sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_sub_assignments_sub_id_fkey"
+            columns: ["sub_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_subs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_subs: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+          trade: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+          trade?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          trade?: string | null
+        }
+        Relationships: []
+      }
       sheet_job_sources: {
         Row: {
           address: string | null
