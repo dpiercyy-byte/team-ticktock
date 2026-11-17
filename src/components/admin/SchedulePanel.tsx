@@ -33,6 +33,8 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
   const delSubFn = useServerFn(deleteSubAssignment);
   const upsertSubFn = useServerFn(upsertSub);
   const archiveSubFn = useServerFn(archiveSub);
+  const [extraTrades, setExtraTrades] = useState<string[]>([]);
+  const [newTrade, setNewTrade] = useState<string | null>(null);
   const [subDraft, setSubDraft] = useState<{ id?: string; name: string; trade: string; phone: string } | null>(null);
   const [weekStart, setWeekStart] = useState(() => startOfWeekISO(new Date()));
   const [weekends, setWeekends] = useState(false);
@@ -61,6 +63,23 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
   const sites: any[] = q.data?.sites ?? [];
   const workers: any[] = q.data?.workers ?? [];
   const subs: any[] = (q.data as any)?.subs ?? [];
+  const titleCase = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase().replace(/(^|[\s-])\S/g, (c) => c.toUpperCase());
+  const tradeOptions = (() => {
+    const seen = new Map<string, string>();
+    for (const t of ["Electrician", "Plumber", "HVAC", "Drywall", "Painter", ...subs.map((s) => s.trade ?? ""), ...extraTrades]) {
+      const v = t.trim();
+      if (v && !seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v === "HVAC" ? v : titleCase(v));
+    }
+    return [...seen.values()];
+  })();
+  const addTrade = () => {
+    const v = titleCase(newTrade ?? "");
+    if (!v || !subDraft) return setNewTrade(null);
+    const existing = tradeOptions.find((t) => t.toLowerCase() === v.toLowerCase());
+    if (!existing) setExtraTrades((x) => [...x, v]);
+    setSubDraft({ ...subDraft, trade: existing ?? v });
+    setNewTrade(null);
+  };
   const rows = [
     ...workers.map((w) => ({ kind: "w" as const, id: w.id, name: w.name, sub: "" })),
     ...subs.map((s) => ({ kind: "s" as const, id: s.id, name: s.name, sub: s.trade ?? "", raw: s })),
@@ -246,9 +265,21 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                 <Label>Trade</Label>
                 <Input value={subDraft.trade} maxLength={60} placeholder="e.g. Electrician" onChange={(e) => setSubDraft({ ...subDraft, trade: e.target.value })} />
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {["Electrician", "Plumber", "HVAC", "Drywall", "Painter"].map((t) => (
-                    <Button key={t} size="sm" variant={subDraft.trade === t ? "default" : "secondary"} onClick={() => setSubDraft({ ...subDraft, trade: t })}>{t}</Button>
+                  {tradeOptions.map((t) => (
+                    <Button key={t} size="sm" variant={subDraft.trade.toLowerCase() === t.toLowerCase() ? "default" : "secondary"} onClick={() => setSubDraft({ ...subDraft, trade: t })}>{t}</Button>
                   ))}
+                  {newTrade === null ? (
+                    <Button size="sm" variant="outline" aria-label="Add trade category" onClick={() => setNewTrade("")}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <div className="flex w-full items-center gap-1.5">
+                      <Input autoFocus value={newTrade} maxLength={60} placeholder="e.g. Roofer" className="h-9"
+                        onChange={(e) => setNewTrade(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTrade(); } if (e.key === "Escape") setNewTrade(null); }} />
+                      <Button size="sm" onClick={addTrade}>Add</Button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div>
