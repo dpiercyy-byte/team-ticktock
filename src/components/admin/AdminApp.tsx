@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { SwipeableTabs, SwipeTabPanel } from "@/components/ui/swipeable-tabs";
+import { SwipeTabPanel } from "@/components/ui/swipeable-tabs";
 import { AdminBottomNav } from "@/components/admin/AdminBottomNav";
 import { WorkerLifetimeDetail } from "@/components/admin/WorkerLifetimeDetail";
 
@@ -378,8 +378,7 @@ function AdminDashboard({
   return (
     <div className="min-h-dvh bg-background pb-[calc(env(safe-area-inset-bottom)+7.5rem)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4">
-        <SwipeableTabs tabs={[...ADMIN_TABS]} value={activeTab} onValueChange={setActiveTab}>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
 
 
 
@@ -417,7 +416,6 @@ function AdminDashboard({
               </TabsContent>
             </SwipeTabPanel>
           </Tabs>
-        </SwipeableTabs>
       </div>
       <AdminBottomNav value={activeTab} onValueChange={setActiveTab} onLogout={onLogout} />
     </div>
