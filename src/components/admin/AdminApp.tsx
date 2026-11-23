@@ -189,7 +189,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compress";
 
-const INACTIVITY_MS = 30 * 60 * 1000;
 
 
 export function AdminApp() {
@@ -230,27 +229,6 @@ export function AdminApp() {
     return () => window.removeEventListener("unhandledrejection", onRej);
   }, []);
 
-  // Inactivity logout
-  useEffect(() => {
-    if (!token) return;
-    let last = Date.now();
-    const reset = () => {
-      last = Date.now();
-    };
-    const events = ["mousemove", "keydown", "click", "touchstart"];
-    events.forEach((e) => window.addEventListener(e, reset));
-    const t = setInterval(() => {
-      if (Date.now() - last > INACTIVITY_MS) {
-        clearAdminToken();
-        setTokenState(null);
-        toast.info("Logged out due to inactivity");
-      }
-    }, 30_000);
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, reset));
-      clearInterval(t);
-    };
-  }, [token]);
 
   const updateToken = (newToken: string) => {
     setAdminToken(newToken);

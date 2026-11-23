@@ -15,19 +15,19 @@ export function clearWorkerSession() {
   localStorage.removeItem(WORKER_KEY);
 }
 
-// Admin: stored in sessionStorage; token includes 30-min expiry server-side.
+// Admin: stored in localStorage so it survives closing the app; token expires after 1 year server-side.
 export function getAdminToken(): string | null {
   if (typeof window === "undefined") return null;
-  const v = sessionStorage.getItem(ADMIN_KEY);
+  const v = localStorage.getItem(ADMIN_KEY);
   if (!v || v === "undefined" || v === "null") return null;
   return v;
 }
 export function setAdminToken(t: string) {
   if (typeof window === "undefined") return;
-  if (!t || typeof t !== "string") { sessionStorage.removeItem(ADMIN_KEY); return; }
-  sessionStorage.setItem(ADMIN_KEY, t);
+  if (!t || typeof t !== "string") { localStorage.removeItem(ADMIN_KEY); return; }
+  localStorage.setItem(ADMIN_KEY, t);
 }
 export function clearAdminToken() {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem(ADMIN_KEY);
+  localStorage.removeItem(ADMIN_KEY);
 }

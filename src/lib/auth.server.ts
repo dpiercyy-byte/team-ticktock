@@ -35,7 +35,7 @@ export function verifyToken<T = Record<string, unknown>>(token: string): T & { e
 }
 
 export const WORKER_TTL = 60 * 60 * 24 * 365; // 1 year
-export const ADMIN_TTL = 60 * 30; // 30 min sliding
+export const ADMIN_TTL = 60 * 60 * 24 * 365; // 1 year sliding; admin logs out manually
 
 export function requireWorker(token: string): string {
   const p = verifyToken<{ kind: string; wid: string }>(token);
