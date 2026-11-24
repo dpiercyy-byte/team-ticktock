@@ -78,7 +78,7 @@ export async function loadWorkspace(projectId: string) {
     entries = (eRows ?? []) as unknown as RawTimeEntry[];
 
     // Segment-level tags: only the hours actually spent on this project's sites.
-    if (entries.length > 0) {
+    if (false && entries.length > 0) { // split paused
       const { data: segRows } = await (supabaseAdmin.from("time_entry_segments") as any)
         .select("id, entry_id, started_at, ended_at, job_site_id, geo_status, source")
         .in("entry_id", entries.map((e) => e.id));

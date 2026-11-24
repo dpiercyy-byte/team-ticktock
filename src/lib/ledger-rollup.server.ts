@@ -92,7 +92,7 @@ export async function loadJobRollups(
       }
     }
 
-    if (entries.length > 0) {
+    if (false && entries.length > 0) { // split paused
       const { data: segRows } = await (supabaseAdmin.from("time_entry_segments") as any)
         .select("id, entry_id, started_at, ended_at, job_site_id, geo_status, source")
         .in(

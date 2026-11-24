@@ -1031,7 +1031,7 @@ function EntriesTab({
                               </div>
                             </div>
 
-                            {e.segments && e.segments.length > 1 && (
+                            {false && e.segments && e.segments.length > 1 && (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {e.segments.map((sg: any) => (
                                   <span key={sg.id}
@@ -1067,7 +1067,7 @@ function EntriesTab({
                                     <PowerOff className="mr-2 h-4 w-4 text-warning" /> Force clock out
                                   </DropdownMenuItem>
                                 )}
-                                {e.clock_out && (
+                                {false && e.clock_out && (
                                   <DropdownMenuItem onClick={() => setAllocating(e)}>
                                     <Split className="mr-2 h-4 w-4" /> Split hours across sites
                                   </DropdownMenuItem>

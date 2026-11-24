@@ -222,7 +222,8 @@ export const clockOut = createServerFn({ method: "POST" })
     await closeOpenSegments(active.id, outISO);
     const segs = await listSegments(active.id);
     let autoSplit = false;
-    if (segs.length <= 1) {
+    // Auto 50/50 split paused.
+    if (false && segs.length <= 1) {
       const split = fiftyFiftySplit({
         clockIn: active.clock_in,
         clockOut: outISO,

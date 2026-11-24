@@ -44,6 +44,9 @@ import { fmtHours, fmtMoney, diffHours } from "@/lib/format";
 
 import { isAcceptableUpload, prepareUpload, withRetry } from "@/lib/image-compress";
 
+// Multi-site shift splitting is paused until a better approach is designed.
+const SPLIT_ENABLED = false;
+
 
 type GeoCoords = { lat: number; lng: number } | null;
 
@@ -357,7 +360,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
         } else {
           const segs = (r as any).segments as ShiftSegment[] | undefined;
           const distinct = new Set((segs ?? []).map((s) => s.jobSiteId ?? "none"));
-          if (r.entryId && segs && distinct.size > 1) {
+          if (SPLIT_ENABLED && r.entryId && segs && distinct.size > 1) {
             setSplitPrompt({ entryId: r.entryId, segments: segs });
           }
         }
@@ -424,7 +427,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   const switchSitesQ = useQuery({
     queryKey: ["worker-client-sites", session.id],
     queryFn: () => switchSitesFn({ data: { token: session.token } }),
-    enabled: Boolean(active),
+    enabled: SPLIT_ENABLED && Boolean(active),
     staleTime: 5 * 60_000,
   });
   const switchSites = (switchSitesQ.data?.sites ?? []) as Array<{
@@ -473,7 +476,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
   // Passive tracking: while clocked in, sample coarse GPS every ~12 minutes and
   // switch sites silently once the same new geofence is seen twice in a row.
   useEffect(() => {
-    if (!active || active.__pending || switchSites.length === 0) return;
+    if (!SPLIT_ENABLED || !active || active.__pending || switchSites.length === 0) return;
     let cancelled = false;
     const check = async () => {
       if (switchMut.isPending) return;
@@ -611,7 +614,7 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               )}
             </div>
 
-            {active && !active.__pending && (
+            {SPLIT_ENABLED && active && !active.__pending && (
               <div className="w-full max-w-xs flex flex-col items-center gap-2">
                 <Button variant="outline" size="sm" className="rounded-full"
                         onClick={() => setSwitchOpen(true)}>
