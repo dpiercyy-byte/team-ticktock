@@ -20,12 +20,12 @@ type Item = { value: string; label: string; icon: typeof Clock };
 const MAIN: Item[] = [
   { value: "entries", label: "Entries", icon: Clock },
   { value: "payouts", label: "Payout", icon: DollarSign },
-  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "receipts", label: "Receipts", icon: Receipt },
+  { value: "schedule", label: "Schedule", icon: CalendarDays },
 ];
 
 const MORE: Item[] = [
-  { value: "schedule", label: "Schedule", icon: CalendarDays },
+  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "workers", label: "Workers", icon: Users },
   { value: "audit", label: "Audit Log", icon: ShieldCheck },
   { value: "settings", label: "Settings", icon: SettingsIcon },
@@ -44,8 +44,8 @@ export function AdminBottomNav({
   const moreActive = MORE.some((m) => m.value === value);
 
   const itemClass = (active: boolean) =>
-    "flex min-w-[54px] flex-col items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors " +
-    (active ? "c-nav-item--active" : "text-muted-foreground");
+    "c-nav-tab flex min-w-[58px] flex-col items-center gap-1 rounded-2xl border border-border/50 px-2 py-1 text-[10px] font-semibold " +
+    (active ? "c-nav-item--active c-nav-tab--active" : "text-muted-foreground");
 
   return (
     <nav aria-label="Admin" className="c-nav fixed inset-x-0 bottom-0 z-40 px-2 pt-1.5 backdrop-blur-xl">

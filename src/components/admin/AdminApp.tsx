@@ -330,9 +330,9 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
 const ADMIN_TABS = [
   "entries",
   "payouts",
-  "sites",
   "receipts",
   "schedule",
+  "sites",
   "workers",
   "audit",
   "settings",
