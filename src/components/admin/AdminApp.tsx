@@ -5727,7 +5727,7 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
 
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="inline-flex rounded-md border bg-card p-0.5 text-xs w-fit">
-          {(["client", "completed", "supplier", "archived"] as const).map((v) => (
+          {(["client", "completed", "supplier"] as const).map((v) => (
             <button
               key={v}
               type="button"
@@ -5846,84 +5846,34 @@ function JobSitesTab({ token, updateToken }: { token: string; updateToken: (t: s
                           {isCompleted ? "Reopen" : "Complete"}
                         </Button>
                       )}
-                      {isArchived ? (
-                        <>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
                           <Button
                             variant="ghost"
-                            size="sm"
-                            onClick={() => arch.mutate({ id: s.id, archived: false })}
+                            size="icon"
+                            aria-label={isSupplier ? "Delete supplier" : "Delete job"}
                           >
-                            <ArchiveRestore className="h-4 w-4 mr-1" />
-                            Restore
+                            <X className="h-4 w-4 text-destructive" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label="Delete permanently">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Delete this location permanently?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This cannot be undone. Time entries linked to it lose the site
-                                  label.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => del.mutate(s.id)}>
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      ) : (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={isSupplier ? "Remove supplier" : "Archive job"}
-                            >
-                              {isSupplier ? (
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              ) : (
-                                <Archive className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                {isSupplier
-                                  ? "Remove this supplier location?"
-                                  : "Archive this job?"}
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                {isSupplier
-                                  ? "It will no longer be recognized on clock-ins. Existing entries keep their tag."
-                                  : "Archived jobs are hidden from geo-verification but can be restored anytime. Existing entries stay tagged."}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() =>
-                                  isSupplier
-                                    ? del.mutate(s.id)
-                                    : arch.mutate({ id: s.id, archived: true })
-                                }
-                              >
-                                {isSupplier ? "Remove" : "Archive"}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {isSupplier ? "Delete this supplier?" : "Delete this job?"}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This cannot be undone. It will no longer be recognized on clock-ins,
+                              and time entries linked to it lose the site label.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => del.mutate(s.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </li>
                 );
