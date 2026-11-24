@@ -2321,10 +2321,10 @@ function PayoutsTab({
   };
 
   return (
-    <Tabs defaultValue="weekly" className="space-y-4">
+    <Tabs defaultValue="pending" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="weekly">Weekly</TabsTrigger>
         <TabsTrigger value="pending">Pending</TabsTrigger>
+        <TabsTrigger value="weekly">Weekly</TabsTrigger>
         <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
       </TabsList>
       <TabsContent value="pending" className="mt-0">
