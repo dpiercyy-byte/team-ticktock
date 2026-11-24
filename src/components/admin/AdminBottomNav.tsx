@@ -19,8 +19,8 @@ type Item = { value: string; label: string; icon: typeof Clock };
 
 const MAIN: Item[] = [
   { value: "entries", label: "Entries", icon: Clock },
-  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "payouts", label: "Payout", icon: DollarSign },
+  { value: "sites", label: "Job Sites", icon: MapPin },
   { value: "receipts", label: "Receipts", icon: Receipt },
 ];
 

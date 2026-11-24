@@ -329,8 +329,8 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
 
 const ADMIN_TABS = [
   "entries",
-  "sites",
   "payouts",
+  "sites",
   "receipts",
   "schedule",
   "workers",
@@ -4445,7 +4445,34 @@ function PendingPayoutsView({
         </Card>
       ) : (
         <div className="space-y-2">
-          {items.map((row: any) => {
+          {(() => {
+            const groups = new Map<string, any[]>();
+            for (const r of items as any[]) {
+              const g = groups.get(r.weekStart) ?? [];
+              g.push(r);
+              groups.set(r.weekStart, g);
+            }
+            const keys = [...groups.keys()].sort((a, b) => (a < b ? 1 : -1));
+            const todayIso = new Date().toISOString().slice(0, 10);
+            const msWeek = 7 * 86400000;
+            return keys.map((wk, gi) => {
+              const rows = groups.get(wk) ?? [];
+              const first = rows[0];
+              const range = `${fmtDate(first.weekStart)} – ${fmtDate(first.weekEnd)}`;
+              const isThis = first.weekStart <= todayIso && todayIso <= first.weekEnd;
+              const sinceEnd = Date.parse(todayIso) - Date.parse(first.weekEnd);
+              const prefix = isThis ? "This week · " : sinceEnd > 0 && sinceEnd <= msWeek ? "Last week · " : "";
+              const groupTotal = rows.reduce((t: number, r: any) => t + (r.total ?? 0), 0);
+              return (
+                <div key={wk} className={gi > 0 ? "pt-3 mt-3 border-t border-border/50 space-y-2" : "space-y-2"}>
+                  <div className="flex items-baseline justify-between px-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {prefix}
+                      {range}
+                    </p>
+                    <p className="text-xs tabular-nums text-muted-foreground">{fmtMoney(groupTotal)}</p>
+                  </div>
+          {rows.map((row: any) => {
             const s = statusStyles[row.status];
             const weekLabel = `${fmtDate(row.weekStart)} – ${fmtDate(row.weekEnd)}`;
             const tip = row.tipAmount;
@@ -4531,6 +4558,10 @@ function PendingPayoutsView({
               </Card>
             );
           })}
+                </div>
+              );
+            });
+          })()}
         </div>
       )}
 
