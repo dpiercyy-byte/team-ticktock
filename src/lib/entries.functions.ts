@@ -5,6 +5,7 @@ import { requireWorker, requireAdmin } from "./auth.server";
 import { resolveSite, type GeoStatus } from "./geo.server";
 import { logAudit } from "./audit.server";
 import { fiftyFiftySplit, allocationToSegments, type SegmentDraft } from "./segment-math";
+const AUTO_SPLIT_ENABLED: boolean = false; // paused
 
 /* ---------------- Shift segments ----------------
    A shift is a container of segments. Each segment carries its own site tag so
@@ -223,7 +224,7 @@ export const clockOut = createServerFn({ method: "POST" })
     const segs = await listSegments(active.id);
     let autoSplit = false;
     // Auto 50/50 split paused.
-    if (false && segs.length <= 1) {
+    if (AUTO_SPLIT_ENABLED && segs.length <= 1) {
       const split = fiftyFiftySplit({
         clockIn: active.clock_in,
         clockOut: outISO,
