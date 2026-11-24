@@ -1,4 +1,3 @@
-import { WorkerScheduleCard } from "@/components/worker/WorkerScheduleCard";
 import { useEffect, useRef, useState } from "react";
 import { ShiftSplitConfirmDialog, type ShiftSplitPrompt, type ShiftSegment } from "@/components/worker/ShiftSplitConfirmDialog";
 import { useServerFn } from "@tanstack/react-start";
@@ -638,7 +637,6 @@ function ClockInScreen({ session, onLogout }: { session: WorkerSession; onLogout
               </div>
             )}
 
-            <WorkerScheduleCard token={session.token} />
             <ReimbursementsSection token={session.token} workerId={session.id} />
             <PreviousWeekPill token={session.token} workerId={session.id} />
 
