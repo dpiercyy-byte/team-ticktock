@@ -748,6 +748,7 @@
 }
 .c-nav-tab--active {
   border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  background-color: color-mix(in oklab, var(--primary) 8%, transparent);
   transform: scale(1.06);
   animation: c-nav-inflate 360ms cubic-bezier(.34,1.56,.64,1);
 }
@@ -758,4 +759,31 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .c-nav-tab, .c-nav-tab--active { animation: none; transition: none; }
+}
+
+.c-subtab {
+  transition: transform 220ms cubic-bezier(.34,1.56,.64,1), border-color 180ms, background-color 180ms, box-shadow 180ms, color 180ms;
+}
+@media (hover: hover) {
+  .c-subtab:hover {
+    border-color: color-mix(in oklab, var(--primary) 40%, transparent);
+    background-color: color-mix(in oklab, var(--primary) 6%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 8%, transparent);
+  }
+}
+.c-subtab[data-state="active"] {
+  border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  background-color: color-mix(in oklab, var(--primary) 8%, transparent);
+  color: var(--primary);
+  box-shadow: none;
+  transform: scale(1.04);
+  animation: c-subtab-inflate 360ms cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes c-subtab-inflate {
+  0% { transform: scale(1); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-subtab, .c-subtab[data-state="active"] { animation: none; transition: none; }
 }
