@@ -223,7 +223,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                           type="button"
                           onClick={() => openCell(w.kind, w.id, d)}
                           className={`h-14 w-full min-w-[84px] rounded-xl px-1.5 text-left text-xs transition-colors ${
-                            a ? "border-l-[3px] border-primary bg-primary/10 hover:bg-primary/20" : "border border-dashed border-border text-muted-foreground hover:bg-primary/5"
+                            a ? "bg-primary/10 hover:bg-primary/20" : "border border-dashed border-border text-muted-foreground hover:bg-primary/5"
                           }`}
                         >
                           {a ? (
