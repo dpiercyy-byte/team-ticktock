@@ -166,19 +166,19 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
+      <div className="c-subnav flex items-center gap-2 p-1.5">
+        <Button variant="outline" size="icon" className="c-subtab rounded-xl" onClick={() => setWeekStart(addDaysISO(weekStart, -7))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 text-center text-sm font-semibold">
           {shortDate(addDaysISO(weekStart, weekends ? 0 : 1))} – {shortDate(addDaysISO(weekStart, weekends ? 6 : 5))}
         </div>
-        <Button variant="outline" size="icon" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
+        <Button variant="outline" size="icon" className="c-subtab rounded-xl" onClick={() => setWeekStart(addDaysISO(weekStart, 7))}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => setDraft({ workerIds: [], subIds: [], dates: [], jobSiteId: lastSite, arrival: "07:00", note: "" })}>
+        <Button size="sm" variant="ghost" className="cw-day-head rounded-2xl border border-border/80 text-foreground hover:opacity-90" onClick={() => setDraft({ workerIds: [], subIds: [], dates: [], jobSiteId: lastSite, arrival: "07:00", note: "" })}>
           <Users className="mr-1 h-4 w-4" /> Assign crew
         </Button>
         <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
@@ -186,13 +186,13 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
         </label>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="cw-day-card overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-secondary">
-              <th className="sticky left-0 z-10 bg-secondary px-3 py-2 text-left font-semibold">Worker</th>
+            <tr className="cw-day-head">
+              <th className="sticky left-0 z-10 cw-day-head px-3 py-2 text-left font-semibold">Worker</th>
               {days.map((d) => (
-                <th key={d} className={`px-2 py-2 text-center font-semibold ${d === today ? "text-primary" : ""}`}>
+                <th key={d} className={`px-2 py-2 text-center font-semibold ${d === today ? "bg-primary/15 text-primary" : ""}`}>
                   <div>{DAY_NAMES[new Date(d + "T12:00:00").getDay()]}</div>
                   <div className="text-[10px] font-normal text-muted-foreground">{shortDate(d)}</div>
                 </th>
@@ -222,8 +222,8 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                         <button
                           type="button"
                           onClick={() => openCell(w.kind, w.id, d)}
-                          className={`h-14 w-full min-w-[84px] rounded-lg px-1.5 text-left text-xs transition-colors ${
-                            a ? "bg-primary/10 hover:bg-primary/20" : "border border-dashed border-border text-muted-foreground hover:bg-secondary"
+                          className={`h-14 w-full min-w-[84px] rounded-xl px-1.5 text-left text-xs transition-colors ${
+                            a ? "border-l-[3px] border-primary bg-primary/10 hover:bg-primary/20" : "border border-dashed border-border text-muted-foreground hover:bg-primary/5"
                           }`}
                         >
                           {a ? (
@@ -245,7 +245,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
         </table>
       </div>
       <div className="flex justify-center">
-        <Button className="w-1/2" onClick={() => setSubDraft({ name: "", trade: "", phone: "" })}>
+        <Button variant="ghost" className="cw-day-head rounded-2xl border border-border/80 text-foreground hover:opacity-90 w-1/2" onClick={() => setSubDraft({ name: "", trade: "", phone: "" })}>
           <Plus className="mr-1 h-4 w-4" /> Add sub trade
         </Button>
       </div>
@@ -266,7 +266,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                 <Input value={subDraft.trade} maxLength={60} placeholder="e.g. Electrician" onChange={(e) => setSubDraft({ ...subDraft, trade: e.target.value })} />
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {tradeOptions.map((t) => (
-                    <Button key={t} size="sm" variant={subDraft.trade.toLowerCase() === t.toLowerCase() ? "default" : "secondary"} onClick={() => setSubDraft({ ...subDraft, trade: t })}>{t}</Button>
+                    <Button key={t} size="sm" variant="outline" className={subDraft.trade.toLowerCase() === t.toLowerCase() ? "border-primary bg-primary/10 text-primary hover:bg-primary/15" : ""} onClick={() => setSubDraft({ ...subDraft, trade: t })}>{t}</Button>
                   ))}
                   {newTrade === null ? (
                     <Button size="sm" variant="outline" aria-label="Add trade category" onClick={() => setNewTrade("")}>
@@ -331,7 +331,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                 <div className="mt-1 flex items-center gap-2">
                   <Input type="time" value={draft.arrival} onChange={(e) => setDraft({ ...draft, arrival: e.target.value })} className="w-32" />
                   {ARRIVAL_PRESETS.map((t) => (
-                    <Button key={t} size="sm" variant={draft.arrival === t ? "default" : "secondary"} onClick={() => setDraft({ ...draft, arrival: t })}>
+                    <Button key={t} size="sm" variant="outline" className={draft.arrival === t ? "border-primary bg-primary/10 text-primary hover:bg-primary/15" : ""} onClick={() => setDraft({ ...draft, arrival: t })}>
                       {fmtArrival(t)}
                     </Button>
                   ))}
@@ -385,7 +385,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
                       {days.map((d) => {
                         const on = draft.dates.includes(d);
                         return (
-                          <Button key={d} size="sm" variant={on ? "default" : "outline"}
+                          <Button key={d} size="sm" variant="outline" className={on ? "border-primary bg-primary/10 text-primary hover:bg-primary/15" : ""}
                             onClick={() => setDraft({ ...draft, dates: on ? draft.dates.filter((x) => x !== d) : [...draft.dates, d] })}>
                             {DAY_NAMES[new Date(d + "T12:00:00").getDay()]}
                           </Button>
