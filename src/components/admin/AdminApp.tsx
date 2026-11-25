@@ -2162,7 +2162,7 @@ function PayoutsTab({
       }),
   });
   const activeSitesForReimb = ((sitesQ.data ?? []) as any[]).filter(
-    (s) => !s.archived_at && (s.kind ?? "client") === "client",
+    (s) => !s.archived_at && !s.completed_at && (s.kind ?? "client") === "client",
   );
 
   const handleFile = async (file: File) => {
@@ -3576,7 +3576,7 @@ function EditParsedDialog({
   const [saving, setSaving] = useState(false);
 
   const clientSites = useMemo(
-    () => sites.filter((s) => (s.kind ?? "client") === "client" && !s.archived_at),
+    () => sites.filter((s) => (s.kind ?? "client") === "client" && !s.archived_at && !(s as any).completed_at),
     [sites],
   );
 
@@ -3723,7 +3723,7 @@ function EditParsedDialog({
                 <SelectItem value="none">— None —</SelectItem>
                 {(() => {
                   const active = sites.filter((s) => !s.archived_at);
-                  const clients = active.filter((s) => (s.kind ?? "client") === "client");
+                  const clients = active.filter((s) => (s.kind ?? "client") === "client" && (!(s as any).completed_at || s.id === jobSite));
                   const suppliers = active.filter((s) => s.kind === "supplier");
                   const archived = sites.filter((s) => s.archived_at);
                   return (
@@ -3873,7 +3873,7 @@ function AdminAddReceiptsDialog({
     enabled: open,
   });
   const clientJobs = ((sitesQ.data?.sites ?? []) as any[]).filter(
-    (s) => !s.archived_at && (s.kind ?? "client") === "client",
+    (s) => !s.archived_at && !s.completed_at && (s.kind ?? "client") === "client",
   );
 
   const resetAll = () => {

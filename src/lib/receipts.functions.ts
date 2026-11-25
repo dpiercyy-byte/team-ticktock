@@ -299,7 +299,7 @@ export async function runParseForReimbursement(reimbursementId: string): Promise
       return;
     }
     const { data: sites } = await supabaseAdmin.from("job_sites")
-      .select("id, label").is("archived_at", null).limit(200);
+      .select("id, label").is("archived_at", null).is("completed_at", null).limit(200);
     const parsed = await aiParseReceipt(r.receipt_url, r.receipt_mime || "image/jpeg", sites ?? []);
 
     const category = CATEGORIES.includes(parsed.category) ? parsed.category : null;

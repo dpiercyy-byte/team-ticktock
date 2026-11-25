@@ -318,6 +318,7 @@ export const workerListActiveSites = createServerFn({ method: "POST" })
       .from("job_sites")
       .select("id, label, kind")
       .is("archived_at", null)
+      .is("completed_at", null)
       .order("label", { ascending: true });
     if (error) throw error;
     return { sites: rows ?? [] };
