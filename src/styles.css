@@ -795,3 +795,24 @@
   box-shadow: 0 6px 24px -18px rgba(15, 23, 42, 0.45);
   overflow: visible;
 }
+
+/* Entries: soft per-day cards */
+.cw-day-card {
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 1rem;
+  background: var(--card);
+  overflow: hidden;
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+@media (hover: hover) {
+  .cw-day-card:hover {
+    border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+    box-shadow: 0 2px 10px -4px color-mix(in oklab, var(--primary) 30%, transparent);
+  }
+}
+.cw-day-head { background: color-mix(in oklab, var(--primary) 7%, var(--card)); }
+.cw-shift + .cw-shift { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.cw-shift--flag {
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+  box-shadow: inset 4px 0 0 var(--destructive);
+}

@@ -899,14 +899,13 @@ function EntriesTab({
         <Plus className="h-4 w-4 mr-2" /> Add entry
       </Button>
 
-      <Card>
-        <CardContent className="p-0">
+      <div>
           {!workerId || eq.isLoading ? (
-            <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+            <p className="cw-day-card p-6 text-sm text-muted-foreground">Loading…</p>
           ) : weekEntries.length === 0 ? (
-            <p className="p-10 text-center text-sm text-muted-foreground">No entries this week.</p>
+            <p className="cw-day-card p-10 text-center text-sm text-muted-foreground">No entries this week.</p>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="space-y-2">
               {Object.entries(byDate).map(([date, items]) => {
                 const dayHours = items.reduce(
                   (s, e) => s + (e.clock_out ? diffHours(e.clock_in, e.clock_out) : 0),
@@ -917,13 +916,14 @@ function EntriesTab({
                     key={date}
                     className={
                       statusStyles
-                        ? `border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
-                        : "border-l-[3px] border-l-transparent"
+                        ? `cw-day-card border-l-[3px] ${statusStyles.border} ${statusStyles.tint}`
+                        : "cw-day-card"
                     }
                   >
-                    <div className="px-4 sm:px-5 py-2 bg-secondary text-sm flex items-center justify-between">
+                    <div className="cw-day-head px-4 sm:px-5 py-2 text-sm flex items-center justify-between">
                       <span className="font-medium">{fmtDate(items[0].clock_in)}</span>
                       <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground tabular-nums">{dayHours.toFixed(1)}h</span>
                         {(() => {
                           const worker = wq.data?.find((w: any) => w.id === workerId);
                           const rate = Number(worker?.hourly_rate ?? 0);
@@ -945,9 +945,9 @@ function EntriesTab({
                         data-auto-clockout={e.auto_clocked_out ? "true" : undefined}
                         className={`${
                           e.auto_clocked_out
-                            ? "border-l-4 border-l-destructive bg-destructive/10 px-4 py-3 sm:px-5"
-                            : "px-4 py-3 sm:px-5"
-                        } transition-shadow ${highlightId === e.id ? "ring-2 ring-inset ring-primary" : ""}`}
+                            ? "cw-shift cw-shift--flag px-4 py-3 sm:px-5"
+                            : "cw-shift px-4 py-3 sm:px-5"
+                        } transition-shadow ${highlightId === e.id ? "ring-2 ring-inset ring-primary rounded-xl" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -1153,8 +1153,8 @@ function EntriesTab({
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+
+      </div>
 
       <EntryDialog
         open={adding}
