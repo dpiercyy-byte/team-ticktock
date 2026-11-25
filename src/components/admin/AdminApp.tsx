@@ -6040,55 +6040,49 @@ function GeoTagEditor({
 
   const trigger =
     status === "verified" && siteLabel ? (
-      <Badge
-        variant="outline"
-        className="h-4 text-[10px] border-success text-success cursor-pointer hover:bg-success/10"
+      <span
+        className="inline-flex items-center h-4 border-l-2 pl-2 text-[11px] leading-4 cursor-pointer hover:opacity-80 border-success text-success"
       >
         <MapPin className="h-2.5 w-2.5 mr-0.5" />
         {prefix}
         {siteLabel}
-      </Badge>
+      </span>
     ) : status === "callback" && siteLabel ? (
-      <Badge
-        variant="outline"
-        className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10"
+      <span
+        className="inline-flex items-center h-4 border-l-2 pl-2 text-[11px] leading-4 cursor-pointer hover:opacity-80 border-warning text-warning"
       >
         <MapPin className="h-2.5 w-2.5 mr-0.5" />
         {prefix}Callback · {siteLabel}
-      </Badge>
+      </span>
     ) : status === "supplier" && siteLabel ? (
-      <Badge
-        variant="outline"
-        className="h-4 text-[10px] border-primary text-primary cursor-pointer hover:bg-primary/10"
+      <span
+        className="inline-flex items-center h-4 border-l-2 pl-2 text-[11px] leading-4 cursor-pointer hover:opacity-80 border-primary text-primary"
       >
         <Truck className="h-2.5 w-2.5 mr-0.5" />
         {prefix}
         {siteLabel}
-      </Badge>
+      </span>
     ) : status === "off_site" ? (
-      <Badge
-        variant="outline"
-        className="h-4 text-[10px] border-warning text-warning cursor-pointer hover:bg-warning/10"
+      <span
+        className="inline-flex items-center h-4 border-l-2 pl-2 text-[11px] leading-4 cursor-pointer hover:opacity-80 border-warning text-warning"
       >
         <MapPin className="h-2.5 w-2.5 mr-0.5" />
         {prefix}Off-site
-      </Badge>
+      </span>
     ) : status === "no_gps" ? (
-      <Badge
-        variant="outline"
-        className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary"
+      <span
+        className="inline-flex items-center h-4 border-l-2 pl-2 text-[11px] leading-4 cursor-pointer hover:opacity-80 border-muted-foreground/50 text-muted-foreground"
       >
         <MapPinOff className="h-2.5 w-2.5 mr-0.5" />
         {prefix}No GPS
-      </Badge>
+      </span>
     ) : (
-      <Badge
-        variant="outline"
-        className="h-4 text-[10px] text-muted-foreground cursor-pointer hover:bg-secondary"
+      <span
+        className="inline-flex items-center h-4 border-l-2 pl-2 text-[11px] leading-4 cursor-pointer hover:opacity-80 border-muted-foreground/50 text-muted-foreground"
       >
         <MapPinOff className="h-2.5 w-2.5 mr-0.5" />
         {prefix}Set tag
-      </Badge>
+      </span>
     );
 
   const pick = async (s: GeoStatus, jid: string | null) => {

@@ -810,7 +810,10 @@
     box-shadow: 0 2px 10px -4px color-mix(in oklab, var(--primary) 30%, transparent);
   }
 }
-.cw-day-head { background: color-mix(in oklab, var(--primary) 7%, var(--card)); }
+.cw-day-head {
+  background: color-mix(in oklab, var(--primary) 14%, var(--card));
+  border-bottom: 1px solid color-mix(in oklab, var(--primary) 25%, transparent);
+}
 .cw-shift + .cw-shift { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
 .cw-shift--flag {
   background: color-mix(in oklab, var(--destructive) 10%, transparent);
