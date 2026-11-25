@@ -2322,7 +2322,7 @@ function PayoutsTab({
 
   return (
     <Tabs defaultValue="pending" className="space-y-4">
-      <TabsList className="h-auto gap-2 bg-transparent p-1">
+      <TabsList className="c-subnav grid h-auto w-full grid-cols-3 gap-2 p-1.5">
         <TabsTrigger value="pending" className="c-subtab rounded-2xl border border-border/50 px-4 py-1.5">Pending</TabsTrigger>
         <TabsTrigger value="weekly" className="c-subtab rounded-2xl border border-border/50 px-4 py-1.5">Weekly</TabsTrigger>
         <TabsTrigger value="lifetime" className="c-subtab rounded-2xl border border-border/50 px-4 py-1.5">Lifetime</TabsTrigger>

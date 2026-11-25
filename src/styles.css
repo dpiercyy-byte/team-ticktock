@@ -787,3 +787,10 @@
 @media (prefers-reduced-motion: reduce) {
   .c-subtab, .c-subtab[data-state="active"] { animation: none; transition: none; }
 }
+
+.c-subnav {
+  background: color-mix(in oklab, var(--background) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 6px 24px -18px rgba(15, 23, 42, 0.45);
+}
