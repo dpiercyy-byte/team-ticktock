@@ -891,8 +891,8 @@ function EntriesTab({
       </div>
 
       <Button
-        variant="secondary"
-        className="w-full"
+        variant="ghost"
+        className="cw-day-head w-full rounded-2xl border border-border/80 text-foreground hover:opacity-90"
         onClick={() => openAdd()}
         disabled={!workerId}
       >
