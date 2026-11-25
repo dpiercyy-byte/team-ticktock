@@ -2322,10 +2322,10 @@ function PayoutsTab({
 
   return (
     <Tabs defaultValue="pending" className="space-y-4">
-      <TabsList className="c-subnav grid h-auto w-full grid-cols-3 gap-2 p-1.5">
-        <TabsTrigger value="pending" className="c-subtab rounded-2xl border border-border/50 px-4 py-1.5">Pending</TabsTrigger>
-        <TabsTrigger value="weekly" className="c-subtab rounded-2xl border border-border/50 px-4 py-1.5">Weekly</TabsTrigger>
-        <TabsTrigger value="lifetime" className="c-subtab rounded-2xl border border-border/50 px-4 py-1.5">Lifetime</TabsTrigger>
+      <TabsList className="c-subnav grid h-auto w-full grid-cols-3 gap-2.5 p-2">
+        <TabsTrigger value="pending" className="c-subtab rounded-xl border border-border/50 px-4 py-2">Pending</TabsTrigger>
+        <TabsTrigger value="weekly" className="c-subtab rounded-xl border border-border/50 px-4 py-2">Weekly</TabsTrigger>
+        <TabsTrigger value="lifetime" className="c-subtab rounded-xl border border-border/50 px-4 py-2">Lifetime</TabsTrigger>
       </TabsList>
       <TabsContent value="pending" className="mt-0">
         <PendingPayoutsView token={token} updateToken={updateToken} onEditWeek={onEditWeek} />
