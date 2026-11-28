@@ -186,8 +186,9 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
         </label>
       </div>
 
-      <div className="cw-day-card overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+      <div className="cw-day-card min-w-0 max-w-full">
+        <div className="overflow-x-auto overscroll-x-contain" data-swipe-ignore style={{ WebkitOverflowScrolling: "touch" }}>
+        <table className="w-full min-w-max border-collapse text-sm">
           <thead>
             <tr className="cw-day-head">
               <th className="sticky left-0 z-10 cw-day-head px-3 py-2 text-left font-semibold">Worker</th>
@@ -243,6 +244,7 @@ export function SchedulePanel({ token, updateToken }: { token: string; updateTok
             )}
           </tbody>
         </table>
+        </div>
       </div>
       <div className="flex justify-center">
         <Button variant="ghost" className="cw-day-head rounded-2xl border border-border/80 text-foreground hover:opacity-90 w-1/2" onClick={() => setSubDraft({ name: "", trade: "", phone: "" })}>
